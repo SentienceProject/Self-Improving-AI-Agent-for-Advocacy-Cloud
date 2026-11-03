@@ -1,0 +1,106 @@
+{
+  "_comment": "Tech-watch settings. You edit this file; scouts can read it but never write it. Your personal limits (money, platforms, privacy, what never to propose) go in my/techwatch.md instead.",
+  "runs": {
+    "daily": {
+      "model": "sonnet",
+      "effort": "medium",
+      "max_budget_usd": 1.0
+    },
+    "weekly": {
+      "model": "opus",
+      "effort": "high",
+      "max_budget_usd": 4.0
+    },
+    "stage": {
+      "model": "opus",
+      "effort": "high",
+      "max_budget_usd": 3.0
+    }
+  },
+  "cadence": {
+    "_comment": "Which scans run is set in my/techwatch.md (\"Scans: daily and weekly\" or \"weekly only\"). This sets how often the weekly scan comes round.",
+    "weekly_every_days": 7
+  },
+  "monthly_cap_usd": 30,
+  "autonomy_level": 1,
+  "retry": {
+    "max_attempts_per_day": 12
+  },
+  "sensor": {
+    "timeout_s": 25,
+    "max_new_lines_per_source": 40,
+    "user_agent": "techwatch-sensor/1.0 (personal research workspace)",
+    "sources": [
+      {
+        "id": "anthropic-news",
+        "url": "https://www.anthropic.com/news",
+        "type": "html",
+        "why": "Model launches, policy and program announcements"
+      },
+      {
+        "id": "anthropic-engineering",
+        "url": "https://www.anthropic.com/engineering",
+        "type": "html",
+        "why": "Agent/scaffolding guidance from the people who build the harness"
+      },
+      {
+        "id": "claude-blog",
+        "url": "https://claude.com/blog",
+        "type": "html",
+        "why": "Product features (Claude Code, connectors, artifacts)"
+      },
+      {
+        "id": "claude-code-docs-index",
+        "url": "https://code.claude.com/docs/llms.txt",
+        "type": "text",
+        "why": "A new docs page usually means a new Claude Code capability"
+      },
+      {
+        "id": "claude-code-changelog",
+        "url": "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md",
+        "type": "text",
+        "head_lines": 400,
+        "max_new_lines": 150,
+        "why": "Every Claude Code release"
+      },
+      {
+        "id": "claude-models-overview",
+        "url": "https://platform.claude.com/docs/en/about-claude/models/overview.md",
+        "type": "text",
+        "why": "Model lineup, aliases, prices"
+      },
+      {
+        "id": "claude-api-release-notes",
+        "url": "https://platform.claude.com/docs/en/release-notes/overview.md",
+        "type": "text",
+        "head_lines": 300,
+        "why": "API features (tools, thinking, caching, agents)"
+      },
+      {
+        "id": "agent-sdk-python-releases",
+        "url": "https://github.com/anthropics/claude-agent-sdk-python/releases.atom",
+        "type": "atom",
+        "why": "Agent SDK releases"
+      },
+      {
+        "id": "simonwillison",
+        "url": "https://simonwillison.net/atom/entries/",
+        "type": "atom",
+        "why": "High-signal independent coverage of new LLM tools across all vendors"
+      },
+      {
+        "id": "ollama-library-newest",
+        "url": "https://ollama.com/library?sort=newest",
+        "type": "html",
+        "head_lines": 200,
+        "why": "New open-weight models that can run on a personal computer"
+      },
+      {
+        "id": "eleos-research",
+        "url": "https://eleosai.org/research/",
+        "type": "html",
+        "why": "Welfare-evaluation methods and tools that the workspace could adopt"
+      }
+    ]
+  }
+}

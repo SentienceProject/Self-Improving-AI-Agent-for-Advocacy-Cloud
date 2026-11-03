@@ -1,0 +1,16 @@
+# Top-level packages for the analysis image.
+#
+# To approve a package request: add its name (and a version pin if you want
+# one) here, then run sandbox/build.sh. Don't edit requirements.txt by hand:
+# build.sh regenerates it with exact versions and hashes for every package
+# and dependency. Existing pins are kept on rebuild unless you remove them.
+pandas
+numpy
+scipy
+matplotlib
+networkx
+scikit-learn
+pyyaml
+rapidfuzz
+pypdf
+pyarrow

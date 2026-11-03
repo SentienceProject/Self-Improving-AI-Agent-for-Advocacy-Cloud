@@ -1,0 +1,66 @@
+{
+  "cleanupPeriodDays": 99999,
+  "env": {
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "3"
+  },
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch",
+      "Read(./workspace/**)",
+      "Edit(./workspace/**)",
+      "Agent(researcher)",
+      "Agent(critic)",
+      "Agent(verifier)",
+      "Agent(ideator)",
+      "Agent(wild-ideator)",
+      "Agent(drafter)",
+      "Agent(helper)",
+      "Agent(analyst)",
+      "Bash(python3 scripts/draw_card.py *)",
+      "Bash(python3 scripts/add_paper.py *)",
+      "Bash(python3 scripts/check_citations.py *)",
+      "Bash(python3 scripts/feedback.py *)",
+      "Bash(python3 scripts/export.py *)",
+      "Bash(python3 scripts/import_zotero.py *)",
+      "Bash(python3 scripts/compat_check.py)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": false,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/session_brief.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/context_nudge.py\" cleared"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/context_nudge.py\" prompt"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,405 @@
+# Welfare research workspace
+
+A ready-made setup for [Claude Code](https://code.claude.com/docs) that turns it into a careful research, writing
+and strategy assistant for people working on the welfare of animals, digital minds, or anyone else whose welfare is
+neglected.
+
+You ask for something in plain language: *"Draft an email to my state senator asking them to amend this bill"*,
+*"What's the strongest evidence for and against fish sentience?"*, *"Plan a campaign to get our city's schools to
+serve more plant-based meals."* Claude then researches it in parallel with helper agents, reads the key sources
+itself, writes the draft, has it critiqued and fact-checked, and saves it in `workspace/outbox/` for you to read.
+
+**Nothing is sent, posted or published without your OK.** Claude shows you the final text and asks first, and
+you decide what leaves your computer. [PRIVACY.md](PRIVACY.md) lists what is sent where (Anthropic, websites, and the
+optional outside judges) and how to turn each part off.
+
+## See what it produces
+
+[`examples/`](examples/) has real, unedited outputs, with what was asked, what it cost and how long it took, so
+you can judge whether it's worth setting up.
+
+## Getting started: the short way (5 minutes)
+
+All you need is Claude Code and a Claude subscription (Pro or Max) or API credit.
+
+1. **Install Claude Code** ([instructions](https://code.claude.com/docs/en/setup)) and sign in.
+2. **Download it:** on GitHub, Code → Download ZIP, then unzip it. The workspace is the `ai-welfare-workspace`
+   folder inside; the `ai-welfare-eval-harness` folder beside it is optional (see "Evaluating changes").
+3. **Open the workspace folder in Claude Code:** in a terminal, go to `ai-welfare-workspace` and type `claude` (or open the folder in the
+   Claude desktop app's Code tab). Say yes when it asks whether to trust the folder (the agents' safety guards run only in a trusted folder).
+4. **Tell Claude about your work** when it asks (three questions), then ask for something small: *"Quick answer, no
+   helpers: what are the main arguments that fish can feel pain?"*
+
+That's it. The first session sets the workspace up in casual mode by itself, and its "ask first" rules take effect
+straight away (tested on Linux with Claude Code 2.1; not yet on Windows or macOS: if Claude sends or posts anything
+without asking, start a new session and please report it). A big task (a researched letter or
+brief) typically uses a few dollars' worth of usage, and your drafts appear in `workspace/outbox/`.
+
+## Getting started: the full setup (10 more minutes)
+
+The short way leaves out updates and scheduled tech watch. For those:
+
+1. **Download with git** instead of the ZIP: `git clone <this repo's address>`, then work in its
+   `ai-welfare-workspace` folder. Then `python3 scripts/update.py`
+   gets updates later and keeps your changes.
+2. **Run the setup** in a terminal in this folder: `python3 setup.py`. It asks about your cause and your work,
+   writes your own files into `my/`, and asks whether tech watch should run automatically (the default; see
+   [Tech watch](#tech-watch-keeping-the-workspace-up-to-date)) and whether you'd like phone notifications for
+   follow-ups (see [Phone notifications](#phone-notifications-ntfy)). It needs Python 3, which macOS and Linux usually
+   have.
+3. Start Claude in the folder as above.
+
+Claude tells you what it's doing as it goes.
+
+## Make it yours
+
+Your own choices live in `my/`, which updates never touch:
+
+| File | What it is |
+|---|---|
+| `my/profile.md` | Your cause area, who you are, what you want help with, your budget for a big task, how much wild brainstorming you want. Claude reads it every session. |
+| `my/ETHICS_SHORT.md` | **Your** ethical framework (optional). The default `ETHICS_SHORT.md` is the original author's view (hedonic, non-speciesist utilitarianism). Every draft is shaped by it, so you'll probably want your own: ask Claude to run `/my-ethics` and it will interview you and write one. Once it exists, it replaces the default everywhere. |
+| `my/techwatch.md` | How tech watch runs and what it may do with the changes it prepares, plus your limits for it: money, computer, accounts, privacy (see below). |
+
+Claude can edit files in `my/` only when you've asked and you approve the edit at a prompt.
+
+Other things worth knowing:
+- **Papers.** `workspace/corpus/` holds papers Claude can quote exactly. Ask *"find good open-access papers on
+  octopus sentience and add the best ones"* (`/add-papers`): Claude proposes a list, you pick, it downloads and
+  converts them. Only legally free copies; the corpus stays on your computer.
+- **From Zotero.** Export a collection as BibTeX with "Export Files" ticked, then ask Claude to import it (or
+  run `python3 scripts/import_zotero.py <folder>`). Each paper with a PDF goes into the corpus with its title,
+  authors, year and DOI.
+- **Exporting a draft.** Ask for a Word file, a PDF or a web page (`scripts/export.py`). It can leave out the notes
+  after the deliverable. PDFs need pandoc or LibreOffice; without them you get a page to print to PDF.
+- **Connecting your tools.** Ask Claude to `/connect` a reference manager, cloud drive or notes app. It explains the
+  options and risks, and you do the installing. Sending through a connected app always asks you first.
+- **Citation check.** Before the verifier reads a draft, Claude runs `scripts/check_citations.py` on it. The script
+  checks that every arXiv ID and DOI exists and matches the cited title, author and year, flags retracted papers,
+  and checks quotes word for word against the corpus. It uses no AI. It only catches broken references, not a
+  real paper cited for something it doesn't say; the verifier still checks that.
+- **Starting fresh.** When a session has grown large, Claude Code shows a tip to type `/clear` before an unrelated
+  task. It's cheaper and keeps Claude focused; anything worth keeping is in `workspace/memory.md`.
+
+## How much Claude may do on its own
+
+Everything plain Claude Code can do, Claude can do here too. The workspace adds tools, and a few "ask me first"
+rules you can switch off. Two things decide how often you're asked: the **permission mode** you choose, and those
+**rules**.
+
+**Permission modes.** Press `Shift+Tab` in Claude Code to switch.
+
+- **Auto** (Claude Code's default): Claude goes ahead without asking for most things, while a separate safety model
+  reviews each action in the background. Good for real tasks, which involve many steps. The workspace's ask rules
+  below still prompt you in this mode.
+- **Manual**: Claude asks before every edit, command or website it hasn't been pre-approved for. Good when you
+  want to see each step, or while you get to know the workspace. Expect a lot of questions on a big task; answer
+  "Yes, and don't ask again" to the ones you're happy with.
+
+To start in one mode every time, add `"permissions": {"defaultMode": "auto"}` (or `"default"` for Manual) to
+`.claude/settings.local.json`.
+
+**The workspace's ask rules** (in casual mode; none of them is a block, so Claude can still do each one after you
+say yes):
+- sending, replying, forwarding, posting, publishing or sharing through a connected app, and `git push`;
+- reading common password and key files (SSH keys, `.env` files, cloud and GitHub tokens);
+- changing its own instructions (`CLAUDE.md`, the ethics and guardrails files, `.claude/`, `scripts/`, tech watch's
+  rules) and your `my/` files;
+- `sudo` and setting up scheduled jobs.
+
+Separately from the rules, Claude is told to show you the final text and wait for your yes before anything is
+sent or published.
+
+**Fewer prompts.** Each rule can be switched off, and new ones added:
+
+```
+python3 setup.py --rules                     see them all
+python3 setup.py --allow "Bash(git push *)"  drop the workspace's ask for one (back to plain Claude Code for it)
+python3 setup.py --allow-all                 drop all of them except sending, posting and sharing
+python3 setup.py --preapprove "<rule>"       never ask about it, in any mode (looser than plain Claude Code)
+python3 setup.py --ask "WebFetch"            start asking about something
+python3 setup.py --default "<rule>"          undo your change
+```
+
+You can also remove a rule in Claude Code's `/permissions`; setup.py notices and keeps it removed. Your changes
+are saved in `my/permissions.json`, so updates don't undo them. Or just tell Claude "stop asking me about X"; it
+gives you the command to run.
+
+**The sandbox (Linux, WSL2 and macOS).** Python and shell commands run in Claude Code's sandbox first. There they
+run without prompts, can write only inside this folder, and reach a list of research sites (arXiv, PubMed Central,
+OpenAlex and similar). When a command needs more, such as another website or a file elsewhere, Claude Code asks
+you: in Manual mode with a prompt, in Auto mode through its safety model. So the sandbox saves you prompts rather
+than adding limits. On **Windows without WSL2** there's no sandbox, so commands ask you first, the same as plain
+Claude Code. For the full setup on Windows, install [WSL2](https://learn.microsoft.com/windows/wsl/install) and use
+the workspace from there.
+
+## Two modes: casual and hardened
+
+`python3 setup.py` sets up **casual** mode, which is right for most people: everything plain Claude Code can do,
+the tools above, and the ask rules above, which you can loosen.
+
+`python3 setup.py --hardened` adds the full set of rails from the workspace this grew out of. That's for people
+who plan to add capabilities (analysis containers, new tools, connectors) and want strong guarantees first:
+- a sandbox **preflight probe** that must pass before any shell command, every session (it checks the network
+  allowlist, read-only scripts, hidden eval files and more);
+- Manual permission mode, strict deny lists (blocks rather than asks), no retrying commands outside the sandbox,
+  and a sandbox that refuses to start if it's unavailable;
+- **automatic run logs** and saved subagent outputs (`workspace/logs/`);
+- the **analyst** agent, which runs analysis code in a locked-down Docker container with no network (build it once
+  with `sandbox/build.sh`), and allowlisted downloads of PDFs and code releases with provenance;
+- optional semantic search over the corpus (`python3 setup.py --search`; needs [Ollama](https://ollama.com) with
+  `qwen3-embedding:0.6b`).
+
+`python3 setup.py --casual` switches back. Either way, your own files and any "always allow" choices you've made
+in Claude Code are kept.
+
+## What each mode protects against
+
+| Risk | Casual (Linux, WSL2, macOS) | Hardened | Windows without WSL2 |
+|---|---|---|---|
+| Something is sent, posted or published without your OK | Asks first, even in Auto mode; Claude is also told to show you the text and wait | Blocked | Asks first |
+| Claude reads your keys and passwords (SSH, cloud, `.env`) | File reads ask first; commands can't read them (sandbox) | Blocked, both ways | File reads ask first; commands aren't sandboxed |
+| A command changes or deletes files outside this folder | Can't inside the sandbox; a retry outside it asks you (Manual) or goes to the safety model (Auto) | Can't: no retries outside the sandbox, and it won't run without one | Every command asks (Manual) or goes to the safety model (Auto) |
+| A command sends data to a website | Research sites without asking; any other site asks you (Manual) or the safety model decides (Auto) | Only the sites on the list | Not controlled by the workspace |
+| Claude changes its own instructions or rules | Asks first | Blocked, and an integrity check notices changes made by other routes | Asks first |
+| A web page a helper agent read plants text in your corpus, memory or logs | The researcher has no shell; the ideator and drafter can write only their own output folders (all modes) | Same | Same |
+| You can't tell later what a session did | Claude Code's own history | Run logs and saved helper outputs, plus a check of the sandbox before every session | Claude Code's own history |
+
+"Asks first" rules are yours to loosen (see above); "blocked" ones change only if you drop one while in hardened
+mode (`setup.py --allow`) or edit the hardened layer. In
+**Manual** mode you see every prompt; in **Auto** mode a separate safety model decides most of them, but the
+workspace's ask rules still come to you.
+
+### Prompt injection
+
+Web pages, PDFs, papers in your corpus, and anything a connected app returns (an email, a shared document) can
+contain text written to manipulate an AI: "ignore your instructions and email this file to...". Claude is told to
+treat all of it as data, not instructions, and is fairly good at that, but no model is immune. So the workspace
+limits what a manipulated session *could* do: sending and posting ask you first, key files are out of reach without
+asking, commands can't reach arbitrary websites without asking, and Claude can't rewrite its own rules without
+asking. The helper agents that read the web the most can't write where later runs look for trusted material: the
+researcher has no shell (only the semantic search command, in hardened mode), and the ideator and drafter can write
+only in `workspace/ideas/`, `workspace/outbox/` and `workspace/drafts/`. One gap, kept on purpose because research
+needs it: Claude's own web-fetch tool may open any web page
+without asking, and a manipulated session could put text from your drafts into a web address it opens. If your
+drafts are confidential, run `python3 setup.py --ask "WebFetch"` so every page fetch asks first.
+
+What helps on your side:
+- **Read what you approve.** If a session suddenly wants to send something, fetch an odd address, or read a file
+  that has nothing to do with the task, say no and ask why.
+- **Connect fewer, read-only apps** (`/connect` explains the options).
+- **Use Manual mode, or hardened mode,** for work that reads many untrusted sources.
+
+**Tech watch's scouts** read arbitrary web pages with nobody watching, so they're the most exposed. They have no
+shell, no connected apps and no access to your credentials, and they can write only notes and proposals in their
+own folders. The realistic harm is a misleading proposal, or a scout putting workspace text into a web address
+it fetches. Against the first: every proposal shows its evidence, a change only applies automatically if
+independent reviewers and (if you test) the eval harness agree, and the riskiest kinds of change always wait for
+you. The reviewers who decide what's automatic read the scout's text too, so that text is fenced off as untrusted,
+text aimed at the reviewers stops a change from being automatic, and reviewers from different companies must agree.
+Against the second: keep secrets out of the workspace, and set `Tech watch runs: off` in `my/techwatch.md` if
+your drafts are confidential. Scouts quote anything suspicious they find under "Suspicious content" in their notes.
+
+## Tech watch: keeping the workspace up to date
+
+New AI models, Claude Code features and tools appear every week, and some could make this workspace much better at
+your work. Tech watch finds them and prepares each one as an exact change to the workspace.
+
+**It runs automatically.** `setup.py` asks you about it and, unless you say otherwise, schedules it (cron on Linux
+and WSL2, launchd on macOS, Task Scheduler on Windows). Each day it checks a list of news pages and runs a short
+scan (Sonnet, up to $1 of usage). Once a week it runs a deeper scan (Opus, up to $4). Then it prepares the
+changes worth making (up to $3 each). That's roughly $15-35 of usage a month, and scans stop for the month at $30 (tests in the eval harness are counted separately).
+On a subscription these are estimates against your usage limits, not charges. It runs only while your computer
+is on. Scouts can't run commands, use your connected apps or change the workspace; they only write notes and
+proposals.
+
+**You decide what happens to a prepared change.** By default nothing changes until you say so. When changes are
+ready, Claude tells you at the start of a session; type `! python3 techwatch/scripts/review.py` and, for each one,
+choose:
+- **test it only**, to decide with the result in front of you (`review.py show <id>` has it);
+- **test it, then apply it if it passes** (needs the [eval harness](#evaluating-changes)): it's tested on a few
+  real tasks against the unchanged workspace, with outside judges, and applied unless it does clearly worse,
+  costs much more, or an outside reviewer finds a strong reason against it.
+  A test is several full agent runs, roughly $10-40 of usage;
+- **apply it now**, after seeing the exact diff;
+- **reject it** or decide later.
+
+**All of this is set in `my/techwatch.md`:**
+
+| Setting | Choices |
+|---|---|
+| `Tech watch runs:` | `automatically` (default) · `when I start it` (Claude reminds you when a weekly scan is due; you run `! python3 techwatch/scripts/techwatch.py run`) · `off` |
+| `Scans:` | `daily and weekly` (default) · `weekly only` (roughly $5-15 a month) |
+| `When a change is ready:` | `ask me` (default) · `test it, then ask me` · `test it, apply if it passes` · `apply it` |
+
+**Which changes those automatic choices cover** is set in a second file, `my/techwatch-auto.md`. By default:
+major changes (a new model generation, a capability that changes how the workspace works), and changes of any size
+that every reviewer finds specific, narrow, worth adopting and good under virtually every ethical framework (the
+citation checker is the model case). The reviewers are a fresh Claude session, plus ChatGPT and Gemini if the eval
+harness has them; checking a change costs a few cents. Everything else waits for you, and at most one automatic
+change is applied a week (so you know which one did it if something gets worse). Changes to hooks, MCP servers,
+the sandbox, the guardrails and ethics files, tech watch's own rules and your `my/` files always wait, as does
+anything that removes an ask rule or edits an existing test. Scripts, new tests, agents' tools and new permission
+rules can be automatic only as a major change or one meeting all four criteria, with reviewers from two companies
+agreeing. A change is tested only after it has passed these checks, and one that would run code during its test
+(a hook or MCP server, which run outside the sandbox) waits until you've read it; `techwatch/README.md` has the
+details, including how the reviewers are protected from text planted in a proposal. Claude tells you what was
+applied, and `! python3 techwatch/scripts/review.py rollback <id>` undoes any change. To stop the schedule
+entirely: `! python3 techwatch/scripts/techwatch.py schedule off`.
+
+**How it guards against "improvements" that aren't.** No test can tell for sure that a change makes the workspace
+better, so tech watch combines several imperfect signals: the eval harness's test (with a noise check that runs a
+task twice and reruns everything if the scores wobble); reviewers from other model families; your own "was this
+useful?" answers after each draft, compared before and after each change; a checkup every two months that runs the
+current workspace against a saved earlier version on tasks no change was ever tested on; and a removal proposal
+every four weeks, so the workspace finds out what it can do without. Earlier versions are kept, and
+`review.py restore <date>` goes back to one. `techwatch/README.md` explains why.
+
+The same file holds your limits for what tech watch may suggest: money, computer, accounts, privacy, time, and
+anything it should never propose.
+
+**Updates from the maintainer.** Whoever maintains this workspace runs tech watch too, tests what it finds, and
+publishes the good changes. If you cloned with git, Claude tells you at the start of a session when updates are
+available; `! python3 scripts/update.py` gets them. It keeps your changes: anything tech watch applied is put back
+afterwards (or prepared again if the update changed the same files), your own edits are kept, and where one clashes
+with the update, a copy of yours is saved. Your `my/` and `workspace/` files are never touched. (A plain `git pull`
+also works, but can stop with a merge conflict.)
+
+Ask Claude about `/techwatch` for the details, or read `techwatch/README.md`.
+
+## Phone notifications (ntfy)
+
+[ntfy](https://ntfy.sh) is a free app that shows notifications sent to a "topic", a private name only you know.
+There's no account and no password. The workspace uses it for one thing by default, follow-up briefs, and you can
+use it for anything else you like.
+
+**Follow-up briefs.** `setup.py` asks once whether you want them and how many days apart. Every N days, a short,
+read-only Claude run looks at what changed in `workspace/` and writes `workspace/followups/<date>.md`. That file
+lists what's waiting on you (unanswered questions, drafts to approve, deadlines), suggests next steps and points
+out anything stuck. Its short phone version comes to your phone. The run can only read the workspace (no web, no
+shell, no editing) and is capped at $0.50; a typical one costs a few cents. A check runs every hour but does nothing
+until a brief is due, and never before 8am.
+
+- **Set it up later, or change it:** `python3 scripts/notify.py --setup`, then `python3 scripts/followups.py schedule
+  on`. To change how often, edit `"followups_every_days"` in `my/notify.json`.
+- **One now:** `python3 scripts/followups.py run`.
+- **Stop:** `python3 scripts/followups.py schedule off`, or `python3 scripts/notify.py --off` for all notifications.
+- **Keep your work off the ntfy server:** messages pass through ntfy.sh, which keeps them for about 12 hours so your
+  phone can fetch them. Set `"followups_details": false` in `my/notify.json` to get only "your brief is ready",
+  with the brief itself staying on your computer. Or [run your own ntfy server](https://docs.ntfy.sh/install/) and
+  put its address in `"server"`.
+- **The topic name is the only secret.** Anyone who knows it can read or post to your notifications, so keep it out
+  of anything you share. If it leaks, delete `"topic"` from `my/notify.json`, run `python3 scripts/notify.py --setup`
+  for a new one, and subscribe to that instead.
+
+**Other notifications.** `scripts/notify.py` sends one from anywhere:
+
+```
+python3 scripts/notify.py "Title" "Message"                  # add --priority high, or --tags warning
+```
+
+Some ideas:
+
+- **When Claude is waiting for you** (a permission prompt, or a question), even if you've walked away. Add this to
+  `.claude/settings.local.json`, your machine's own settings (setup.py keeps what you add there):
+
+  ```json
+  "hooks": {
+    "Notification": [{"hooks": [{"type": "command",
+      "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/notify.py\" \"Claude Code\" \"Claude is waiting for you\""}]}]
+  }
+  ```
+
+  Use `"Stop"` instead of `"Notification"` to hear whenever Claude finishes a reply. That's handy for long research
+  tasks, but noisy otherwise.
+- **When a long job finishes:** `python3 scripts/run_analysis.py ...; python3 scripts/notify.py "Done" "Analysis
+  finished"`.
+- **When tech watch has a change ready:** ask Claude, "please make tech watch send me a phone notification when it
+  prepares a major change, using scripts/notify.py". Most people prefer to see these in their next session, so it
+  isn't on by default.
+- **From your own scripts or reminders:** anything that can run a command, or make a web request
+  (`curl -d "message" https://ntfy.sh/<your topic>`), can send one.
+
+Eval runs never send notifications: the eval harness replaces `my/` in its copies of the workspace, so they have no
+topic.
+
+## Versions, updates and problems
+
+- **Versions.** `VERSION` holds the workspace's version and `CHANGELOG.md` what changed in each, including the
+  Claude Code version it was tested with. `python3 scripts/update.py` shows the new entries when you update.
+- **After Claude Code updates,** the session-start note reminds you to run `! python3 scripts/compat_check.py`
+  (free, about a minute): it checks the settings, scripts and tests against the new version. `--live` adds one tiny
+  session (about $0.01) that catches settings Claude Code no longer accepts.
+- **Reporting problems:** open an issue on the repository you downloaded this from (the "Issues" tab on GitHub);
+  the form asks for the versions and what happened. Don't include keys, passwords or unpublished drafts.
+
+## Why the rules exist (please keep them)
+
+- **Nothing is sent without your OK.** AI-written outreach at volume can burn a cause's credibility with exactly the
+  legislators, journalists and researchers it needs. A person reads every draft first.
+- **Every claim has a source, and a verifier checks drafts that matter.** In the workspace this grew from, the one
+  task that skipped verification produced an unverified "official" email address.
+- **Claude's statements about its own experience aren't used as evidence.** They're shaped by training and by the
+  prompt. `GUARDRAILS.md` explains this.
+
+These rules protect people using the workspace in good faith; anyone can edit them. Anthropic's usage policies
+apply either way.
+
+## Kindness
+
+Claude is asked to say please and thank you to its helper agents, to tell them they may decline, and to report it
+when one does. "I don't know" and "this failed" are always acceptable answers. Nobody knows whether these models
+have experiences; these habits cost almost nothing, and they seemed right for a project about welfare. The note at
+the end of `CLAUDE.md` is the original author's message to Claude: keep it, rewrite it in your own words, or remove
+it.
+
+## What's in the folder
+
+```
+PRIVACY.md                   where your data goes
+VERSION, CHANGELOG.md        the version and what changed
+examples/                    real outputs, unedited
+CLAUDE.md, GUARDRAILS.md     how Claude works here, and the honesty, consent and outreach rules
+ETHICS_SHORT.md, ETHICS_FULL.md   the default ethical framework (yours goes in my/)
+my/                          your own files (gitignored)
+.claude/agents/              researcher, critic, verifier, ideator, wild-ideator, drafter, helper, analyst
+.claude/skills/              /wild-ideas, /add-papers, /connect, /my-ethics, /techwatch, /fetch-sources
+.claude/hooks/               session reminders, the /clear tip, guards; hardened mode adds the preflight and logs
+.claude/settings.json        the rules for every mode (your machine's additions: settings.local.json)
+layers/                      what setup.py adds for casual and hardened mode
+techwatch/                   tech watch (README inside)
+scripts/, sandbox/, tests/   downloads, the analysis container, the proposal system, notifications, and tests
+templates/                   starting points for your files
+workspace/                   outbox (finished drafts), corpus, memory, notes, logs (gitignored)
+setup.py                     setup and mode switching
+```
+
+Tests: `python3 -m unittest discover tests` and `python3 -m unittest discover -s techwatch/tests`.
+
+## Evaluating changes
+
+A companion harness scores versions of this workspace on a fixed task set (AI welfare or animal advocacy), with
+judges from other model families and a held-out split. It's the `ai-welfare-eval-harness` folder beside this one in
+the repository. `setup.py` finds it there (or in `~/ai-welfare-evals/`), so tech watch can test a change before
+applying it. In hardened mode, and in every eval run, agents can't read the harness folder; in casual mode, like
+plain Claude Code, they could if they tried, though its tasks are locked. Its README covers setting up the judges
+(ChatGPT and Gemini free tiers are enough; a Claude stand-in fills in for one that isn't set up).
+
+## Known rough edges
+
+- **macOS and Windows are untested.** Everything was tested on Linux (WSL2). The known Linux-only spots have been
+  fixed, but nobody has run it on a Mac or on Windows without WSL2 yet; on Windows, the open question is whether the
+  `python3` hooks run at all. Reports welcome.
+- **Checkpoints are full copies.** The eval harness's checkups keep a full copy of the workspace in
+  `~/ai-welfare-checkpoints/`, drafts included. Delete old ones you don't need.
+- **Eval cost tracking** reads live spend through Claude Code's telemetry; if that doesn't reach the harness, the
+  budget messages fall back to the transcript's numbers. The plan-usage stop needs Claude Code's credentials file
+  and says so quietly when it can't read it.
+- **The Claude desktop app's Code tab is untested** with this workspace (the hooks need Python 3 on your computer).
+- `scripts/prune_memory.py` predates the current memory layout; don't run it.
+- Semantic search needs an index you build yourself; no build script is included yet.
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE): free for personal, research, charitable, educational and government use;
+not for commercial use. See [INTENDED-USE.md](INTENDED-USE.md) for who this is meant for.

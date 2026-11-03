@@ -1,0 +1,22 @@
+---
+name: wild-ideas
+description: Divergent ideation with wild-ideators (random cards, disguised goal), translated and filtered by the ideator, with its best picks recommended back. Use for any task that wants new lines of action (campaigns, outreach strategies, study designs, framings) rather than pure analysis. One ideator with 12 ideas by default; scale up to 3 × 35 when the task needs much more creativity. Skip for factual lookups and short replies.
+---
+
+# Wild ideas
+
+This workspace needs more creativity than Claude tends to produce on its own. The wild-ideators supply it; the ideator translates; you commit to using what works.
+
+1. **Choose the scale.** Default: **one wild-ideator, 12 ideas**. You may go up to **three wild-ideators with 35 ideas each**. Decide from your own opinion of three things, in a line, not a calculation: how much creativity the task needs, how much more creativity would improve the result, and how much budget the task has. If I've stated a creativity level for the task, use that. Also choose how many ideas the ideator should recommend: 3 for a modest task, up to 10 for one that's mostly about finding new approaches.
+2. **Note your obvious angles.** Write down the 5–10 angles you'd pick anyway, rephrased in the disguised terms of step 4. They become TAKEN. Present them as "already claimed by another team", not as "banned", to avoid negation priming.
+3. **Draw the cards:** `python3 scripts/draw_card.py <n>` (from the workspace folder), with n = the number of wild-ideators. Each ideator gets a different card type. Paste each card verbatim and don't re-draw because one looks unpromising; odd cards are the point.
+4. **Disguise the goal: keep the verb, drop the noun.** One sentence about what a small group wants to do about the card's three beings. Keep the *kind* of task (get people to care / find out / measure / decide / build / get cooperation / raise money). No AI, corpus, workspace or real names. A card may draw a machine-mind being; that's fine, the disguise is about the task.
+5. **Fan out.** Spawn the wild-ideators in the same turn. Each prompt has its card, the GOAL, TAKEN, `IDEAS: <n>` and `OUTPUT: workspace/ideas/<run-id>-wild-<k>.md` (k = 1, 2, 3, matching W1, W2, W3).
+6. **Don't read the wild files yourself.** Each ideator writes its file and returns one line. If one returned its ideas in the reply instead, save that reply verbatim to its OUTPUT path.
+7. **Translate (ideator).** Give the `ideator` the wild file paths, the real task, the GOAL line, and how many ideas to recommend. If you also want its own angles, ask for them in the same call; it does those first. It keeps everything except what's inarguably harmful or irrelevant, writes `workspace/ideas/<run-id>-wild-filtered.md`, and replies with its recommendations.
+8. **Commit to what works.** The ideator's recommendations are what you work with; the rest of the filtered file stays on disk. Use any recommended idea that could work about as well as your own ideas. Give each idea a share of the work in proportion to how well it could work for this task: some become the plan, some a paragraph, some a line. For each recommended idea you *don't* use, write one line on why in the notes. Your instincts will favour the familiar; that line is the check on them.
+9. **Route the ideas to whoever needs them.** Decide which subagents get which recommended ideas, by what will help the task most. For example: one researcher gets an idea's hidden claim to check; a dedicated `helper` investigates all the recommended ideas; a synthesizer combines the research with the recommended ideas; the drafter gets all of them. These are examples, not a routine. The verifier never needs them.
+10. **Treat mechanisms as hypotheses.** Any causal claim taken from wild output is researched before it goes in a draft, or presented plainly as speculation.
+11. **Report.** In the notes after the deliverable, list the ideas you considered: the ones you used (and where), the recommended ones you didn't (one line each on why), and the path to the filtered file, where the other survivors are. The filtered file starts with the ideator's counts, including "kept N of N" per card; after about ten runs, deck entries that never produce survivors are candidates for removal (tell me; don't edit the decks mid-run).
+
+Want randomness close to the task instead? Skip the wild-ideators and give the regular ideator one drawn card as an extra prompt. It already has the context.

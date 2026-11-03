@@ -1,0 +1,45 @@
+__pycache__/
+*.pyc
+.claude/settings.local.json
+.claude/.cc-writes/
+sandbox/image.lock
+sandbox/image.lock.new
+scripts/integrity.json
+hooks.log
+.vscode/
+.DS_Store
+
+# Your own files: updates never touch them, and they stay on your computer.
+my/*
+!my/README.md
+
+# Your research stays local. Remove a line to share that folder.
+workspace/corpus/*
+workspace/outbox/*
+workspace/logs/*
+workspace/drafts/*
+workspace/ideas/*
+workspace/mem/*
+workspace/inbox/*
+workspace/analysis/*
+workspace/staging/*
+workspace/index/*
+workspace/repos/*
+workspace/requests/*
+workspace/proposals/*/
+workspace/memory.md
+workspace/feedback.jsonl
+workspace/followups/*
+!workspace/**/.gitkeep
+!workspace/corpus/SOURCES.md
+
+# Tech watch's findings and state are yours too.
+techwatch/inbox/*
+techwatch/proposals/*
+!techwatch/proposals/_TEMPLATE.md
+techwatch/staged/*
+techwatch/state/*
+techwatch/logs/*
+techwatch/evaluations/
+techwatch/evaluations-full/
+!techwatch/*/.gitkeep
