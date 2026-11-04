@@ -40,7 +40,7 @@ def applied_lines():
             continue
         title = review.meta(review.PROPOSALS / pid).get("title", "")
         out.append(f"Tech watch applied {pid} ({note.split('; ', 1)[-1]}): {title[:120]}. "
-                   f"Undo: ! python3 techwatch/scripts/review.py rollback {pid}")
+                   f"Undo: ! python3 techwatch/scripts/review.py rollback {pid} --yes")
         NEWLY_SEEN.add(pid)
     return out
 

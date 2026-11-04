@@ -18,6 +18,7 @@ Plain code, no AI model involved: nothing is sent unless notifications are on an
 send: the eval harness replaces my/ in its copies, so they have no topic.
 """
 import json
+import os
 import re
 import secrets
 import sys
@@ -28,7 +29,7 @@ HERE = Path(__file__).resolve().parents[1]
 CONFIG = HERE / "my" / "notify.json"
 TOPIC_RE = re.compile(r"[A-Za-z0-9_-]{16,64}")
 PRIORITIES = ("min", "low", "default", "high", "max")
-MAX_BODY = 3500   # ntfy's limit is 4096 bytes
+MAX_BODY = 3500   # bytes of UTF-8; ntfy's limit is 4096
 
 
 def load():
@@ -56,19 +57,30 @@ def clean_header(s, n=120):
 
 def send(title, body, priority="default", tags="", cfg=None):
     """True if the server accepted it. Never raises: a notification failing shouldn't break what called it."""
+    try:
+        return _send(title, body, priority, tags, cfg)
+    except Exception as e:   # a malformed setting, say
+        print(f"notify: not sent: {type(e).__name__}: {str(e)[:200]}", file=sys.stderr)
+        return False
+
+
+def _send(title, body, priority, tags, cfg):
+    if os.environ.get("AI_WELFARE_EVAL"):   # set by the eval harness for every agent run
+        print("notify: not sent (this is an eval run)", file=sys.stderr)
+        return False
     cfg = load() if cfg is None else cfg
     if not ready(cfg):
         print("notify: phone notifications are off or have no topic (python3 scripts/notify.py --setup)",
               file=sys.stderr)
         return False
-    body = str(body).strip() or "(no message)"
-    if len(body) > MAX_BODY:
-        body = body[: MAX_BODY - 3].rstrip() + "..."
+    data = (str(body).strip() or "(no message)").encode("utf-8")
+    if len(data) > MAX_BODY:
+        data = data[: MAX_BODY - 3].decode("utf-8", "ignore").rstrip().encode("utf-8") + b"..."
     headers = {"Title": clean_header(title), "Priority": priority if priority in PRIORITIES else "default"}
     if tags := clean_header(tags, 60):
         headers["Tags"] = tags
     server = str(cfg.get("server") or "https://ntfy.sh").rstrip("/")
-    req = urllib.request.Request(f"{server}/{cfg['topic']}", data=body.encode("utf-8"), method="POST",
+    req = urllib.request.Request(f"{server}/{cfg['topic']}", data=data, method="POST",
                                  headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
@@ -115,7 +127,14 @@ def main(a):
     if a[0] == "--setup":
         cfg = setup()
         print("Phone notifications are on.\n" + instructions(cfg))
-        return 0 if send("Welfare workspace", "Notifications work. You'll get them here.", cfg=cfg) else 1
+        if not sys.stdin.isatty():
+            print("Subscribe in the app, then send a test: python3 scripts/notify.py --test")
+            return 0
+        input("  Press Enter once you've subscribed, and I'll send a test. ")
+        print("  Test sent: check your phone." if send("Welfare workspace", "Notifications work. You'll get them "
+                                                   "here.", cfg=cfg) else "  The test didn't go through (see above).")
+        print("  For follow-up briefs: python3 scripts/followups.py schedule on --days 3")
+        return 0
     if a[0] == "--off":
         cfg = load()
         cfg["on"] = False

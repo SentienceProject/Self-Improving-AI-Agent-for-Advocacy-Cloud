@@ -229,18 +229,18 @@ def qualifies(pid, s=None, result=None, strict=False):
     permissions: review.py's REVIEWED): only as a major change or one meeting all four criteria, never as an "other"
     change, and only with reviewers from at least two companies."""
     s = s or settings()
+    if found := steering(pid):   # first, whatever the settings: text aimed at reviewers means a person decides
+        return False, f"it contains text that looks addressed to the reviewers ({found[0]!r})"
     if s["other"] and not strict:
         return True, "my/techwatch-auto.md: other changes yes"
     if not (s["major"] or s["criteria"]):
         return False, "my/techwatch-auto.md allows no automatic changes"
-    if found := steering(pid):
-        return False, f"it contains text that looks addressed to the reviewers ({found[0]!r})"
     result = result or review_change(pid)
     if strict and len(result["reviewers"]) < 2:
         return False, ("it changes scripts, tests or permissions, which needs reviewers from two companies "
                        "(only Claude is set up; see the eval harness's judges)")
-    if s["major"] and review.meta(review.PROPOSALS / pid).get("significance") == "major" and all_yes(result, "MAJOR"):
-        return True, "major change (every reviewer agreed)"
+    if s["major"] and review.meta(review.PROPOSALS / pid).get("significance") == "major" and all_yes(result, "MAJOR", "APPROVE"):
+        return True, "major change (every reviewer agreed it's major and would adopt it)"
     n_files, n_lines = size(pid)
     if s["criteria"] and (n_files > NARROW_FILES or n_lines > NARROW_LINES):
         return False, (f"too big to count as narrow ({n_files} files, {n_lines} changed lines; at most "

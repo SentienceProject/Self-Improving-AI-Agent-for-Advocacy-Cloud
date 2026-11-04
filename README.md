@@ -244,7 +244,7 @@ rules can be automatic only as a major change or one meeting all four criteria, 
 agreeing. A change is tested only after it has passed these checks, and one that would run code during its test
 (a hook or MCP server, which run outside the sandbox) waits until you've read it; `techwatch/README.md` has the
 details, including how the reviewers are protected from text planted in a proposal. Claude tells you what was
-applied, and `! python3 techwatch/scripts/review.py rollback <id>` undoes any change. To stop the schedule
+applied, and `! python3 techwatch/scripts/review.py rollback <id> --yes` undoes any change. To stop the schedule
 entirely: `! python3 techwatch/scripts/techwatch.py schedule off`.
 
 **How it guards against "improvements" that aren't.** No test can tell for sure that a change makes the workspace

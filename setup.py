@@ -402,9 +402,11 @@ def main(args):
         return
     if "--status" in args:
         print(f"Mode: {current_mode() or 'not set up yet (run: python3 setup.py)'}")
-        for f in ("my/profile.md", "my/techwatch.md", "my/notify.json", "my/ETHICS_SHORT.md",
-                  ".claude/settings.local.json"):
+        for f in ("my/profile.md", "my/techwatch.md", "my/ETHICS_SHORT.md", ".claude/settings.local.json"):
             print(f"  {f}: {'yes' if (HERE / f).exists() else 'no'}")
+        sys.path.insert(0, str(HERE / "scripts"))
+        import notify
+        print(f"  phone notifications: {'on' if notify.ready() else 'off'}")
         return
     mode = "hardened" if "--hardened" in args else "casual" if "--casual" in args else current_mode() or "casual"
     print(f"Setting up {HERE} in {mode} mode.")

@@ -41,8 +41,12 @@ those wait for the operator. Scouts must not argue for these settings: they're t
 
 These follow from the guardrails. They are not a matter of building trust:
 
-- **Permissions, sandbox, network allowlists, hooks, credentials**: any change that widens what an agent can do.
-  These always go through `apply` with a human reading the diff.
+- **The sandbox, network allowlists, hooks, MCP servers, credentials, and removing any ask or deny rule.** These
+  always go through `apply` with a human reading the diff. (New allow rules in `.claude/settings.json`, and the
+  tools an agent or skill may use, can be automatic only as a major change or one meeting all four criteria in
+  `my/techwatch-auto.md`, with reviewers from two companies agreeing, never through "Other changes: yes". The
+  workspace's own records, `my/` and `workspace/` are never written by a prepared change automatically, and tech
+  watch's ledger and results never at all.)
 - **GUARDRAILS.md, the ethics files, CLAUDE.md's hard constraints, anything in `my/`.**
 - **Anything that contacts anyone or publishes anything.** Scouts write files for the operator, nothing else.
 - **Tech watch's own rails:** `scripts/`, `prompts/`, `config.json`, this file.

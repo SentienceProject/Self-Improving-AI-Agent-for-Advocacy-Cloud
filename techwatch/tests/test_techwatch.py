@@ -38,8 +38,12 @@ class Workspace(unittest.TestCase):
         (self.ws / "my").mkdir()
         self.review = load(self.ws / "techwatch" / "scripts" / "review.py", f"review_{id(self)}")
         self.review.ask = lambda q, choices="y/N": "y"
+        from unittest import mock
+        self.tty = mock.patch.object(self.review.sys.stdin, "isatty", lambda: True)   # as if in a terminal
+        self.tty.start()
 
     def tearDown(self):
+        self.tty.stop()
         self.tmp.cleanup()
 
     def proposal(self, pid, **meta):
@@ -97,7 +101,7 @@ class TestApply(Workspace):
         self.assertEqual((self.ws / "notes/new/x.md").read_text(), "new file\n")
         self.assertEqual((self.ws / "CLAUDE.md").read_text(), "instructions, improved\n")
         self.assertEqual(self.review.status_of("p1"), "applied")
-        self.review.cmd_rollback("p1")
+        self.review.cmd_rollback("p1", yes=True)
         self.assertFalse((self.ws / "notes").exists(), "folders apply created should go too")
         self.assertEqual((self.ws / "CLAUDE.md").read_text(), "instructions\n")
 
@@ -278,6 +282,8 @@ class TestOpenDecisions(TestAutomatic):
         for e in lines:
             if e["id"] == pid and e["event"] in ("trial_started", "auto_applied", "applied"):
                 e["ts"] = old
+                if e.get("until"):
+                    e["until"] = (date.today() + timedelta(days=60 - days)).isoformat()
         led.write_text("".join(json.dumps(e) + "\n" for e in lines))
 
     def checkup(self, day, verdict):
@@ -285,10 +291,60 @@ class TestOpenDecisions(TestAutomatic):
         ev.mkdir(exist_ok=True)
         (ev / f"checkup-{day}.md").write_text(f"# Checkup\n\nOutcome: checked\n\n**Verdict:** {verdict}.\n")
 
+    def test_a_change_may_never_write_tech_watchs_records(self):
+        self.prefs("apply it", harness=False)
+        self.proposal("p1")
+        self.bundle("p1", [{"action": "write", "target": "techwatch/state/ledger.jsonl", "source": "files/c.md"}],
+                    {"c.md": '{"id": "p1", "event": "kept"}\n'})
+        self.assertEqual(self.review.auto_actions(lambda m: None), [])
+        self.review.ask = lambda q, choices="y/N": "y"
+        with self.assertRaises(SystemExit):
+            self.review.cmd_apply("p1")
+        self.assertNotIn('"kept"', (self.ws / "techwatch/state/ledger.jsonl").read_text().split("staged")[-1])
+        self.assertEqual(self.review.status_of("p1"), "staged")
+
+    def test_a_test_you_asked_for_doesnt_start_a_trial_under_ask_me(self):
+        self.prefs("ask me")
+        self.staged()
+        self.review.cmd_test("p1")   # "apply if it passes", asked by you
+        self.evidence("p1")
+        self.assertEqual(self.review.auto_actions(lambda m: None), [])
+        self.assertEqual(self.review.status_of("p1"), "staged")
+
+    def test_no_checkup_means_the_trial_waits_for_you(self):
+        self.start_trial()
+        self.age_trial("p1", 90)
+        self.review.auto_actions(lambda m: None)
+        self.assertEqual(self.review.status_of("p1"), "trial")
+        self.assertTrue(self.review.trial_waiting("p1", self.review.events()))
+
+    def test_decisions_on_an_applied_change_are_refused(self):
+        self.start_trial()
+        for ev in ("rejected", "shelved", "deferred"):
+            with self.assertRaises(SystemExit):
+                self.review.cmd_decide("p1", ev, ["x"])
+        self.assertEqual(self.review.status_of("p1"), "trial")
+
+    def test_partial_rollback_isnt_recorded(self):
+        self.start_trial()
+        self.review.ask = lambda q, choices="y/N": "n"
+        self.assertFalse(self.review.cmd_rollback("p1"))
+        self.assertEqual(self.review.status_of("p1"), "trial")
+
+    def test_without_a_terminal_apply_says_how_instead_of_writing(self):
+        self.tty.stop()
+        self.staged()
+        self.review.cmd_apply("p1")
+        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "instructions\n")
+        self.review.cmd_apply("p1", yes=True)
+        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "new\n")
+        self.tty.start()
+
     def test_reject_says_what_kind(self):
         self.proposal("p1")
         self.proposal("p2")
         self.review.cmd_decide("p1", "rejected", ["--kind", "never", "this"])
+        self.review.ask = lambda q, choices="y/N": ""   # Enter: the default
         self.review.cmd_decide("p2", "rejected", ["too", "broad"])
         evs = {e["id"]: e for e in self.review.events()}
         self.assertEqual((evs["p1"]["scope"], evs["p1"]["note"]), ("kind", "never this"))
@@ -414,6 +470,8 @@ class TestWhichChangesAreAutomatic(TestAutomatic):
         self.reviewers("m1", claude={"MAJOR": True}, chatgpt={"MAJOR": False})
         self.assertEqual(self.review.auto_actions(lambda m: None), [])
         self.reviewers("m1", claude={"MAJOR": True}, chatgpt={"MAJOR": True})
+        self.assertEqual(self.review.auto_actions(lambda m: None), [], "major isn't enough without APPROVE")
+        self.reviewers("m1", claude={"MAJOR": True, "APPROVE": True}, chatgpt={"MAJOR": True, "APPROVE": True})
         self.assertEqual(self.review.auto_actions(lambda m: None), ["m1"])
 
     def test_scripts_need_two_companies_and_never_ride_on_other_changes(self):

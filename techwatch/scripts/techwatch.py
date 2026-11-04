@@ -148,9 +148,10 @@ def scout_settings(writable):
     """Settings for one scout run: read the workspace, write only `writable`, nothing else. Absolute paths, so
     they don't depend on where Claude Code thinks the project is."""
     ws, home = WS.as_posix(), Path.home().as_posix()
-    guard = (f'python3 "{(TW / "scripts" / "scout_guard.py").as_posix()}" '
+    py = f'"{Path(sys.executable).as_posix()}"'   # not "python3": on Windows it may be missing, and the hook would fail open
+    guard = (f'{py} "{(TW / "scripts" / "scout_guard.py").as_posix()}" '
              + " ".join(f'"{(TW / w).as_posix()}"' for w in writable))
-    read_guard = f'python3 "{(TW / "scripts" / "scout_guard.py").as_posix()}" --read "{ws}"'
+    read_guard = f'{py} "{(TW / "scripts" / "scout_guard.py").as_posix()}" --read "{ws}"'
     return {
         "permissions": {
             "defaultMode": "dontAsk",

@@ -98,12 +98,16 @@ better workspace. So tech watch keeps test results as facts, not verdicts, and a
 - **A deeper test:** `review.py test <id> --deeper` runs every task three times (`deep_reps` in the harness), for
   roughly $30-100 of usage, when a result was too small to settle and the change seems to matter.
 - **A trial:** `review.py trial <id>` applies a change whose test showed no clear harm, and checks it again at the
-  eval harness's next checkup, at least two weeks later (or after 60 days if none comes). Then it's kept, or rolled
-  back if the workspace did worse. A trial must be undoable, must not close off options, and only one runs at a
-  time. With automatic settings ("test it, apply if it passes" or "apply it") and `Trials: yes` in
-  `my/techwatch-auto.md`, a change that qualifies there goes on trial by itself; with "ask me", you're offered one.
-  A checkup compares the whole workspace with an earlier version, so other changes in that time count too. If
-  you've edited the trial's files since, undoing it waits for you.
+  eval harness's next checkup, at least two weeks later. A trial must be undoable, must not close off options, its
+  test must be of the exact change, and only one runs at a time. With automatic settings ("test it, apply if it
+  passes" or "apply it") and `Trials: yes` in `my/techwatch-auto.md`, a change that qualifies there goes on trial by
+  itself; with "ask me", you're offered one (a test you ask for never starts one by itself). When the checkup comes:
+  - no clear harm: the trial is kept;
+  - the earlier version scored better: it's rolled back, if it was the only change in that time and nobody has
+    edited its files since;
+  - anything else, including no checkup within 60 days: it waits for you to keep it (`evaluated <id> keep`) or roll
+    it back (`rollback <id>`). A checkup compares the whole workspace with an earlier version, and runs each task
+    once, so it's a rough check.
 - **Future options:** each proposal says whether it opens up later changes, is neutral, or closes some off
   (`options` in its meta.json). One that closes options never goes on trial by itself.
 
@@ -175,7 +179,7 @@ Inside Claude Code, type these after `!` (e.g. `! python3 techwatch/scripts/revi
 |---|---|
 | See what needs you | `python3 techwatch/scripts/review.py` |
 | Read a proposal and its prepared change | `review.py show <id>` |
-| Accept it | `review.py apply <id>` (one combined diff and one yes; `--each` for file by file) |
+| Accept it | `review.py apply <id>` (one combined diff and one yes; `--each` for file by file; `--yes` applies what was shown without asking, e.g. from Claude Code's `!`, which has no terminal) |
 | Test it, then apply it if it passes | `review.py test <id>` (`--no-apply`: just report) |
 | Turn it down | `review.py reject <id> "why"` (asks: not as it is, so variants are welcome; or `--kind`, not this kind of change) |
 | Not now, but keep it | `review.py shelve <id> "why"` (`approve <id>` brings it back) |
@@ -183,7 +187,7 @@ Inside Claude Code, type these after `!` (e.g. `! python3 techwatch/scripts/revi
 | Test again, more thoroughly | `review.py test <id> --deeper` (every task three times) |
 | Decide later | `review.py defer <id> [YYYY-MM-DD]` |
 | Have an idea prepared that wasn't | `review.py approve <id> "note"` (your note steers it), then `techwatch.py stage <id>` |
-| Undo an applied change | `review.py rollback <id>` |
+| Undo an applied change | `review.py rollback <id>` (`--yes` without asking per file; it's only marked undone when every file is) |
 | Say whether it helped | `review.py evaluated <id> keep\|remove` |
 | Run whatever is due | `python3 techwatch/scripts/techwatch.py run` |
 | Scan now | `techwatch.py weekly` (or `daily`) |

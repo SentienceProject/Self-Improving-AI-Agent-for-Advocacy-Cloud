@@ -68,7 +68,7 @@ class TestUpdate(unittest.TestCase):
                                                                   "source": "files/x"}]}))
         review.record(pid, "staged")
         review.ask = lambda q, choices="y/N": "y"
-        review.cmd_apply(pid)
+        review.cmd_apply(pid, yes=True)
 
     def review(self):
         spec = importlib.util.spec_from_file_location(f"review_{id(self)}",

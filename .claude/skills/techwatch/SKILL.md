@@ -20,12 +20,15 @@ decision easy.
    disagree with a proposal, say so. Point out anything that touches permissions, hooks, the guardrails or the
    ethics files.
 3. Give them the exact commands to run, each typed after `!` at the prompt:
-   - `! python3 techwatch/scripts/review.py`: walks through each prepared change and asks: test it and apply it
-     if it passes, or test it only (both when the eval harness is set up), apply it now, or skip;
+   - `! python3 techwatch/scripts/review.py`: lists what's waiting. (Its one-by-one walk-through, and every yes/no
+     question, needs a terminal: `!` has none, so the commands below take their choices as words, and `--yes`
+     applies exactly what was just shown. In a terminal they ask instead);
    - `! python3 techwatch/scripts/review.py show <id>`: the full proposal, prepared change and any test result;
    - `! python3 techwatch/scripts/review.py test <id>`: test it with the eval harness, apply it if it passes
      (several full agent runs, roughly $10-40 of usage);
-   - `! python3 techwatch/scripts/review.py apply <id>`: shows the exact diff, then applies it on their yes;
+   - `! python3 techwatch/scripts/review.py apply <id>`: shows the exact diff and changes nothing; after they've
+     read it, `! python3 techwatch/scripts/review.py apply <id> --yes` applies it. Never add `--yes` yourself
+     without their go-ahead for that diff;
    - `! python3 techwatch/scripts/review.py reject <id> "why"`: no. It asks whether they mean "not as it is"
      (variants and follow-ups welcome; the default) or "not this kind of change" (`--kind`); scouts read both;
    - `! python3 techwatch/scripts/review.py shelve <id> "why"`: not now, kept for later;

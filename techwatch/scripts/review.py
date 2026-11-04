@@ -6,19 +6,21 @@
     review.py show <id>              read a proposal (and its staged change, if any)
     review.py test <id> [--no-apply] have the eval harness test it; it's applied if it passes (--no-apply: just
                                      report). Needs "Eval harness folder" in my/techwatch.md
-    review.py apply <id> [--each]    see the exact change as one diff, then apply it with one yes (--each: file by
-                                     file). For a proposal that's not staged yet, this approves it instead.
+    review.py apply <id> [--each|--yes]  see the exact change as one diff, then apply it with one yes (--each: file
+                                     by file; --yes: apply what's shown without asking, e.g. from Claude Code's `!`,
+                                     which has no terminal to answer in). For a proposal that's not staged yet, this
+                                     approves it instead.
     review.py approve <id> [note]    have it staged (the next `techwatch.py run` does it); the note steers staging
     review.py reject  <id> [--kind|--as-is] [note]
                                      no. --as-is (the default): not as it is, but scouts may propose a variant
                                      with real differences, or build on it. --kind: not this kind of change at all
     review.py shelve  <id> [note]    not now: kept for later, and scouts may bring it back or build on it
-    review.py trial   <id>           apply it on trial: checked at the next checkup, then kept or rolled back
+    review.py trial   <id> [--yes]   apply it on trial: checked at the next checkup, then kept or rolled back
     review.py test <id> --deeper     test again with every task run several times (about 3x the cost), for a
                                      result too small for the first test to settle
     review.py defer   <id> [YYYY-MM-DD] [note]
-    review.py rollback <id>          restore the files apply changed
-    review.py evaluated <id> keep|remove [note]   after its review date: did it help?
+    review.py rollback <id> [--yes]  restore the files apply changed (--yes: without asking per file)
+    review.py evaluated <id> keep|remove [note]   after its review date: did it help? (remove undoes it first)
     review.py list [--all]           every proposal and its status
     review.py checkpoints            the earlier versions of the workspace the eval harness has kept
     review.py restore <date>         go back to one of them (shows what changes first; asks before writing)
@@ -63,12 +65,17 @@ RISKY_TEXT = re.compile(
 AUTO_NEVER = re.compile(r"(settings\.local\.json|/hooks/|GUARDRAILS|ETHICS|\.mcp\.json|integrity\.json|^layers/|"
                         r"techwatch/(config\.json|AUTONOMY\.md|scripts/|prompts/)|^my/|^setup\.py|"
                         r"^scripts/(validate_proposal|apply_proposal|run_analysis|update|sandbox_probe)\b|"
-                        r"^sandbox/|^\.claude/(?!agents/|skills/|commands/|settings\.json$)|CLAUDE\.local\.md|^\.git)")
+                        r"^sandbox/|^\.claude/(?!agents/|skills/|commands/|settings\.json$)|CLAUDE\.local\.md|^\.git|"
+                        r"^workspace/|^techwatch/(?!WATCHLIST\.md$|CAPABILITIES\.md$))")
+# Tech watch's own records (the ledger, results, other changes' backups, scout notes): no prepared change may write
+# them, even one a person applies, or a change could approve itself or fake a test result.
+BOOKKEEPING = re.compile(r"^techwatch/(state|staged|evaluations|evaluations-full|inbox|proposals|logs)/")
 # Automatic only if the reviewers agree it's major or meets all four criteria (never just because "Other changes:
 # yes"): other scripts, new test files, an agent's or skill's tools, and permission rules in .claude/settings.json.
 # Within these, what would weaken a safeguard stays never-automatic: editing or deleting an existing test, an
 # agent's hooks, MCP servers or permission mode, removing an ask or deny rule, and any other settings key.
-REVIEWED = re.compile(r"^(scripts/|tests/|techwatch/tests/|\.claude/settings\.json$)")
+REVIEWED = re.compile(r"^(scripts/|tests/|techwatch/tests/|\.claude/settings\.json$|"
+                      r"\.claude/(skills|agents|commands)/.*\.(py|sh|js|ts|mjs|cjs)$)")
 FRONTMATTER_FILES = re.compile(r"^\.claude/(agents|skills|commands)/")
 NEVER_KEYS = ("hooks", "mcpServers", "permissionMode", "disable-model-invocation")
 
@@ -288,7 +295,7 @@ def frontmatter_keys(fm):
     """{top-level key: its block of text} for YAML frontmatter, without needing a YAML library."""
     out, key = {}, None
     for line in fm.splitlines():
-        m = re.match(r"^([A-Za-z][\w-]*)\s*:(.*)$", line)
+        m = re.match(r"^[\"']?([A-Za-z][\w-]*)[\"']?\s*:(.*)$", line)
         if m:
             key = m.group(1)
             out[key] = m.group(2).strip()
@@ -298,6 +305,7 @@ def frontmatter_keys(fm):
 
 
 def frontmatter(text):
+    text = text.lstrip("\ufeff").replace("\r\n", "\n")
     m = re.match(r"---\n(.*?)\n---", text, re.S)
     return m.group(1).strip() if m else ""
 
@@ -530,8 +538,10 @@ def cmd_show(pid):
 
 def cmd_decide(pid, event, rest):
     require(pid)
-    if event == "approved" and status_of(pid) in IN_EFFECT:
-        sys.exit(f"{pid} is applied. To change it, roll it back first (review.py rollback {pid}), then approve it.")
+    st = status_of(pid)
+    if event in ("approved", "rejected", "shelved", "deferred") and st in IN_EFFECT:
+        sys.exit(f"{pid} is {st}, so its files are in the workspace. Roll it back first (review.py rollback {pid}); "
+                 f"to record whether it helped, use review.py evaluated {pid} keep|remove.")
     extra = {}
     if event == "deferred" and rest and re.fullmatch(r"\d{4}-\d{2}-\d{2}", rest[0]):
         extra["until"] = rest.pop(0)
@@ -584,7 +594,7 @@ def show_diff(old, new, name):
     print()
 
 
-def cmd_apply(pid, each=False, auto=None, by_settings=False):
+def cmd_apply(pid, each=False, auto=None, by_settings=False, yes=False):
     """auto: the reason it's being applied without asking (a passed test, or my/techwatch.md); no prompts then,
     and manual steps or outside proposals are left for you."""
     d = require(pid)
@@ -614,7 +624,7 @@ def cmd_apply(pid, each=False, auto=None, by_settings=False):
     if INTEGRITY.exists():
         protected = {str((WS / k).resolve()) for k in json.loads(INTEGRITY.read_text(encoding="utf-8"))}
 
-    writes, manual = [], []
+    writes, manual, skipped = [], [], 0
     for i, ch in enumerate(manifest.get("changes", []), 1):
         action = ch.get("action")
         if action in ("command", "manual"):
@@ -622,6 +632,7 @@ def cmd_apply(pid, each=False, auto=None, by_settings=False):
             continue
         if action not in ("write", "append"):
             print(f"{RED}[{i}] unknown action {action!r}; skipped{OFF}")
+            skipped += 1
             continue
         target = resolve(ch.get("target", ""))
         src = (bundle / ch.get("source", "")).resolve()
@@ -632,6 +643,12 @@ def cmd_apply(pid, each=False, auto=None, by_settings=False):
             continue
         if bundle.resolve() not in src.parents or not src.is_file():
             print(f"{RED}[{i}] source {ch.get('source')} is missing or outside the bundle; skipped{OFF}")
+            skipped += 1
+            continue
+        if BOOKKEEPING.search(target.relative_to(WS).as_posix()):
+            print(f"{RED}[{i}] {target.relative_to(WS).as_posix()} is tech watch's own record (ledger, results, "
+                  f"backups or notes); a prepared change may never write it. Skipped.{OFF}")
+            skipped += 1
             continue
         new = src.read_text(encoding="utf-8")
         old = target.read_text(encoding="utf-8") if target.exists() else ""
@@ -640,7 +657,8 @@ def cmd_apply(pid, each=False, auto=None, by_settings=False):
                        "new": final, "why": ch.get("why", ""), "exists": target.exists()})
 
     if not writes and not manual:
-        sys.exit("The manifest has no changes.")
+        sys.exit("Nothing to apply: " + ("every change in it was refused (see above)." if skipped else
+                                        "the manifest has no changes."))
     print(f"{BOLD}--- The exact change ---{OFF}")
     for w in writes:
         risky = RISKY_TARGET.search(w["rel"])
@@ -667,12 +685,18 @@ def cmd_apply(pid, each=False, auto=None, by_settings=False):
         print(f"{RED}{BOLD}Changed since this was prepared:{OFF}{RED} {', '.join(stale)}. Applying would undo those "
               f"edits (the red lines above). Consider re-preparing it: review.py approve {pid}{OFF}")
     chosen = writes
-    if auto and (manual or stale):
-        record(pid, "not_automatic", "has steps to do by hand" if manual else f"changed since prepared: {stale}")
-        print(f"{pid} waits for you: {'it has steps to do by hand' if manual else 'files changed since it was prepared'}")
+    if auto and (manual or stale or skipped):
+        why = ("has steps to do by hand" if manual else f"changed since prepared: {stale}" if stale
+               else f"{skipped} of its changes can't be applied as written")
+        record(pid, "not_automatic", why)
+        print(f"{pid} waits for you: {why}")
         return False
-    if auto:
+    if auto or yes:
         each = False
+    elif writes and not sys.stdin.isatty():
+        # In Claude Code, `!` commands have no terminal to answer in: say how to apply exactly what was shown.
+        return print(f"Nothing written yet. To apply exactly the change above: review.py apply {pid} --yes "
+                     "(or run review.py in a terminal to answer file by file).")
     elif writes and not each:
         a = ask(f"Apply {'this change' if len(writes) == 1 else f'all {len(writes)} file changes'}?", "y/N/each")
         if a == "each":
@@ -828,12 +852,12 @@ def trial_ok(pid, evs=None):
         return False, "it closes off options"
     if other := active_trial(evs, but=pid):
         return False, f"{other} is on trial already (one at a time)"
-    if tested_bundle(pid) and tested_bundle(pid) != bundle_hash(pid):
+    if tested_bundle(pid) != bundle_hash(pid):
         return False, "the prepared change isn't the exact one that was tested"
     return True, f"test: {ev['result']}; reversible; options {m.get('options') or 'not stated'}"
 
 
-def cmd_trial(pid, auto=None, log=print):
+def cmd_trial(pid, auto=None, log=print, yes=False):
     """Apply pid as a trial. auto: the reason it's done without asking (my/techwatch-auto.md allows it)."""
     require(pid)
     ok, why = trial_ok(pid)
@@ -844,7 +868,7 @@ def cmd_trial(pid, auto=None, log=print):
     if not auto:
         print(f"{BOLD}Trial:{OFF} the change is applied now and checked again at the eval harness's next checkup (or "
               f"after {days} days), then kept, or rolled back if the workspace did worse.")
-    if not cmd_apply(pid, auto=f"trial; {auto}" if auto else None, by_settings=bool(auto)):
+    if not cmd_apply(pid, auto=f"trial; {auto}" if auto else None, by_settings=bool(auto), yes=yes):
         return False
     until = date.fromordinal(date.today().toordinal() + days).isoformat()
     record(pid, "trial_started", (auto or "you started it") + f"; {why}", until=until, auto=bool(auto))
@@ -907,10 +931,16 @@ def end_trials(log=print, automatic=True):
             continue
         if any(e.get("id") == pid and e.get("event") == "trial_ended" and e.get("ts", "") > start["ts"] for e in evs):
             continue   # already waiting for you
-        found = (f"checkup of {cu[0]}: {cu[1]}" if cu else f"no checkup by {until}") + \
+        found = (f"checkup of {cu[0]}: {cu[1]}" if cu else f"no checkup came by {until}, so nothing has checked it") + \
             " (a checkup compares the whole workspace with an earlier version, so other changes count too)"
         worse = bool(cu) and cu[1].startswith("the earlier version scored better")
-        if automatic and trial_settings().get("trials", True):
+        others = sorted({e["id"] for e in evs if e.get("event") in APPLIED and e.get("id") != pid
+                         and e.get("ts", "") >= start["ts"] and status_of(e["id"], evs) in IN_EFFECT})
+        if others:
+            found += f"; other changes applied since: {', '.join(others)}"
+        # Without a checkup there's no evidence either way, and with other changes in the window a "worse" can't be
+        # pinned on this one: both wait for you.
+        if automatic and trial_settings().get("trials", True) and cu and not (worse and others):
             if not worse:
                 record(pid, "kept", f"trial ended: {found}")
                 log(f"{pid}: trial ended, kept ({found})")
@@ -1006,6 +1036,9 @@ def walk_through():
         print(f"{BOLD}Decide now?{OFF}")
         for pid in todo:
             ready_choices(pid)
+    elif todo:
+        print(f"{DIM}To decide on these one by one, run review.py in a terminal. Or use the commands above, e.g. "
+              f"review.py show {todo[0]}, then review.py apply {todo[0]} --yes (or test, trial, shelve, reject).{OFF}")
 
 
 def load_criteria():
@@ -1062,7 +1095,8 @@ def auto_actions(log=print):
                     # Too small a result to settle isn't a failure: with automatic settings, such a change can go on
                     # trial (checked again at the next checkup), if it qualifies like any automatic change.
                     ok, why_t = trial_ok(pid, evs)
-                    if ok and scope.get("trials", True) and spaced(scope["space_days"], evs):
+                    automatic = req.get("auto") or pr["ready"] in ("test", "apply")
+                    if ok and automatic and scope.get("trials", True) and spaced(scope["space_days"], evs):
                         never, reviewed = classify(pid)
                         q_ok, q_why = criteria.qualifies(pid, scope, strict=bool(reviewed)) if not never else (False, "")
                         if q_ok and cmd_trial(pid, auto=f"{why_t}; {q_why}", log=log):
@@ -1148,7 +1182,8 @@ def checkpoint_dir():
     return Path.home() / "ai-welfare-checkpoints" / f"{WS.name}-{hashlib.sha1(str(WS).encode()).hexdigest()[:6]}"
 
 
-SKIP_RESTORE = re.compile(r"^(my/|workspace/|\.git/|techwatch/(inbox|proposals|staged|state|logs|evaluations)/|"
+# Never restored or deleted: your files, tech watch itself (checkpoints don't hold it), and machine state.
+SKIP_RESTORE = re.compile(r"^(my/|workspace/|\.git/|techwatch/|\.checkpoint\.json$|"
                           r"\.claude/settings\.local\.json$|scripts/integrity\.json$|sandbox/image\.lock)|"
                           r"__pycache__|\.pyc$")
 
@@ -1176,6 +1211,11 @@ def cmd_restore(day):
     changed = sorted(k for k in old.keys() & now.keys() if old[k].read_bytes().replace(str(src).encode(),
                                                                                   str(WS).encode()) != now[k].read_bytes())
     added, removed = sorted(now.keys() - old.keys()), sorted(old.keys() - now.keys())
+    try:   # what the checkpoint left out on purpose ([copy_exclude]): absent from it, but not "added since"
+        left_out = json.loads((src / ".checkpoint.json").read_text(encoding="utf-8")).get("left_out", [])
+    except (OSError, ValueError):
+        left_out = []
+    added = [f for f in added if not any(f == x or f.startswith(x.rstrip("/") + "/") for x in left_out)]
     if not (changed or added or removed):
         return print(f"The workspace already matches the {day} checkpoint.")
     print(f"{BOLD}Going back to {day}{OFF} (your my/ and workspace/ files aren't touched):")
@@ -1208,32 +1248,63 @@ def cmd_restore(day):
           "load it.")
 
 
-def cmd_rollback(pid):
+def cmd_rollback(pid, yes=False):
+    """Undo pid's applied files, file by file (yes: without asking). Recorded as rolled back only if every file was
+    undone; returns True then."""
     f = STAGED / pid / "applied.json"
     if not f.exists():
         sys.exit(f"Nothing recorded as applied for {pid}.")
-    rels = []
-    for a in reversed(json.loads(f.read_text(encoding="utf-8"))):
+    if not yes and not sys.stdin.isatty():
+        sys.exit(f"This asks before each file, so run it in a terminal, or add --yes: review.py rollback {pid} --yes")
+    entries = json.loads(f.read_text(encoding="utf-8"))
+    if not safe_to_undo(pid):
+        others = [d.name for d in proposals() if d.name != pid and status_of(d.name) in IN_EFFECT
+                  and any(a["target"] in {x["target"] for x in entries} for a in applied_entries(d.name))]
+        print(f"{YEL}{BOLD}Some of these files changed after {pid} was applied{OFF}{YEL} (your edits"
+              + (f", or {', '.join(others)}, which changed the same files" if others else "")
+              + "). Undoing restores the version from before the change, so those later edits would go too. "
+              "Copies of the current files are kept in the change's backup folder.{OFF}")
+    ask_ = (lambda q: "y") if yes else ask
+    rels, total = [], 0
+    for a in reversed(entries):
         target, bk = resolve(a["target"]), Path(a["backup"])
         if target is None:
             continue
+        total += 1
+        if target.exists():   # keep what's there now, in case it held later edits
+            keep = bk.with_name(bk.name + f".before-rollback-{datetime.now():%Y%m%d%H%M%S}")
+            shutil.copy2(target, keep)
         absent = bk.with_suffix(bk.suffix + ".absent")
         if absent.exists():
-            if target.exists() and ask(f"Delete {a['target']} (it didn't exist before)?") == "y":
+            if not target.exists():
+                rels.append(a["target"])
+            elif ask_(f"Delete {a['target']} (it didn't exist before)?") == "y":
                 target.unlink()
                 rels.append(a["target"])
                 d = target.parent
                 while d != WS and WS in d.parents and not any(d.iterdir()):   # folders apply created
                     d.rmdir()
                     d = d.parent
-        elif bk.exists() and ask(f"Restore {a['target']} from backup?") == "y":
+        elif bk.exists() and ask_(f"Restore {a['target']} from backup?") == "y":
             shutil.copy2(bk, target)
             rels.append(a["target"])
-    record(pid, "rolled_back")
     if INTEGRITY.exists() and rels and not drifted_elsewhere(rels):
         subprocess.run([sys.executable, str(WS / "scripts" / "validate_proposal.py"), "--init"],
                        stdout=subprocess.DEVNULL, check=False)
+    if len(rels) < total:
+        print(f"{pid}: {len(rels)} of {total} file(s) undone, so it still counts as applied. Run it again to undo "
+              "the rest.")
+        return False
+    record(pid, "rolled_back")
     print(f"{pid}: rolled back.")
+    return True
+
+
+def applied_entries(pid):
+    try:
+        return json.loads((STAGED / pid / "applied.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
 
 
 def main(a):
@@ -1256,19 +1327,27 @@ def main(a):
         return cmd_decide(rest[0], {"approve": "approved", "reject": "rejected", "defer": "deferred",
                                     "shelve": "shelved"}[c], rest[1:])
     if c == "trial":
-        return cmd_trial(rest[0])
+        return cmd_trial(rest[0], yes="--yes" in rest)
     if c == "apply":
-        return cmd_apply(rest[0], "--each" in rest)
+        return cmd_apply(rest[0], "--each" in rest, yes="--yes" in rest)
     if c == "test":
         return cmd_test(rest[0], "--no-apply" not in rest,
                         " ".join(x for x in rest[1:] if x not in ("--no-apply", "--deeper")),
                         depth="deeper" if "--deeper" in rest else "standard")
     if c == "rollback":
-        return cmd_rollback(rest[0])
+        return cmd_rollback(rest[0], yes="--yes" in rest)
     if c == "evaluated" and len(rest) >= 2 and rest[1] in ("keep", "remove"):
-        require(rest[0])
-        record(rest[0], "kept" if rest[1] == "keep" else "removed", " ".join(rest[2:]))
-        return print(f"{rest[0]}: {rest[1]}")
+        pid = rest[0]
+        require(pid)
+        st = status_of(pid)
+        if st not in IN_EFFECT:
+            sys.exit(f"{pid} is {st}, not applied, so there's nothing to keep or remove.")
+        if rest[1] == "remove" and (STAGED / pid / "applied.json").exists():
+            print(f"Removing {pid} means undoing its files first:")
+            if not cmd_rollback(pid, yes="--yes" in rest):
+                return print(f"{pid}: not recorded as removed, since it isn't fully undone.")
+        record(pid, "kept" if rest[1] == "keep" else "removed", " ".join(x for x in rest[2:] if x != "--yes"))
+        return print(f"{pid}: {rest[1]}")
     print(__doc__)
     sys.exit(2)
 
