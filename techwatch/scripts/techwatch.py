@@ -261,7 +261,7 @@ def stage(pid):
     keep = [x for x in ("backup", "applied.json", "applied-before-update.json") if (bundle / x).exists()]
     if keep:   # an earlier application's backups: keep them where rollback and update.py can still find them
         arch = STATE / "applied-archive" / pid / datetime.now().strftime("%Y%m%d-%H%M%S")
-        arch.mkdir(parents=True)
+        arch.mkdir(parents=True, exist_ok=True)
         for x in keep:
             shutil.move(str(bundle / x), str(arch / x))
     shutil.rmtree(bundle, ignore_errors=True)   # start empty, so nothing another run wrote can ride along

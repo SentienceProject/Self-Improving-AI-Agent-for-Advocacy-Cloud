@@ -381,8 +381,9 @@ Tests: `python3 -m unittest discover tests` and `python3 -m unittest discover -s
 A companion harness scores versions of this workspace on a fixed task set (AI welfare or animal advocacy), with
 judges from other model families and a held-out split. It's the `ai-welfare-eval-harness` folder beside this one in
 the repository. `setup.py` finds it there (or in `~/ai-welfare-evals/`), so tech watch can test a change before
-applying it. In hardened mode, and in every eval run, agents can't read the harness folder; in casual mode, like
-plain Claude Code, they could if they tried, though its tasks are locked. Its README covers setting up the judges
+applying it. In hardened mode, and in every eval run, agents can't read the harness folder. In casual mode,
+reading its task files (the answer key, once you've unlocked them for testing) asks you first: say no, since an
+agent that has read the judge notes makes the tests meaningless. Its README covers setting up the judges
 (ChatGPT and Gemini free tiers are enough; a Claude stand-in fills in for one that isn't set up).
 
 ## Known rough edges

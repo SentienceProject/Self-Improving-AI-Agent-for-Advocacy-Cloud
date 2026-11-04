@@ -157,6 +157,30 @@ class TestUpdateInsideARepository(TestUpdate):
     """The same, with the workspace in a folder of a bigger repository (the published layout)."""
     SUB = "ai-welfare-workspace"
 
+    def test_your_harness_edit_doesnt_block_the_update(self):
+        root, user_root = self.maint.parent, self.user.parent
+        (user_root / "harness" / "h.md").write_text("harness v1\nmy setting\n")
+        (root / "harness" / "h.md").write_text("harness v1\n")
+        (root / "harness" / "h3.md").write_text("upstream harness change\n")
+        git(root, "add", "-A")
+        self.maintainer_changes(**{"notes.md": "notes.md v2\nline two\n"})
+        out = self.update()
+        self.assertIn("Updated", out)
+        self.assertEqual(self.read("notes.md"), "notes.md v2\nline two\n")
+        self.assertIn("my setting", (user_root / "harness" / "h.md").read_text())
+
+    def test_a_clashing_harness_edit_is_saved_not_lost(self):
+        root, user_root = self.maint.parent, self.user.parent
+        (user_root / "harness" / "h.md").write_text("harness v1\nmy setting\n")
+        (root / "harness" / "h.md").write_text("harness v2 from the maintainer\n")
+        git(root, "add", "-A")
+        self.maintainer_changes(**{"notes.md": "notes.md v2\nline two\n"})
+        out = self.update()
+        self.assertEqual((user_root / "harness" / "h.md").read_text(), "harness v2 from the maintainer\n")
+        self.assertIn("harness/h.md: your edit clashed", out)
+        backups = list((self.user / "techwatch" / "state" / "update-backups").rglob("h.md"))
+        self.assertTrue(backups and "my setting" in backups[0].read_text())
+
     def test_sibling_folder_is_updated_but_left_alone(self):
         root, user_root = self.maint.parent, self.user.parent
         (user_root / "harness" / "h.md").write_text("harness v1\nmy own harness note\n")

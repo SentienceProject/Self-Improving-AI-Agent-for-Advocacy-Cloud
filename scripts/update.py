@@ -47,6 +47,9 @@ def git(*args, check=False, timeout=120):
     return r
 
 
+OUTSIDE = "outside-workspace"   # in the backup folder: your edited files from elsewhere in the repository
+
+
 def in_git():
     """True if this workspace is a git clone, or a folder inside one."""
     return bool(shutil.which("git")) and git("rev-parse", "--is-inside-work-tree").stdout.strip() == "true"
@@ -187,6 +190,13 @@ def main(a):
         if (ROOT / rel).exists():
             (backup / rel).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / rel, backup / rel)
+    # Your edits elsewhere in the repository (the eval harness's config.toml, say) are set aside and put back too.
+    top, prefix = Path(git("rev-parse", "--show-toplevel").stdout.strip()), git("rev-parse", "--show-prefix").stdout.strip()
+    for f in git("diff", "--name-only", "HEAD", "--", ":/").stdout.splitlines():
+        if f and not (prefix and f.startswith(prefix)) and (top / f).exists():
+            (backup / OUTSIDE / f).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(top / f, backup / OUTSIDE / f)
+            changed.append(f"{OUTSIDE}/{f}")
 
     notes, outcome = [], {}
     tw = applied_changes()
@@ -214,9 +224,9 @@ def main(a):
 
 
 def finish(a, tw, wrote, notes, outcome, backup, changed, behind, old_version, before_drift, old_head, stamp):
-    stashed = bool(git("status", "--porcelain", "--untracked-files=no", "--", ".").stdout.strip())
-    if stashed:   # only this workspace's edits ("." is this folder, wherever it is in the repository)
-        git("stash", "push", "--quiet", "-m", f"update.py {stamp}", "--", ".", check=True)
+    stashed = bool(git("status", "--porcelain", "--untracked-files=no", "--", ":/").stdout.strip())
+    if stashed:   # your edits anywhere in the repository (":/" is its top), so the update can fast-forward
+        git("stash", "push", "--quiet", "-m", f"update.py {stamp}", "--", ":/", check=True)
     r = git("merge", "--ff-only", "--quiet", "@{u}")
     if r.returncode:
         if stashed:
@@ -226,12 +236,14 @@ def finish(a, tw, wrote, notes, outcome, backup, changed, behind, old_version, b
                  f"files are in {backup.relative_to(ROOT)}.")
     if stashed:
         r = git("stash", "pop", "--quiet")
-        clash = [f for f in git("diff", "--name-only", "--relative", "--diff-filter=U").stdout.splitlines() if f]
+        prefix = git("rev-parse", "--show-prefix").stdout.strip()
+        clash = [f for f in git("diff", "--name-only", "--diff-filter=U", "--", ":/").stdout.splitlines() if f]
         if r.returncode and clash:
-            for f in clash:
-                git("checkout", "HEAD", "--", f)
+            for f in clash:   # paths from the repository's top
+                git("checkout", "HEAD", "--", f":/{f}")
+                saved = backup / (f[len(prefix):] if prefix and f.startswith(prefix) else f"{OUTSIDE}/{f}")
                 notes.append(f"{f}: your edit clashed with the update; the update's version is in place, yours is in "
-                             f"{(backup / f).relative_to(ROOT)}")
+                             f"{saved.relative_to(ROOT)}")
             git("reset", "--quiet")
             git("stash", "drop", "--quiet")
         elif r.returncode:

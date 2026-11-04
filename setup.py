@@ -55,7 +55,7 @@ def fill(obj):
     """The layer with {{WORKSPACE}}, {{HOME}} and {{HARNESS}} (the eval harness beside this workspace in the
     repository) replaced by real paths."""
     text = (json.dumps(obj).replace("{{WORKSPACE}}", HERE.as_posix()).replace("{{HOME}}", Path.home().as_posix())
-            .replace("{{HARNESS}}", (HERE.parent / "ai-welfare-eval-harness").as_posix()))
+            .replace("{{HARNESS}}", (find_harness() or HERE.parent / "ai-welfare-eval-harness").as_posix()))
     return json.loads(text)
 
 

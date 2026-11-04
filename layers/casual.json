@@ -65,7 +65,11 @@
       "mcp__*update_event*",
       "mcp__*notify*",
       "Edit(./.gitignore)",
-      "Edit(./.git/**)"
+      "Edit(./.git/**)",
+      "Read(/{{HARNESS}}/evals/tasks/**)",
+      "Read(/{{HARNESS}}/evals/tasks-animals/**)",
+      "Read(/{{HARNESS}}/evals/legacy-rubric-eval/improver_tasks/**)",
+      "Read(~/ai-welfare-evals/**)"
     ]
   },
   "sandbox": {
