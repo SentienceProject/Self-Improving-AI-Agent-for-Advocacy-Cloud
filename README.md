@@ -18,36 +18,42 @@ optional outside judges) and how to turn each part off.
 [`examples/`](examples/) has real, unedited outputs, with what was asked, what it cost and how long it took, so
 you can judge whether it's worth setting up.
 
-## Getting started: the short way (5 minutes)
+## Getting started
 
-All you need is Claude Code and a Claude subscription (Pro or Max) or API credit.
+You need [Claude Code](https://code.claude.com/docs/en/setup) (signed in, with a Claude Pro or Max plan or API
+credit), [git](https://git-scm.com/downloads) and Python 3.12 or newer. On Windows, use
+[WSL2](https://learn.microsoft.com/windows/wsl/install): it's the tested way. In a terminal:
 
-1. **Install Claude Code** ([instructions](https://code.claude.com/docs/en/setup)) and sign in.
-2. **Download it:** on GitHub, Code → Download ZIP, then unzip it. The workspace is the `ai-welfare-workspace`
-   folder inside; the `ai-welfare-eval-harness` folder beside it is optional (see "Evaluating changes").
-3. **Open the workspace folder in Claude Code:** in a terminal, go to `ai-welfare-workspace` and type `claude` (or open the folder in the
-   Claude desktop app's Code tab). Say yes when it asks whether to trust the folder (the agents' safety guards run only in a trusted folder).
-4. **Tell Claude about your work** when it asks (three questions), then ask for something small: *"Quick answer, no
-   helpers: what are the main arguments that fish can feel pain?"*
+```
+git clone https://github.com/SentienceProject/Self-Improving-AI-Agent-for-Advocacy.git
+cd Self-Improving-AI-Agent-for-Advocacy
+cd ai-welfare-workspace
+python3 setup.py
+claude
+```
 
-That's it. The first session sets the workspace up in casual mode by itself, and its "ask first" rules take effect
-straight away (tested on Linux with Claude Code 2.1; not yet on Windows or macOS: if Claude sends or posts anything
-without asking, start a new session and please report it). A big task (a researched letter or
-brief) typically uses a few dollars' worth of usage, and your drafts appear in `workspace/outbox/`.
+**What setup asks** (about five minutes; Enter takes the default everywhere):
+- your cause, who you are and what you want help with (for `my/profile.md`);
+- whether tech watch runs automatically, and whether a change it prepares is tested and applied automatically when
+  it passes (the default) or waits for you ([Tech watch](#tech-watch-keeping-the-workspace-up-to-date));
+- setting up the eval harness's outside judges, ChatGPT and Gemini (free tiers are enough);
+- phone notifications for follow-ups ([Phone notifications](#phone-notifications-ntfy));
+- bringing in what other AI tools already know about you: memory or notes from Claude chats, ChatGPT, Gemini or
+  another agent. Claude then folds it into your profile and memory, with your OK (`/import-context`).
 
-## Getting started: the full setup (10 more minutes)
+Setup never schedules anything itself. It ends by listing the commands that start tech watch's and the follow-ups'
+schedules, then offers more options: the [safety mode](#two-modes-casual-and-hardened), your paper corpus, and using
+a session from your phone (`/remote-control`, or `/rc`). Say "not now" and you'll be reminded the next day; run
+`python3 setup.py --more` any time.
 
-The short way leaves out updates and scheduled tech watch. For those:
+Then type `claude` (or open the folder in the Claude desktop app's Code tab), say yes when it asks whether to trust
+the folder (the agents' safety guards only run in a trusted folder), and ask for something small: *"Quick answer, no
+helpers: what are the main arguments that fish can feel pain?"* A big task (a researched letter or brief)
+typically uses a few dollars' worth of usage, and your drafts appear in `workspace/outbox/`.
 
-1. **Download with git** instead of the ZIP: `git clone <this repo's address>`, then work in its
-   `ai-welfare-workspace` folder. Then `python3 scripts/update.py`
-   gets updates later and keeps your changes.
-2. **Run the setup** in a terminal in this folder: `python3 setup.py`. It asks about your cause and your work,
-   writes your own files into `my/`, and asks whether tech watch should run automatically (the default; see
-   [Tech watch](#tech-watch-keeping-the-workspace-up-to-date)) and whether you'd like phone notifications for
-   follow-ups (see [Phone notifications](#phone-notifications-ntfy)). It needs Python 3, which macOS and Linux usually
-   have.
-3. Start Claude in the folder as above.
+**Without git?** On GitHub, Code → Download ZIP also works: unzip it and do the same from the `cd` lines. You won't
+get updates (`python3 scripts/update.py` needs a git clone). If you open the folder in Claude without running setup,
+the first session sets up casual mode by itself, so the ask-first rules are in place; run setup later for the rest.
 
 Claude tells you what it's doing as it goes.
 
@@ -205,16 +211,19 @@ your drafts are confidential. Scouts quote anything suspicious they find under "
 New AI models, Claude Code features and tools appear every week, and some could make this workspace much better at
 your work. Tech watch finds them and prepares each one as an exact change to the workspace.
 
-**It runs automatically.** `setup.py` asks you about it and, unless you say otherwise, schedules it (cron on Linux
-and WSL2, launchd on macOS, Task Scheduler on Windows). Each day it checks a list of news pages and runs a short
+**It runs automatically.** `setup.py` asks you about it. Saying "automatically" doesn't start the schedule by
+itself: setup ends by showing the command that does, `python3 techwatch/scripts/techwatch.py schedule on` (cron on
+Linux and WSL2, launchd on macOS, Task Scheduler on Windows). Each day it checks a list of news pages and runs a short
 scan (Sonnet, up to $1 of usage). Once a week it runs a deeper scan (Opus, up to $4). Then it prepares the
 changes worth making (up to $3 each). That's roughly $15-35 of usage a month, and scans stop for the month at $30 (tests in the eval harness are counted separately).
 On a subscription these are estimates against your usage limits, not charges. It runs only while your computer
 is on. Scouts can't run commands, use your connected apps or change the workspace; they only write notes and
 proposals.
 
-**You decide what happens to a prepared change.** By default nothing changes until you say so. When changes are
-ready, Claude tells you at the start of a session; type `! python3 techwatch/scripts/review.py` and, for each one,
+**What happens to a prepared change.** Setup asks. By default, a change is tested with the eval harness and applied
+if it passes, as long as it's within `my/techwatch-auto.md`'s limits (below); everything else waits for you, and
+Claude tells you at the start of a session what was applied (`review.py rollback <id> --yes` undoes it). If you
+chose "ask me", or for changes outside those limits, type `! python3 techwatch/scripts/review.py` and, for each one,
 choose:
 - **test it only**, to decide with the result in front of you (`review.py show <id>` has it);
 - **test it, then apply it if it passes** (needs the [eval harness](#evaluating-changes)): it's tested on a few
@@ -230,7 +239,7 @@ choose:
 |---|---|
 | `Tech watch runs:` | `automatically` (default) · `when I start it` (Claude reminds you when a weekly scan is due; you run `! python3 techwatch/scripts/techwatch.py run`) · `off` |
 | `Scans:` | `daily and weekly` (default) · `weekly only` (roughly $5-15 a month) |
-| `When a change is ready:` | `ask me` (default) · `test it, then ask me` · `test it, apply if it passes` · `apply it` |
+| `When a change is ready:` | `test it, apply if it passes` (default) · `ask me` · `test it, then ask me` · `apply it` |
 
 **Which changes those automatic choices cover** is set in a second file, `my/techwatch-auto.md`. By default:
 major changes (a new model generation, a capability that changes how the workspace works), and changes of any size
@@ -363,7 +372,7 @@ CLAUDE.md, GUARDRAILS.md     how Claude works here, and the honesty, consent and
 ETHICS_SHORT.md, ETHICS_FULL.md   the default ethical framework (yours goes in my/)
 my/                          your own files (gitignored)
 .claude/agents/              researcher, critic, verifier, ideator, wild-ideator, drafter, helper, analyst
-.claude/skills/              /wild-ideas, /add-papers, /connect, /my-ethics, /techwatch, /fetch-sources
+.claude/skills/              /wild-ideas, /add-papers, /connect, /my-ethics, /import-context, /techwatch, /fetch-sources
 .claude/hooks/               session reminders, the /clear tip, guards; hardened mode adds the preflight and logs
 .claude/settings.json        the rules for every mode (your machine's additions: settings.local.json)
 layers/                      what setup.py adds for casual and hardened mode
@@ -378,13 +387,71 @@ Tests: `python3 -m unittest discover tests` and `python3 -m unittest discover -s
 
 ## Evaluating changes
 
-A companion harness scores versions of this workspace on a fixed task set (AI welfare or animal advocacy), with
-judges from other model families and a held-out split. It's the `ai-welfare-eval-harness` folder beside this one in
-the repository. `setup.py` finds it there (or in `~/ai-welfare-evals/`), so tech watch can test a change before
-applying it. In hardened mode, and in every eval run, agents can't read the harness folder. In casual mode,
+The eval harness is what makes self-improvement safe: it scores versions of this workspace on fixed tasks (AI
+welfare or animal advocacy), with judges from other model families and a held-out split, and tech watch uses it to
+test every change before applying it. It's the `ai-welfare-eval-harness` folder beside this one in the repository;
+keep the two together. `setup.py` finds it there (or in `~/ai-welfare-evals/`), unlocks its tasks and sets up its
+judges. In hardened mode, and in every eval run, agents can't read the harness folder. In casual mode,
 reading its task files (the answer key, once you've unlocked them for testing) asks you first: say no, since an
 agent that has read the judge notes makes the tests meaningless. Its README covers setting up the judges
 (ChatGPT and Gemini free tiers are enough; a Claude stand-in fills in for one that isn't set up).
+
+## If something goes wrong
+
+Setup checks for the common problems and says which one it found. The usual ones, and their fixes:
+
+**Installing**
+- **`python3: command not found`**, or on Windows a Microsoft Store window opens: Python isn't installed, or isn't on
+  your PATH. Install it from [python.org](https://www.python.org/downloads/); on Windows, tick "Add python.exe to
+  PATH" in the installer, then open a new terminal. In WSL2 or Ubuntu: `sudo apt install python3`.
+- **"needs Python 3.12 or newer"**: your Python is older (`python3 --version`). Ubuntu 24.04 has 3.12; on older
+  Ubuntu, `sudo apt install python3.12` (from the deadsnakes PPA if apt can't find it); on macOS,
+  `brew install python`, or the installer from python.org.
+- **`git: command not found`**: install it from [git-scm.com](https://git-scm.com/downloads), or
+  `sudo apt install git` / `brew install git`.
+- **`claude: command not found`**: install [Claude Code](https://code.claude.com/docs/en/setup). If you just
+  installed it, open a new terminal so it's on your PATH.
+- **Claude Code is out of date** (setup says so, or features in this README are missing): `claude update`. After an
+  update, `python3 scripts/compat_check.py` checks the workspace still works with it.
+- **An old operating system.** Claude Code needs a recent one (see its setup page). For WSL2, Windows needs to be
+  Windows 11, or Windows 10 version 2004 or later: run Windows Update first, then `wsl --install` in PowerShell.
+- **`git clone` asks for a password, or says the repository wasn't found**: check the address. A private
+  repository needs you to be signed in to GitHub (`gh auth login`, or a personal access token as the password).
+
+**Running**
+- **Claude seems to ignore the workspace's rules, or the helper agents can write anywhere**: the folder isn't
+  trusted. Claude Code only runs the agents' safety guards in a trusted folder. Start `claude` in
+  `ai-welfare-workspace` and say yes to "trust this folder".
+- **Commands fail with a sandbox error** (Linux and WSL2): Claude Code's sandbox needs bubblewrap and socat:
+  `sudo apt install bubblewrap socat`, then start a new session.
+- **Errors mentioning a hook, or `python3` not found, at the start of every session (Windows)**: the hooks call
+  `python3`. Use WSL2, or make sure `python3` runs in a new terminal (see the first item above).
+- **An agent says a guard blocked it from writing its own file**: please report it (open an issue) with the path it
+  printed. On Windows, paths with spaces or backslashes were a known cause, fixed in 0.1.0.
+- **Too many permission prompts**: `python3 setup.py --rules` lists the workspace's ask-first rules, and
+  `python3 setup.py --allow "<rule>"` drops one ([How much Claude may do on its own](#how-much-claude-may-do-on-its-own)).
+- **The commands Claude gives you after `!` don't ask anything**: `!` has no terminal to answer in. Run
+  `review.py` and `setup.py` in a terminal instead, or use the `--yes` forms Claude suggests (they apply exactly
+  what was just shown).
+
+**Scheduled things** (tech watch, follow-up briefs)
+- **Nothing ever runs**: the schedule isn't on yet. Setup only shows the commands:
+  `python3 techwatch/scripts/techwatch.py schedule on` and `python3 scripts/followups.py schedule on`. Check
+  with `... schedule status`.
+- **On WSL2, they run only while WSL is running**, and WSL stops soon after you close its last terminal window. Keep
+  a WSL window open while you want them to run. Cron must also be running: `sudo service cron start` (or enable
+  systemd in WSL so it starts by itself).
+- **Moving or deleting the folder**: run `schedule off` for both first, or the old schedule keeps trying.
+- **No phone notifications**: check the app is subscribed to the exact topic in `my/notify.json`, that your phone
+  isn't putting the ntfy app to sleep (battery settings), and try `python3 scripts/notify.py --test`.
+
+**Updates and the eval harness**
+- **`update.py` says this isn't a git clone**: the ZIP download can't update itself. Clone with git, then copy your
+  `my/` and `workspace/` folders across.
+- **A judge fails with "503", "429" or "quota"** (usually Gemini's free tier, which allows only a few requests a day): it's busy or
+  out of its daily allowance. The harness uses a stand-in Claude judge and the report says so; or try again later.
+- **A tech-watch test stops "waiting: 5-hour session at 100%"**: it pauses at 85% of your usage limits and carries
+  on after they reset. Nothing is lost.
 
 ## Known rough edges
 

@@ -12,10 +12,14 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import importlib.util
+import json
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
 class AgentGuardTest(unittest.TestCase):
     def setUp(self):
@@ -24,7 +28,7 @@ class AgentGuardTest(unittest.TestCase):
         (self.root / ".claude" / "hooks").mkdir(parents=True)
         for d in ("ideas", "outbox", "drafts", "corpus", "logs"):
             (self.root / "workspace" / d).mkdir(parents=True)
-        for f in ("agent_guard.py", "preflight.py"):
+        for f in ("agent_guard.py", "preflight.py", "guard_paths.py"):
             shutil.copy(REPO / ".claude" / "hooks" / f, self.root / ".claude" / "hooks" / f)
 
     def tearDown(self):
@@ -80,6 +84,39 @@ class AgentGuardTest(unittest.TestCase):
         r = subprocess.run([sys.executable, str(self.root / ".claude" / "hooks" / "agent_guard.py"), "drafter"],
                            input="not json", capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
+
+
+class TestPathsAcrossSystems(unittest.TestCase):
+    """The guards' path checks on Windows-style paths (a reported bug: a folder name with a space, and backslashes,
+    blocked the brainstorm agent from its own file), and both kinds of run ID."""
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location("guard_paths", ROOT_DIR / ".claude" / "hooks" / "guard_paths.py")
+        self.g = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.g)
+
+    def test_windows_path_styles_match_the_folder(self):
+        base = "C:\\Users\\Sky Travis\\repo\\ai-welfare-workspace\\workspace\\ideas"
+        for raw in ("C:\\Users\\Sky Travis\\repo\\ai-welfare-workspace\\workspace\\ideas\\a-wild-1.md",
+                    "/c/Users/Sky Travis/repo/ai-welfare-workspace/workspace/ideas/a-wild-1.md",
+                    "/mnt/c/Users/Sky Travis/repo/ai-welfare-workspace/workspace/ideas/a-wild-1.md"):
+            self.assertTrue(self.g.norm(raw).startswith(self.g.norm(base) + "/"), raw)
+
+    def test_dotdot_cant_leave_the_folder(self):
+        base = "C:\\ws\\workspace\\ideas"
+        self.assertFalse(self.g.norm("C:\\ws\\workspace\\ideas\\..\\memory.md").startswith(self.g.norm(base) + "/"))
+
+    def wild(self, rel):
+        ev = {"tool_name": "Write", "tool_input": {"file_path": str(ROOT_DIR / rel)}, "cwd": str(ROOT_DIR)}
+        return subprocess.run([sys.executable, str(ROOT_DIR / ".claude" / "hooks" / "wild_write_guard.py"), "--always"],
+                              input=json.dumps(ev), capture_output=True, text=True).returncode
+
+    def test_wild_ideator_run_ids_in_both_modes(self):
+        self.assertEqual(self.wild("workspace/ideas/2026-11-04-01-wild-1.md"), 0)      # hardened
+        self.assertEqual(self.wild("workspace/ideas/2026-11-04-oped-wild-2.md"), 0)    # casual
+        self.assertEqual(self.wild("workspace/ideas/sub/x-wild-1.md"), 2)
+        self.assertEqual(self.wild("workspace/memory-wild-1.md"), 2)
+        self.assertEqual(self.wild("workspace/ideas/x-wild-9.md"), 2)
 
 
 if __name__ == "__main__":

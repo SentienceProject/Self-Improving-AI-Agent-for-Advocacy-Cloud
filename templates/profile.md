@@ -9,8 +9,9 @@ every session. Edit it in any text editor, or ask Claude to (it will ask your pe
 
 **What I mostly want help with:** (e.g. research briefs, letters to legislators, outreach, op-eds, strategy)
 
-**Ethical framework:** the default `ETHICS_SHORT.md` (the original author's view). To use your own, put it in
-`my/ETHICS_SHORT.md` (the `/my-ethics` skill helps you write one); if that file exists, it replaces the default.
+**Ethical framework:** the workspace currently uses the personal ethics file made by the creator of this project
+(`ETHICS_SHORT.md`). Its views likely differ from yours. To use your own, put it in `my/ETHICS_SHORT.md` (the
+`/my-ethics` skill helps you write one); if that file exists, it replaces the creator's.
 
 **Budget for a big task:** roughly $5–10 of usage for something like an op-ed or a brief, unless I say otherwise.
 

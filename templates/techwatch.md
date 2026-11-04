@@ -6,8 +6,8 @@ it applies beyond the workspace's guardrails, so write down whatever matters to 
 have no limit there. -->
 
 **Tech watch runs:** automatically
-<!-- "automatically": scans run on a schedule (`python3 techwatch/scripts/techwatch.py schedule on`, which setup.py
-does for you), while your computer is on. "when I start it": Claude reminds you when a scan is due and you run
+<!-- "automatically": scans run on a schedule, while your computer is on. Start the schedule once with
+`python3 techwatch/scripts/techwatch.py schedule on` (setup.py shows this command; it doesn't run it for you). "when I start it": Claude reminds you when a scan is due and you run
 `! python3 techwatch/scripts/techwatch.py run`. "off": no scans; you still get the maintainer's improvements with
 `python3 scripts/update.py`. -->
 
@@ -17,7 +17,7 @@ $15-35 of usage a month. "weekly only": roughly $5-15 a month. Preparing a chang
 stops at the monthly cap in techwatch/config.json ($30). On a subscription these are estimates against your usage
 limits, not charges. -->
 
-**When a change is ready:** ask me
+**When a change is ready:** test it, apply if it passes
 <!-- "ask me": Claude tells you at the start of a session; `! python3 techwatch/scripts/review.py` asks, change by
 change, whether to test it (and apply it if it passes), apply it now, or skip it.
 "test it, then ask me": changes are tested with the eval harness (see "Eval harness folder"), and you decide with

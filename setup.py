@@ -6,6 +6,7 @@
     python3 setup.py --casual      switch back from hardened to casual
     python3 setup.py --search      also set up semantic corpus search (hardened mode; needs Ollama)
     python3 setup.py --status      show the current mode and what's set up; change nothing
+    python3 setup.py --more        the optional extras: safety mode, your paper corpus, using sessions from your phone
 
 Fewer (or more) permission prompts. The workspace's rules are asks, not blocks: Claude can do each thing after you
 say yes. To stop being asked about one, or to start being asked:
@@ -20,9 +21,10 @@ Your changes are kept in my/permissions.json and survive updates and mode switch
 workspace's rules in Claude Code's /permissions also sticks: setup.py notices and remembers it.
 
 What it does:
-  1. creates your own files in my/ (profile.md, techwatch.md) if they don't exist yet, asking a few questions,
-     and schedules tech watch if it's set to run automatically (the default; you're asked first). It also asks,
-     once, whether you'd like phone notifications for follow-ups (scripts/followups.py) and how many days apart;
+  1. creates your own files in my/ (profile.md, techwatch.md) if they don't exist yet, asking a few questions:
+     your work, how tech watch runs and whether ready changes apply automatically, phone notifications for
+     follow-ups, and bringing in what other AI tools know about you (my/imports/, then /import-context). It never
+     schedules anything itself: the commands are listed at the end. Then it offers the optional extras (--more);
   2. merges the chosen layer (layers/casual.json or layers/hardened.json) into .claude/settings.local.json,
      your machine's own settings file, with this folder's path filled in. Anything else in that file (such as
      "always allow" choices you've made in Claude Code) is kept. Switching modes removes only what the previous
@@ -35,9 +37,11 @@ It never touches the tracked files (CLAUDE.md, .claude/settings.json, ...), so u
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import venv
+from datetime import date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -263,24 +267,36 @@ def find_harness():
     return None
 
 
+NEXT = []   # commands to show at the end: setup never schedules anything itself
+
+
 def setup_techwatch():
-    """my/techwatch.md (asking how tech watch should run, the first time), the eval harness's folder, and the
-    schedule."""
+    """my/techwatch.md (asking how tech watch should run, the first time) and the eval harness's folder. Scheduling
+    is left to you: setup prints the command."""
     f = MY / "techwatch.md"
-    chose_now = False
     if not f.exists():
         text = (HERE / "templates" / "techwatch.md").read_text(encoding="utf-8")
-        print("Tech watch looks for new tools and AI features that could help your work and prepares each change for "
-              "you.\n  By default it runs automatically (a daily and a weekly scan; roughly $15-35 of usage a month, "
-              "capped at $30),\n  and asks you before changing anything.")
-        a = ask("  Run it automatically (Enter), only when you start it (m), or not at all (o)? [A/m/o]", "a").lower()
+        print("Tech watch looks for new tools and AI features that could help your work, and prepares each change as "
+              "an exact edit\n  to the workspace. A daily and a weekly scan use roughly $15-35 of usage a month, "
+              "capped at $30.")
+        a = ask("  Run it automatically (Enter), only when you start it (m), or not at all (o)? [A/m/o]\n"
+                "  (Automatic doesn't start the schedule by itself: setup shows you the one command that does, at "
+                "the end.)", "a").lower()
         runs = "when I start it" if a.startswith("m") else "off" if a.startswith("o") else "automatically"
-        if not sys.stdin.isatty():   # nobody answered: don't schedule anything; the session note offers it
-            runs = "automatically"
-        chose_now = sys.stdin.isatty() and runs == "automatically"
+        ready = "test it, apply if it passes" if find_harness() else "apply it"
+        if runs != "off":
+            b = ask("  When a change is ready: test it and apply it if it passes (Enter), or ask you first (a)? [T/a]\n"
+                    "  (Automatic changes stay within my/techwatch-auto.md: by default, major changes and ones every "
+                    "reviewer finds\n  narrow and safe. Hooks, safety rules, the ethics files and your my/ files "
+                    "always wait for you. Claude tells you\n  what was applied, and any change can be undone.)",
+                    "t").lower()
+            ready = "ask me" if b.startswith("a") else ready
         text = text.replace("**Tech watch runs:** automatically", f"**Tech watch runs:** {runs}")
+        text = re.sub(r"^(\*\*When a change is ready:\*\*).*$", lambda m: f"{m.group(1)} {ready}", text, count=1,
+                      flags=re.M)
         f.write_text(text, encoding="utf-8")
-        print(f"  wrote my/techwatch.md (tech watch: {runs}; change it, and your limits, in that file any time)")
+        print(f"  wrote my/techwatch.md (tech watch: {runs}; when a change is ready: {ready}; change either in that "
+              "file any time)")
     auto = MY / "techwatch-auto.md"
     if not auto.exists():
         auto.write_text((HERE / "templates" / "techwatch-auto.md").read_text(encoding="utf-8"), encoding="utf-8")
@@ -293,19 +309,10 @@ def setup_techwatch():
         f.write_text(text, encoding="utf-8")
         print(f"  found the eval harness at {h}: tech watch can test changes before applying them")
     automatic = re.search(r"^\*\*Tech watch runs:\*\*[ \t]*automatic", text, re.M | re.I)
-    tw = [sys.executable, str(HERE / "techwatch" / "scripts" / "techwatch.py"), "schedule"]
-    if not automatic or "scheduled" in subprocess.run(tw + ["status"], capture_output=True, text=True).stdout.replace(
-            "not scheduled", ""):
-        return
-    # schedule only on a yes given in this run: never because an older file says "automatically"
-    if chose_now or (sys.stdin.isatty() and not ask("  Tech watch is set to run automatically but isn't scheduled on "
-                                                    "this computer. Schedule it now? [Y/n]", "y").lower().startswith("n")):
-        r = subprocess.run(tw + ["on"], check=False)
-        if r.returncode:
-            print("  scheduling didn't work (see above); you can retry with  python3 techwatch/scripts/techwatch.py "
-                  "schedule on")
-    else:
-        print("  tech watch: to run it automatically, run  python3 techwatch/scripts/techwatch.py schedule on")
+    tw = [sys.executable, str(HERE / "techwatch" / "scripts" / "techwatch.py"), "schedule", "status"]
+    if automatic and "not scheduled" in subprocess.run(tw, capture_output=True, text=True).stdout:
+        NEXT.append("Start tech watch's schedule (it then runs by itself):  python3 techwatch/scripts/techwatch.py "
+                    "schedule on")
 
 
 def setup_notifications():
@@ -334,9 +341,160 @@ def setup_notifications():
     print("  test sent: check your phone" if notify.send("Welfare workspace", "Notifications work. Follow-ups "
                                                          "will arrive here.", cfg=cfg)
           else "  the test didn't go through (see above); try later with  python3 scripts/notify.py --test")
-    r = subprocess.run([sys.executable, str(HERE / "scripts" / "followups.py"), "schedule", "on"], check=False)
-    if r.returncode:
-        print("  scheduling didn't work (see above); retry with  python3 scripts/followups.py schedule on")
+    NEXT.append(f"Start the follow-up briefs' schedule:  python3 scripts/followups.py schedule on --days {days}")
+
+
+def setup_harness():
+    """The eval harness beside this workspace: it tests tech watch's changes before they're applied. Unlocks its
+    tasks (which tests need) and offers to set up its outside judges."""
+    h = find_harness()
+    if not h:
+        print("  ! The eval harness isn't beside this folder (ai-welfare-eval-harness/). Tech watch can't test changes "
+              "without it:\n    download the whole repository again, and keep both folders side by side.")
+        return
+    if sys.version_info < (3, 12):
+        print(f"  ! The eval harness needs Python 3.12 or newer (this is {sys.version.split()[0]}); see README, "
+              "'If something goes wrong'.")
+        return
+    evals = h / "evals"
+    if not (evals / "tasks" / "dev").is_dir():
+        r = subprocess.run([sys.executable, str(evals / "task_lock.py"), "unlock"], capture_output=True, text=True)
+        print("  eval harness: tasks unlocked for testing" if r.returncode == 0 else
+              f"  ! couldn't unlock the eval tasks: {(r.stderr or r.stdout).strip()[:200]}")
+    judges = h / "evals" / "ClaudeImproverHarness" / "setup_judges.py"
+    check = subprocess.run([sys.executable, str(judges), "--check"], cwd=judges.parent, capture_output=True,
+                           text=True, timeout=120)
+    if check.returncode == 0 and "not set up" not in check.stdout.lower():
+        return
+    cmd = f"cd {judges.parent.as_posix()} && python3 setup_judges.py"
+    if sys.stdin.isatty() and not ask("The eval harness judges changes with ChatGPT and Gemini as well as Claude (free "
+                                      "tiers are enough; a few minutes).\n  Set them up now? [Y/n]",
+                                      "y").lower().startswith("n"):
+        subprocess.run([sys.executable, str(judges)], cwd=judges.parent, check=False)
+    else:
+        NEXT.append(f"Set up the eval harness's outside judges (ChatGPT, Gemini):  {cmd}")
+
+
+IMPORTS = MY / "imports"   # what you bring in from other AI tools, waiting for /import-context
+
+
+def import_context():
+    """The first time only: memory and context from Claude chats or other AI assistants, so the workspace starts out
+    knowing your work. Saved in my/imports/; Claude folds it into your profile and memory (with your OK) when you run
+    /import-context."""
+    flag = MY / ".import-asked"
+    if flag.exists() or not sys.stdin.isatty():
+        return
+    flag.write_text("asked\n", encoding="utf-8")
+    a = ask("Would you like to bring in what other AI tools already know about you and your work (memory or notes from\n"
+            "Claude chats, ChatGPT, Gemini, or another agent)? It gets this workspace up to speed faster. [y/N]",
+            "n").lower()
+    if not a.startswith("y"):
+        print("  skipped (any time later: ask Claude for /import-context)")
+        return
+    print("  How to get it out of each tool:\n"
+          "    - Claude (claude.ai or the app): start a chat and ask: \"Please write out everything you remember about "
+          "me,\n      my work and my preferences from our past chats and your memory, as a plain list I can copy.\" "
+          "Also copy any\n      Project instructions you wrote.\n"
+          "    - ChatGPT: Settings > Personalization > Memory > Manage, then copy; or ask it the same question.\n"
+          "    - Gemini or others: ask the same question, or copy their saved info or instructions.\n"
+          "    - Another agent or workspace: its memory or notes files (e.g. CLAUDE.md, memory.md).\n"
+          "  Save what you copy as text files in one folder.")
+    src = ask("  The file or folder to bring in (Enter: do it later, by pasting into a Claude session with "
+              "/import-context):", "").strip().strip('"').strip("'")
+    if not src:
+        print("  Later, then: in a Claude session, type /import-context and paste.")
+        return
+    srcp = Path(src).expanduser()
+    files = [srcp] if srcp.is_file() else sorted(q for q in srcp.rglob("*") if q.is_file()) if srcp.is_dir() else []
+    files = [q for q in files if q.suffix.lower() in (".txt", ".md", ".json", ".csv", "") and q.stat().st_size < 2_000_000]
+    if not files:
+        print(f"  Nothing to bring in at {src} (text, Markdown, JSON or CSV files under 2 MB). Later: /import-context")
+        return
+    IMPORTS.mkdir(parents=True, exist_ok=True)
+    for q in files[:50]:
+        shutil.copy2(q, IMPORTS / q.name)
+    print(f"  copied {min(len(files), 50)} file(s) to my/imports/. In your first Claude session, type /import-context:\n"
+          "  Claude reads them and suggests what to add to your profile and memory, and asks before saving.")
+
+
+MORE = MY / ".more-setup.json"   # {"status": "done" | "declined" | "later", "remind": "YYYY-MM-DD"}
+
+
+def more_setup(asked_by_user=False):
+    """Optional extras after the main setup: the safety mode, your paper corpus, and using sessions from your phone.
+    "Not now" brings it up again the next day (at the start of a session)."""
+    if not sys.stdin.isatty():
+        return
+    state = load(MORE, {})
+    if not asked_by_user:
+        if state.get("status") in ("done", "declined"):
+            return
+        a = ask("\nMore setup options: the safety mode (casual or hardened), your paper corpus, and using sessions from "
+                "your phone.\n  Go through them now (y), not now (Enter: you'll be reminded tomorrow), or no (n)? "
+                "[y/L/n]", "l").lower()
+        if a.startswith("n"):
+            MORE.write_text(json.dumps({"status": "declined"}), encoding="utf-8")
+            return print("  OK. If you change your mind: python3 setup.py --more")
+        if not a.startswith("y"):
+            remind = date.fromordinal(date.today().toordinal() + 1).isoformat()
+            MORE.write_text(json.dumps({"status": "later", "remind": remind}), encoding="utf-8")
+            return print("  OK, I'll remind you tomorrow (or any time: python3 setup.py --more).")
+    mode = current_mode() or "casual"
+    print(f"\n1. Safety mode (now: {mode}).\n"
+          "   Casual: Claude Code's sandbox and a few ask-first rules, no stricter than plain Claude Code. Fine for most "
+          "people.\n   Hardened: strict rules, a preflight check, run logs, and a Docker container for analysis code. "
+          "For sensitive work.")
+    want = ask(f"   Switch to {'hardened' if mode == 'casual' else 'casual'} mode? [y/N]", "n").lower()
+    if want.startswith("y"):
+        mode = "hardened" if mode == "casual" else "casual"
+        apply_layer(mode)
+        write_machine(mode)
+        print(f"   now in {mode} mode" + (" (optional: build the analyst's container with sandbox/build.sh)"
+                                          if mode == "hardened" else ""))
+    print("\n2. Your paper corpus: papers Claude can read and quote, kept in workspace/corpus/.")
+    z = ask("   If you use Zotero, export a collection (BibTeX, with files) and give its folder here (Enter to skip; "
+            "later, ask Claude\n   for /add-papers to find open-access papers):", "").strip().strip('"').strip("'")
+    if z:
+        subprocess.run([sys.executable, str(HERE / "scripts" / "import_zotero.py"), z], check=False)
+    if mode == "hardened" and ask("   Set up semantic search over the corpus (needs Ollama; see README)? [y/N]",
+                                  "n").lower().startswith("y"):
+        setup_search()
+    print("\n3. Using a session from your phone: in any Claude Code session here, type /remote-control (or /rc). You "
+          "can then\n   follow and steer it from the Claude app or claude.ai/code, handy for long research tasks. "
+          "Nothing to set up now.")
+    MORE.write_text(json.dumps({"status": "done"}), encoding="utf-8")
+    print("\nThat's all the extra setup. Run python3 setup.py --more any time to go through it again.")
+
+
+def checks():
+    """Common setup problems, said plainly with the fix (README, "If something goes wrong", has more)."""
+    out = []
+    if sys.version_info < (3, 10):
+        out.append(f"Python {sys.version.split()[0]} is old; some parts need 3.10+, and the eval harness 3.12+. "
+                   "Install a newer Python (python.org, or your system's package manager).")
+    if not shutil.which("git"):
+        out.append("git isn't installed, so updates won't work (python3 scripts/update.py). Install it from "
+                   "git-scm.com, or with your package manager.")
+    claude = shutil.which("claude")
+    if not claude:
+        out.append("The `claude` command isn't on this computer's PATH. Install Claude Code "
+                   "(https://code.claude.com/docs/en/setup); if it is installed, open a new terminal.")
+    else:
+        try:
+            v = subprocess.run([claude, "--version"], capture_output=True, text=True, timeout=20).stdout
+            m = re.search(r"(\d+)\.(\d+)\.(\d+)", v)
+            if m and tuple(map(int, m.groups())) < (2, 1, 300):
+                out.append(f"Claude Code {m.group(0)} is older than this workspace was tested with (2.1.317). "
+                           "Update it: claude update")
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    if os.name == "nt" and not shutil.which("python3"):
+        out.append("There's no `python3` command, which the workspace's hooks use. In the Windows installer, tick "
+                   "'Add python.exe to PATH', or use WSL2 (see README, 'If something goes wrong').")
+    for line in out:
+        print(f"  ! {line}")
+    return out
 
 
 def is_sending(rule):
@@ -400,6 +558,10 @@ def main(args):
         main([a for a in args if a in ("--casual", "--hardened")])
     if rule_command(args):
         return
+    if "--more" in args:
+        if not STATE.exists():
+            sys.exit("Run python3 setup.py first; --more is for after the main setup.")
+        return more_setup(asked_by_user=True)
     if "--status" in args:
         print(f"Mode: {current_mode() or 'not set up yet (run: python3 setup.py)'}")
         for f in ("my/profile.md", "my/techwatch.md", "my/ETHICS_SHORT.md", ".claude/settings.local.json"):
@@ -410,10 +572,17 @@ def main(args):
         return
     mode = "hardened" if "--hardened" in args else "casual" if "--casual" in args else current_mode() or "casual"
     print(f"Setting up {HERE} in {mode} mode.")
+    checks()
     MY.mkdir(exist_ok=True)
     make_profile()
+    if not (MY / "ETHICS_SHORT.md").exists():
+        print("  Ethics: the workspace currently uses the personal ethics file made by the creator of this project "
+              "(ETHICS_SHORT.md).\n  Its views likely differ from yours. To use your own, ask Claude for /my-ethics in "
+              "a session; it helps you\n  write my/ETHICS_SHORT.md, which then replaces it.")
     setup_techwatch()
+    setup_harness()
     setup_notifications()
+    import_context()
     if not (HERE / "workspace" / "memory.md").exists():
         (HERE / "workspace" / "memory.md").write_text((HERE / "templates" / "memory.md").read_text(encoding="utf-8"),
                                                       encoding="utf-8")
@@ -428,7 +597,10 @@ def main(args):
     print("  - Edit my/profile.md if you skipped any questions.")
     if mode == "hardened":
         print("  - Optional: build the analyst's Docker image once with sandbox/build.sh (see README, 'Hardened mode').")
+    for n in NEXT:
+        print(f"  - {n}")
     print("  - Start Claude Code in this folder:  claude   (trust the folder when asked)")
+    more_setup()
 
 
 if __name__ == "__main__":

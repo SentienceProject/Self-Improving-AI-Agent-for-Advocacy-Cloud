@@ -24,3 +24,9 @@ First public version. Tested with Claude Code 2.1.317 on Linux (WSL2); macOS and
   never-automatic and reviewer-gated kinds of tech-watch change; reviewers protected against text planted in
   proposals; a change that would run code during its test waits until you've read it.
 - Ships in one repository with the eval harness (`../ai-welfare-eval-harness`).
+- Setup: asks whether tech watch's ready changes are tested and applied automatically (the default) or wait for you;
+  prepares the eval harness (unlocks its tasks, sets up its judges); offers to bring in what other AI tools know
+  about you (`/import-context`); never schedules anything itself, but lists the commands; then offers more options
+  (safety mode, paper corpus, `/remote-control`), with "not now" reminding you the next day (`setup.py --more`).
+- The agents' write guards work on Windows (paths with spaces or backslashes, Git Bash and WSL path forms) and with
+  casual mode's run IDs. README: "If something goes wrong".

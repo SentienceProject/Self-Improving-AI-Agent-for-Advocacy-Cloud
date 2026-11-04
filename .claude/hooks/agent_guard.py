@@ -33,13 +33,10 @@ def check_write(role, tool_input):
     raw = tool_input.get("file_path") or tool_input.get("notebook_path")
     if not isinstance(raw, str) or not raw:
         block(role, "no file path")
-    p = Path(raw)
-    if not p.is_absolute():
-        p = ROOT / p
-    real = Path(os.path.realpath(p))
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from guard_paths import inside   # handles Windows paths, spaces and Git Bash/WSL path styles
     for d in WRITE_DIRS[role]:
-        base = Path(os.path.realpath(WS / d))
-        if real.is_relative_to(base) and real != base:
+        if inside(raw, WS / d, ROOT):
             return
     where = " or ".join(f"workspace/{d}/" for d in WRITE_DIRS[role]) or "nowhere"
     block(role, f"this agent may write only in {where}, not {raw}. If the task needs another file, say so in your "

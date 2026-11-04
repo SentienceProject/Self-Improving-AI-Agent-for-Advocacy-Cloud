@@ -137,7 +137,28 @@ def first_run():
     return ["Welcome! The workspace set itself up in casual mode, with its ask-first rules (before sending, "
             "posting, reading key files or changing its own instructions). They take effect right away; if Claude "
             "ever does one of those without asking, start a new session (/exit, then claude) and please report it. "
-            "For updates and scheduled tech watch, see the README's full setup."]
+            "For the full setup (tech watch, phone notifications, bringing in what other AI tools know about you), "
+            "run  python3 setup.py  in a terminal in this folder."]
+
+
+def setup_lines():
+    """Imported notes waiting for /import-context, and the optional setup you put off ("not now"): said once."""
+    out, my = [], ROOT / "my"
+    imports = [q for q in (my / "imports").glob("*") if q.is_file()] if (my / "imports").is_dir() else []
+    if imports:
+        out.append(f"You brought in {len(imports)} file(s) of notes from other AI tools (my/imports/). Type "
+                   "/import-context and Claude will suggest what to add to your profile and memory.")
+    f = my / ".more-setup.json"
+    try:
+        more = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        more = {}
+    if more.get("status") == "later" and more.get("remind", "") <= date.today().isoformat():
+        out.append("More setup options are waiting: the safety mode (casual or hardened), your paper corpus, and "
+                   "using sessions from your phone (/rc). Run  python3 setup.py --more  in a terminal, or ask Claude "
+                   "to walk you through them.")
+        f.write_text(json.dumps({**more, "status": "reminded"}), encoding="utf-8")
+    return out
 
 
 def compat_lines():
@@ -169,7 +190,7 @@ def main():
         lines += first_run()
     except Exception:
         pass
-    for part in (applied_lines, techwatch_lines, update_lines, compat_lines):
+    for part in (applied_lines, techwatch_lines, update_lines, compat_lines, setup_lines):
         try:
             lines += part()
         except Exception:
