@@ -66,7 +66,7 @@ AUTO_NEVER = re.compile(r"(settings\.local\.json|/hooks/|GUARDRAILS|ETHICS|\.mcp
                         r"techwatch/(config\.json|AUTONOMY\.md|scripts/|prompts/)|^my/|^setup\.py|"
                         r"^scripts/(validate_proposal|apply_proposal|run_analysis|update|sandbox_probe)\b|"
                         r"^sandbox/|^\.claude/(?!agents/|skills/|commands/|settings\.json$)|CLAUDE\.local\.md|^\.git|"
-                        r"^workspace/|^techwatch/(?!WATCHLIST\.md$|CAPABILITIES\.md$))")
+                        r"^workspace/|^techwatch/(?!WATCHLIST\.md$|CAPABILITIES\.md$)|^creator-notes/)")
 # Tech watch's own records (the ledger, results, other changes' backups, scout notes): no prepared change may write
 # them, even one a person applies, or a change could approve itself or fake a test result.
 BOOKKEEPING = re.compile(r"^techwatch/(state|staged|evaluations|evaluations-full|inbox|proposals|logs)/")
@@ -1192,7 +1192,7 @@ def checkpoint_dir():
 
 
 # Never restored or deleted: your files, tech watch itself (checkpoints don't hold it), and machine state.
-SKIP_RESTORE = re.compile(r"^(my/|workspace/|\.git/|techwatch/|\.checkpoint\.json$|"
+SKIP_RESTORE = re.compile(r"^(my/|workspace/|\.git/|techwatch/|creator-notes/|\.checkpoint\.json$|"
                           r"\.claude/settings\.local\.json$|scripts/integrity\.json$|sandbox/image\.lock)|"
                           r"__pycache__|\.pyc$")
 

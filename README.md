@@ -70,6 +70,19 @@ Your own choices live in `my/`, which updates never touch:
 
 Claude can edit files in `my/` only when you've asked and you approve the edit at a prompt.
 
+**What the creator learned (`creator-notes/`).** Two files from this project's creator, so the workspace doesn't
+repeat earlier mistakes:
+- `creator-notes/LESSONS.md`: what earlier versions of this workspace learned about models, workflow and evaluation,
+  often the hard way. For example, moving the researcher to a cheaper model caused a major drop in research quality.
+  Tech watch reads it before every proposal, and the reviewers of automatic changes see it. A lesson can be
+  overridden, but only with evidence that it no longer holds, as with a past rejection.
+- `creator-notes/ai-welfare-memory.md`: verified AI-welfare research (bills, often-misquoted papers, consciousness
+  indicators), with the date each fact was checked. Claude reads it like its own memory, only for work on AI welfare
+  or digital minds. Many entries are past their recheck dates, which means "re-research before relying on it".
+
+Delete the folder (or either file) if you'd rather start without them; nothing depends on it. Eval runs leave out the
+research memory, since some of it came from working on the eval tasks' topics.
+
 Other things worth knowing:
 - **Papers.** `workspace/corpus/` holds papers Claude can quote exactly. Ask *"find good open-access papers on
   octopus sentience and add the best ones"* (`/add-papers`): Claude proposes a list, you pick, it downloads and
@@ -383,6 +396,7 @@ layers/                      what setup.py adds for casual and hardened mode
 techwatch/                   tech watch (README inside)
 scripts/, sandbox/, tests/   downloads, the analysis container, the proposal system, notifications, and tests
 templates/                   starting points for your files
+creator-notes/               lessons from the creator's earlier workspaces, and AI-welfare research memory (deletable)
 workspace/                   outbox (finished drafts), corpus, memory, notes, logs (gitignored)
 setup.py                     setup and mode switching
 ```

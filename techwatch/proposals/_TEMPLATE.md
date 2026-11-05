@@ -57,6 +57,10 @@ this".
 ## Fits my/techwatch.md?
 Money, platform, accounts, privacy, time: check each limit the operator wrote and say how this fits.
 
+## Lessons
+Which lessons in `creator-notes/LESSONS.md` this touches. If it goes against one, name it, and give the evidence that
+it no longer holds here (a newer model, a benchmark, a test). "None" is a fine answer.
+
 ## The case against
 The strongest reasons not to do this, put as their holder would. Always consider: more machinery often made outputs
 worse; cost; lock-in; new attack surface.

@@ -35,3 +35,6 @@ First public version. Tested with Claude Code 2.1.317 on Linux (WSL2); macOS and
   follow-up briefs, the eval harness's runs and the layers' harness rules did nothing. A run whose saves were
   refused is now reported as a problem, not "ok", and `techwatch.py doctor` tries a real save. After updating,
   run `python3 setup.py` once to refresh your settings.
+- `creator-notes/`: lessons from the creator's earlier workspaces (read by tech watch before every proposal, and by
+  the reviewers of automatic changes) and verified AI-welfare research memory (read for digital-minds work only; left
+  out of eval runs). Delete the folder to start without them.

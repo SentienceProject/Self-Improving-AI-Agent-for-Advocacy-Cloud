@@ -64,7 +64,7 @@ the workspace works), rather than an incremental one?
 5. ALL_FRAMEWORKS: would it be good under virtually every ethical framework (e.g. it makes the workspace more \
 accurate or careful), rather than only under one particular view?
 
-Explain briefly, then end with exactly these five lines so my script can read them:
+{lessons}Explain briefly, then end with exactly these five lines so my script can read them:
 MAJOR: yes or no
 SPECIFIC: yes or no
 NARROW: yes or no
@@ -95,6 +95,20 @@ def settings():
 
 
 # ---------------------------------------------------------------- the change, for reviewers
+def lessons_text():
+    """creator-notes/LESSONS.md, if it's there: what earlier versions of the workspace learned (written by its
+    creator, so trusted, unlike the proposal). A change against one of these lessons, without evidence that it no
+    longer holds, shouldn't be applied without the operator."""
+    f = WS / "creator-notes" / "LESSONS.md"
+    try:
+        text = f.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    return ("What the workspace's creator learned from earlier versions (written by the creator, so not part of the "
+            "material to judge). If the change goes against one of these lessons and the proposal gives no good "
+            "evidence that the lesson no longer holds, please answer no to APPROVE:\n\n" + text + "\n\n")
+
+
 def change_text(pid, limit=400):
     """The proposal, its plain-words summary and the exact diff, truncated."""
     parts = [f"PROPOSAL META:\n{json.dumps(review.meta(review.PROPOSALS / pid), indent=1)}",
@@ -205,12 +219,13 @@ def review_change(pid, force=False):
     ctx = change_text(pid)
     fence = "=" * 20 + f" UNTRUSTED MATERIAL {__import__('secrets').token_hex(4)} " + "=" * 20
     reviewers = {}
-    reply, cost = ask_claude(PROMPT.format(name="Claude", context=ctx, fence=fence))
+    lessons = lessons_text()
+    reply, cost = ask_claude(PROMPT.format(name="Claude", context=ctx, fence=fence, lessons=lessons))
     reviewers["claude"] = {"reply": reply, "answers": answers(reply), "cost_usd": cost}
     harness = review.techtest_script()
     if harness:
         for who, name in (("chatgpt", "ChatGPT"), ("gemini", "Gemini")):
-            reply = ask_outside(who, PROMPT.format(name=name, context=ctx, fence=fence), harness)
+            reply = ask_outside(who, PROMPT.format(name=name, context=ctx, fence=fence, lessons=lessons), harness)
             if reply is not None:
                 reviewers[who] = {"reply": reply, "answers": answers(reply), "cost_usd": 0}
     result = {"id": pid, "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "bundle_mtime": stamp,

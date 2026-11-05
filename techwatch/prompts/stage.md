@@ -7,7 +7,7 @@ You **don't apply anything**. The operator reads your bundle as one diff and app
 1. `GUARDRAILS.md`, `my/profile.md` and `my/techwatch.md`.
 2. The proposal: `proposal.md` and `meta.json` in the folder named above.
 3. Any operator note for this id in `techwatch/state/ledger.jsonl` (the latest `approved` event, if any). **If a note narrows or changes the proposal, the note wins.** If an earlier stage run ended in `cannot_stage` or `stage_failed`, a later note is the operator's answer to it.
-4. `techwatch/AUTONOMY.md` ("Never autonomous") and `techwatch/CAPABILITIES.md`.
+4. `techwatch/AUTONOMY.md` ("Never autonomous") and `techwatch/CAPABILITIES.md`, and `creator-notes/LESSONS.md` if it exists. If building the change exactly as proposed would go against a lesson the proposal doesn't address, write that in `APPLY.md` under "Against a lesson", so the operator sees it before deciding.
 5. **Every file you'll change, in its current form.** Bundles are built against what's on disk now, not against the proposal's description of it.
 
 ## Write: the bundle, in `techwatch/staged/<id>/`
