@@ -31,6 +31,12 @@ import json
 import shutil
 import subprocess
 import sys
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+try:
+    from style import S  # noqa: E402  (readable colours in a terminal; plain text otherwise)
+except ImportError:      # an older copy without scripts/style.py
+    class S:
+        ok = warn = ask = b = staticmethod(str)
 from datetime import datetime
 from pathlib import Path
 
@@ -157,7 +163,7 @@ def update_manifest(before_drift, changed_by_update):
             else:
                 data.pop(rel)
     m.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    print("These protected files had changed before the update, by some route other than tech watch or this "
+    print(S.warn("These protected files had changed before the update") + ", by some route other than tech watch or this "
           f"script, so the integrity manifest still flags them: {', '.join(before_drift)}. Check them (git diff); if "
           "the changes are yours, run: python3 scripts/validate_proposal.py --init")
 
@@ -255,13 +261,13 @@ def finish(a, tw, wrote, notes, outcome, backup, changed, behind, old_version, b
     update_manifest(before_drift, [f for f in git("diff", "--name-only", "--relative", old_head, "HEAD").stdout.splitlines()
                                    if f])
     new_version = (ROOT / "VERSION").read_text(encoding="utf-8").strip() if (ROOT / "VERSION").exists() else "?"
-    print(f"Updated: {behind} new commit(s) from the maintainer"
-          + (f", version {old_version} → {new_version}." if new_version != old_version else "."))
+    print(S.ok(f"Updated: {behind} new commit(s) from the maintainer"
+               + (f", version {old_version} → {new_version}." if new_version != old_version else ".")))
     if new_version != old_version and (ROOT / "CHANGELOG.md").exists():
         log = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         new = log.split(f"## {old_version}")[0].split("\n## ", 1)
         if len(new) > 1:
-            print("\nWhat's new (CHANGELOG.md):\n## " + new[1].strip() + "\n")
+            print("\n" + S.b("What's new (CHANGELOG.md):") + "\n## " + new[1].strip() + "\n")
     kept = [p for p, o in outcome.items() if o == "kept"]
     if kept:
         print(f"Tech-watch changes kept: {', '.join(kept)}")
@@ -269,7 +275,7 @@ def finish(a, tw, wrote, notes, outcome, backup, changed, behind, old_version, b
         print(f"- {n}")
     if changed:
         print(f"Copies of everything you or tech watch had changed: {backup.relative_to(ROOT)}")
-    print("If Claude Code is open, start a new session to load the update.")
+    print(S.b("If Claude Code is open, start a new session to load the update."))
 
 
 if __name__ == "__main__":

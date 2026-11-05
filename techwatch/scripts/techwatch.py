@@ -30,6 +30,12 @@ import shlex
 import shutil
 import subprocess
 import sys
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parents[2] / "scripts"))
+try:
+    from style import S  # noqa: E402  (readable colours in a terminal; plain text otherwise)
+except ImportError:      # an older copy without scripts/style.py
+    class S:
+        ok = warn = ask = b = staticmethod(str)
 import time
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -417,7 +423,7 @@ def schedule(action):
 """, encoding="utf-8")
             subprocess.run(["launchctl", "unload", str(PLIST)], capture_output=True)
             subprocess.run(["launchctl", "load", "-w", str(PLIST)], check=False)
-            print(f"Scheduled hourly with launchd ({PLIST}). It acts at most once a day, while your Mac is awake.")
+            print(S.ok(f"Scheduled hourly with launchd ({PLIST}).") + " It acts at most once a day, while your Mac is awake.")
         elif action == "off":
             subprocess.run(["launchctl", "unload", "-w", str(PLIST)], capture_output=True)
             PLIST.unlink(missing_ok=True)
@@ -436,8 +442,8 @@ def schedule(action):
                               f'--scheduled >> "{LOGS / "scheduled.log"}" 2>&1\r\n', encoding="utf-8")
             r = subprocess.run(["schtasks", "/Create", "/F", "/SC", "HOURLY", "/TN", name, "/TR", f'"{runner}"'],
                                capture_output=True, text=True)
-            print(f"Scheduled hourly with Task Scheduler ({name}); it acts at most once a day." if r.returncode == 0
-                  else f"Task Scheduler refused: {(r.stderr or r.stdout).strip()}")
+            print(S.ok(f"Scheduled hourly with Task Scheduler ({name}); it acts at most once a day.") if r.returncode == 0
+                  else S.warn(f"Task Scheduler refused: {(r.stderr or r.stdout).strip()}"))
         elif action == "off":
             subprocess.run(["schtasks", "/Delete", "/F", "/TN", name], capture_output=True)
             print("Unscheduled.")
@@ -455,10 +461,10 @@ def schedule(action):
         keep.append(line)
     if action in ("on", "off"):
         subprocess.run(["crontab", "-"], input="\n".join(keep) + "\n", text=True, check=True)
-        print("Scheduled hourly with cron (it acts at most once a day)." if action == "on" else "Unscheduled.")
+        print(S.ok("Scheduled hourly with cron (it acts at most once a day).") if action == "on" else "Unscheduled.")
         if action == "on" and subprocess.run(["pgrep", "-x", "cron"], capture_output=True).returncode != 0:
-            print("Note: the cron service doesn't seem to be running. On WSL: sudo service cron start "
-                  "(or enable systemd so it starts by itself).")
+            print(S.warn("Note: the cron service doesn't seem to be running. On WSL: sudo service cron start "
+                         "(or enable systemd so it starts by itself)."))
     else:
         print("scheduled (cron)" if any(l.endswith(CRON_TAG) for l in cur.splitlines()) else "not scheduled")
 
@@ -546,7 +552,7 @@ def main(a):
             if len(a) < 2:
                 sys.exit("usage: techwatch.py stage <proposal-id>")
             stage(a[1])
-    print(f"\nWhat needs you:  python3 {(TW / 'scripts' / 'review.py').relative_to(WS).as_posix()}")
+    print("\n" + S.b("What needs you:") + f"  python3 {(TW / 'scripts' / 'review.py').relative_to(WS).as_posix()}")
 
 
 if __name__ == "__main__":

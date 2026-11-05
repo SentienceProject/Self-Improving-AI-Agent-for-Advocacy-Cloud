@@ -145,8 +145,15 @@ def setup_lines():
     """Imported notes waiting for /import-context, and the optional setup you put off ("not now"): said once."""
     out, my = [], ROOT / "my"
     imports = [q for q in (my / "imports").glob("*") if q.is_file()] if (my / "imports").is_dir() else []
-    if imports:
-        out.append(f"You brought in {len(imports)} file(s) of notes from other AI tools (my/imports/). Type "
+    index = my / "imports" / "chat-history-INDEX.md"
+    notes = [q for q in imports if q != index]
+    if index.exists():
+        chats = sum(1 for l in index.read_text(encoding="utf-8").splitlines() if l.startswith("| 2") or l.startswith("| ?"))
+        out.append(f"You brought in {chats} past chat(s) from other AI tools (my/imports/chat-history/)"
+                   + (f" and {len(notes)} file(s) of notes" if notes else "") + ". Type /import-context and Claude "
+                   "will pick the ones about your work and suggest what to add to your profile and memory.")
+    elif notes:
+        out.append(f"You brought in {len(notes)} file(s) of notes from other AI tools (my/imports/). Type "
                    "/import-context and Claude will suggest what to add to your profile and memory.")
     f = my / ".more-setup.json"
     try:

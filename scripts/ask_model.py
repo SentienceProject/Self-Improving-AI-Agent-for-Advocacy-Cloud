@@ -36,7 +36,8 @@ MAX_FILE_BYTES = 400_000
 
 
 def codex():
-    for p in (shutil.which("codex"), Path.home() / ".npm-global" / "bin" / "codex"):
+    for p in (shutil.which("codex"), Path.home() / ".npm-global" / "bin" / "codex",
+              Path(os.environ.get("APPDATA", "~")) / "npm" / "codex.cmd"):
         if p and Path(p).exists():
             return str(p)
     return None

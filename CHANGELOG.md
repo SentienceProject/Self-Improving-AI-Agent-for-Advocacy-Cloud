@@ -38,6 +38,14 @@ First public version. Tested with Claude Code 2.1.317 on Linux (WSL2); macOS and
 - `creator-notes/`: lessons from the creator's earlier workspaces (read by tech watch before every proposal, and by
   the reviewers of automatic changes) and verified AI-welfare research memory (read for digital-minds work only; left
   out of eval runs). Delete the folder to start without them.
+- Chat history import: `scripts/import_chats.py` reads ChatGPT and Claude.ai data exports, Google Takeout's
+  Gemini activity, and your Claude Code sessions (not automated runs) into one file per chat plus an index in
+  `my/imports/`; setup explains how to download each, and `/import-context` picks the chats about your work.
+- Easier to read: setup and the scripts use bold headings, coloured questions, green ticks and yellow warnings,
+  chosen to read on dark, light and PowerShell's blue backgrounds (no dim grey). `NO_COLOR=1` turns colour off.
+- Judge setup no longer hangs: each connection test gives up within a minute or two, Ctrl+C skips any step, and a
+  busy server keeps the judge instead of failing. Step-by-step help for installing Node.js (offered via winget on
+  Windows) and for setting the Gemini key on Windows.
 - Outside models during tasks: once ChatGPT or Gemini is set up (the eval harness's logins), Claude can ask them for
   second opinions, critiques and cross-checks (`scripts/ask_model.py`, `OUTSIDE_MODELS.md`). No prompt by default,
   even with files from `workspace/`; every call is logged in `workspace/logs/outside-models.md`;

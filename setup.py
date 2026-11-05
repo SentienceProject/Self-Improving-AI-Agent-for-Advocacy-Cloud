@@ -47,6 +47,9 @@ from datetime import date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE / "scripts"))
+from style import S   # noqa: E402  (bold headings, coloured questions and warnings; plain when not a terminal)
+TICK = S.ok("✓" if S._utf8() else "+")
 MY = HERE / "my"
 LOCAL = HERE / ".claude" / "settings.local.json"
 OVERRIDES = MY / "permissions.json"   # your changes: {"allow": [...], "ask": [...], "off_<mode>": [...]}
@@ -115,7 +118,8 @@ def ask(q, default=""):
     if not sys.stdin.isatty():
         return default
     try:
-        a = input(f"{q} ").strip()
+        lead = q[:len(q) - len(q.lstrip())]
+        a = input(lead + S.ask(q.strip()) + " ").strip()
     except EOFError:
         return default
     return a or default
@@ -126,6 +130,7 @@ def make_profile():
     if profile.exists():
         return
     text = (HERE / "templates" / "profile.md").read_text(encoding="utf-8")
+    print(S.head("Your work"))
     print("A few questions for my/profile.md (Enter to skip any; you can edit the file later):")
     causes = {"1": "animals", "2": "digital minds (the welfare of AI systems that may be sentient)",
               "3": "animals and digital minds"}
@@ -142,7 +147,7 @@ def make_profile():
             if line.startswith(key) and value:
                 lines[i] = f"{key} {value}"
     profile.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"  wrote {profile.relative_to(HERE)}")
+    print("  " + TICK + f" wrote {profile.relative_to(HERE)}")
 
 
 def write_machine(mode):
@@ -281,6 +286,7 @@ def setup_techwatch():
     f = MY / "techwatch.md"
     if not f.exists():
         text = (HERE / "templates" / "techwatch.md").read_text(encoding="utf-8")
+        print(S.head("Tech watch"))
         print("Tech watch looks for new tools and AI features that could help your work, and prepares each change as "
               "an exact edit\n  to the workspace. A daily and a weekly scan use roughly $15-35 of usage a month, "
               "capped at $30.")
@@ -300,19 +306,19 @@ def setup_techwatch():
         text = re.sub(r"^(\*\*When a change is ready:\*\*).*$", lambda m: f"{m.group(1)} {ready}", text, count=1,
                       flags=re.M)
         f.write_text(text, encoding="utf-8")
-        print(f"  wrote my/techwatch.md (tech watch: {runs}; when a change is ready: {ready}; change either in that "
+        print("  " + TICK + f" wrote my/techwatch.md (tech watch: {runs}; when a change is ready: {ready}; change either in that "
               "file any time)")
     auto = MY / "techwatch-auto.md"
     if not auto.exists():
         auto.write_text((HERE / "templates" / "techwatch-auto.md").read_text(encoding="utf-8"), encoding="utf-8")
-        print("  wrote my/techwatch-auto.md (which changes tech watch may handle automatically)")
+        print("  " + TICK + " wrote my/techwatch-auto.md (which changes tech watch may handle automatically)")
     text = f.read_text(encoding="utf-8")
     h = find_harness()
     if h and re.search(r"^\*\*Eval harness folder:\*\*[ \t]*$", text, re.M):
         text = re.sub(r"^(\*\*Eval harness folder:\*\*)[ \t]*$", lambda m: f"{m.group(1)} {h.as_posix()}", text,
                       count=1, flags=re.M)
         f.write_text(text, encoding="utf-8")
-        print(f"  found the eval harness at {h}: tech watch can test changes before applying them")
+        print("  " + TICK + f" found the eval harness at {h}: tech watch can test changes before applying them")
     automatic = re.search(r"^\*\*Tech watch runs:\*\*[ \t]*automatic", text, re.M | re.I)
     tw = [sys.executable, str(HERE / "techwatch" / "scripts" / "techwatch.py"), "schedule", "status"]
     if automatic and "not scheduled" in subprocess.run(tw, capture_output=True, text=True).stdout:
@@ -326,6 +332,7 @@ def setup_notifications():
         return
     sys.path.insert(0, str(HERE / "scripts"))
     import notify
+    print(S.head("Phone notifications"))
     a = ask("Would you like phone notifications for follow-ups (every few days, a short list of what's waiting on "
             "you, via the free ntfy app)? [y/N]", "n").lower()
     if not a.startswith("y"):
@@ -350,28 +357,29 @@ def setup_notifications():
 
 
 OUTSIDE_NOTE = ("  ChatGPT and Gemini (once set up) also help Claude during your tasks: second opinions, critiques and "
-                "cross-checks\n  (scripts/ask_model.py). Claude doesn't ask you before these calls, even when it "
-                "sends files from workspace/;\n  each one is logged in workspace/logs/outside-models.md. To be asked "
-                "first: python3 setup.py --ask-outside-models")
+                "cross-checks\n  (scripts/ask_model.py). " + S.b("Claude doesn't ask you before these calls") +
+                ", even when it sends files from workspace/;\n  each one is logged in workspace/logs/outside-models.md. "
+                "To be asked first:\n" + S.cmd("python3 setup.py --ask-outside-models"))
 
 
 def setup_harness():
     """The eval harness beside this workspace: it tests tech watch's changes before they're applied. Unlocks its
     tasks (which tests need) and offers to set up its outside judges."""
     h = find_harness()
+    print(S.head("Eval harness"))
     if not h:
-        print("  ! The eval harness isn't beside this folder (ai-welfare-eval-harness/). Tech watch can't test changes "
-              "without it:\n    download the whole repository again, and keep both folders side by side.")
+        print("  " + S.warn("The eval harness isn't beside this folder (ai-welfare-eval-harness/). Tech watch can't test changes "
+              "without it:\n    download the whole repository again, and keep both folders side by side."))
         return
     if sys.version_info < (3, 12):
-        print(f"  ! The eval harness needs Python 3.12 or newer (this is {sys.version.split()[0]}); see README, "
-              "'If something goes wrong'.")
+        print("  " + S.warn(f"The eval harness needs Python 3.12 or newer (this is {sys.version.split()[0]}); see README, "
+              "'If something goes wrong'."))
         return
     evals = h / "evals"
     if not (evals / "tasks" / "dev").is_dir():
         r = subprocess.run([sys.executable, str(evals / "task_lock.py"), "unlock"], capture_output=True, text=True)
-        print("  eval harness: tasks unlocked for testing" if r.returncode == 0 else
-              f"  ! couldn't unlock the eval tasks: {(r.stderr or r.stdout).strip()[:200]}")
+        print("  " + (S.ok("eval harness: tasks unlocked for testing") if r.returncode == 0 else
+                      S.warn(f"couldn't unlock the eval tasks: {(r.stderr or r.stdout).strip()[:200]}")))
     judges = h / "evals" / "ClaudeImproverHarness" / "setup_judges.py"
     check = subprocess.run([sys.executable, str(judges), "--check"], cwd=judges.parent, capture_output=True,
                            text=True, timeout=120)
@@ -380,9 +388,12 @@ def setup_harness():
         return print(OUTSIDE_NOTE)
     cmd = f"cd {judges.parent.as_posix()} && python3 setup_judges.py"
     if sys.stdin.isatty() and not ask("The eval harness judges changes with ChatGPT and Gemini as well as Claude (free "
-                                      "tiers are enough; a few minutes).\n  Set them up now? [Y/n]",
+                                      "tiers are enough; a few minutes; any part can be skipped).\n  Set them up now? [Y/n]",
                                       "y").lower().startswith("n"):
-        subprocess.run([sys.executable, str(judges)], cwd=judges.parent, check=False)
+        try:   # every step there can be skipped; Ctrl+C skips the rest, and setup carries on
+            subprocess.run([sys.executable, str(judges)], cwd=judges.parent, check=False)
+        except KeyboardInterrupt:
+            print(f"\n  skipped (any time later:  {cmd})")
         print(OUTSIDE_NOTE)
     else:
         NEXT.append(f"Set up the eval harness's outside judges (ChatGPT, Gemini):  {cmd}")
@@ -407,8 +418,8 @@ def set_user_setting(keys, value, what):
     Only call this after the person said yes."""
     cfg = user_settings()
     if cfg is None:
-        print(f"  ! {USER_SETTINGS} isn't valid JSON, so setup left it alone. To {what}, add "
-              f"{json.dumps({keys[-1]: value})} under {' > '.join(keys[:-1]) or 'the top level'} yourself.")
+        print("  " + S.warn(f"{USER_SETTINGS} isn't valid JSON, so setup left it alone. To {what}, add "
+              f"{json.dumps({keys[-1]: value})} under {' > '.join(keys[:-1]) or 'the top level'} yourself."))
         return False
     backup = USER_SETTINGS.with_name("settings.json.before-ai-welfare-setup")
     if USER_SETTINGS.exists() and not backup.exists():
@@ -421,7 +432,7 @@ def set_user_setting(keys, value, what):
     d[keys[-1]] = value
     USER_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
     USER_SETTINGS.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
-    print(f"  set {' > '.join(keys)} to {json.dumps(value)} in {USER_SETTINGS}"
+    print("  " + TICK + f" set {' > '.join(keys)} to {json.dumps(value)} in {USER_SETTINGS}"
           + (f" (a copy from before setup changed it: {backup.name})" if backup.exists() else ""))
     return True
 
@@ -495,36 +506,53 @@ def import_context():
     if flag.exists() or not sys.stdin.isatty():
         return
     flag.write_text("asked\n", encoding="utf-8")
-    a = ask("Would you like to bring in what other AI tools already know about you and your work (memory or notes from\n"
-            "Claude chats, ChatGPT, Gemini, or another agent)? It gets this workspace up to speed faster. [y/N]",
+    print(S.head("What other AI tools know about you"))
+    a = ask("Would you like to bring in what other AI tools already know about you and your work (your chat history\n"
+            "or memory from Claude, ChatGPT, Gemini, or another agent)? It gets this workspace up to speed faster. [y/N]",
             "n").lower()
     if not a.startswith("y"):
         print("  skipped (any time later: ask Claude for /import-context)")
         return
-    print("  How to get it out of each tool:\n"
-          "    - Claude (claude.ai or the app): start a chat and ask: \"Please write out everything you remember about "
-          "me,\n      my work and my preferences from our past chats and your memory, as a plain list I can copy.\" "
-          "Also copy any\n      Project instructions you wrote.\n"
-          "    - ChatGPT: Settings > Personalization > Memory > Manage, then copy; or ask it the same question.\n"
-          "    - Gemini or others: ask the same question, or copy their saved info or instructions.\n"
-          "    - Another agent or workspace: its memory or notes files (e.g. CLAUDE.md, memory.md).\n"
-          "  Save what you copy as text files in one folder.")
-    src = ask("  The file or folder to bring in (Enter: do it later, by pasting into a Claude session with "
-              "/import-context):", "").strip().strip('"').strip("'")
+    print("  Two kinds help. " + S.b("Your chat history") + " is best: it works even if those tools remember little "
+          "about you.\n  Download it (each export is emailed or ready within minutes to a day):\n"
+          "    - ChatGPT: Settings > Data controls > Export data > Export.\n"
+          "    - Claude (claude.ai or the app): Settings > Privacy > Export data.\n"
+          "    - Gemini: takeout.google.com > Deselect all > tick \"My Activity\" > \"All activity data included\" > "
+          "only\n      \"Gemini Apps\" > Next step > Create export.\n"
+          "  " + S.b("Memory and notes") + " help too: ask Claude, ChatGPT or Gemini: \"Please write out everything "
+          "you remember about\n  me, my work and my preferences, as a plain list I can copy\", and save the answers "
+          "as text files in one folder.\n  Another agent's notes (CLAUDE.md, memory.md) work the same way.")
+    projects = Path.home() / ".claude" / "projects"
+    if projects.is_dir() and any(projects.glob("*/*.jsonl")) and ask(
+            "  Bring in your past Claude Code sessions from this computer too (the ones you typed in, not automated "
+            "runs)? [y/N]", "n").lower().startswith("y"):
+        subprocess.run([sys.executable, str(HERE / "scripts" / "import_chats.py"), "--claude-code"], check=False)
+    src = ask("  A downloaded export (the .zip, as it is), or a file or folder of notes, to bring in now\n  (Enter: "
+              "later; drag the file into this window to paste its path):", "").strip().strip('"').strip("'")
     if not src:
-        print("  Later, then: in a Claude session, type /import-context and paste.")
+        print("  Later, then: when an export arrives, run\n" + S.cmd("python3 scripts/import_chats.py <the .zip>") +
+              "\n  and for notes, type /import-context in a Claude session and paste them.")
         return
     srcp = Path(src).expanduser()
+    if not srcp.exists():
+        print("  " + S.warn(f"Couldn't find {srcp}. Later: python3 scripts/import_chats.py <the export>, or "
+                            "/import-context for notes."))
+        return
+    if subprocess.run([sys.executable, str(HERE / "scripts" / "import_chats.py"), str(srcp)],
+                      stderr=subprocess.DEVNULL).returncode == 0:   # it was a chat export
+        return
     files = [srcp] if srcp.is_file() else sorted(q for q in srcp.rglob("*") if q.is_file()) if srcp.is_dir() else []
     files = [q for q in files if q.suffix.lower() in (".txt", ".md", ".json", ".csv", "") and q.stat().st_size < 2_000_000]
     if not files:
-        print(f"  Nothing to bring in at {src} (text, Markdown, JSON or CSV files under 2 MB). Later: /import-context")
+        print(f"  Nothing to bring in at {src}: no chat export, and no text, Markdown, JSON or CSV files under 2 MB.\n"
+              "  Later: python3 scripts/import_chats.py <the export>, or /import-context for notes.")
         return
     IMPORTS.mkdir(parents=True, exist_ok=True)
     for q in files[:50]:
         shutil.copy2(q, IMPORTS / q.name)
-    print(f"  copied {min(len(files), 50)} file(s) to my/imports/. In your first Claude session, type /import-context:\n"
-          "  Claude reads them and suggests what to add to your profile and memory, and asks before saving.")
+    print("  " + TICK + f" copied {min(len(files), 50)} file(s) to my/imports/. In your first Claude session, type "
+          "/import-context:\n  Claude reads them and suggests what to add to your profile and memory, and asks "
+          "before saving.")
 
 
 MORE = MY / ".more-setup.json"   # {"status": "done" | "declined" | "later", "remind": "YYYY-MM-DD"}
@@ -539,7 +567,8 @@ def more_setup(asked_by_user=False):
     if not asked_by_user:
         if state.get("status") in ("done", "declined"):
             return
-        a = ask("\nMore setup options: the safety mode (casual or hardened), your paper corpus, and using sessions from "
+        print(S.head("More setup options"))
+        a = ask("More setup options: the safety mode (casual or hardened), your paper corpus, and using sessions from "
                 "your phone.\n  Go through them now (y), not now (Enter: you'll be reminded tomorrow), or no (n)? "
                 "[y/L/n]", "l").lower()
         if a.startswith("n"):
@@ -550,7 +579,7 @@ def more_setup(asked_by_user=False):
             MORE.write_text(json.dumps({"status": "later", "remind": remind}), encoding="utf-8")
             return print("  OK, I'll remind you tomorrow (or any time: python3 setup.py --more).")
     mode = current_mode() or "casual"
-    print(f"\n1. Safety mode (now: {mode}).\n"
+    print(f"\n" + S.b("1. Safety mode") + f" (now: {mode}).\n"
           "   Casual: Claude Code's sandbox and a few ask-first rules, no stricter than plain Claude Code. Fine for most "
           "people.\n   Hardened: strict rules, a preflight check, run logs, and a Docker container for analysis code. "
           "For sensitive work.")
@@ -567,7 +596,7 @@ def more_setup(asked_by_user=False):
             strict_network()
         print(f"   now in {mode} mode" + (" (optional: build the analyst's container with sandbox/build.sh)"
                                           if mode == "hardened" else ""))
-    print("\n2. Your paper corpus: papers Claude can read and quote, kept in workspace/corpus/.")
+    print("\n" + S.b("2. Your paper corpus") + ": papers Claude can read and quote, kept in workspace/corpus/.")
     z = ask("   If you use Zotero, export a collection (BibTeX, with files) and give its folder here (Enter to skip; "
             "later, ask Claude\n   for /add-papers to find open-access papers):", "").strip().strip('"').strip("'")
     if z:
@@ -575,7 +604,7 @@ def more_setup(asked_by_user=False):
     if mode == "hardened" and ask("   Set up semantic search over the corpus (needs Ollama; see README)? [y/N]",
                                   "n").lower().startswith("y"):
         setup_search()
-    print("\n3. Using a session from your phone: in any Claude Code session here, type /remote-control (or /rc). You "
+    print("\n" + S.b("3. Using a session from your phone") + ": in any Claude Code session here, type /remote-control (or /rc). You "
           "can then\n   follow and steer it from the Claude app or claude.ai/code, handy for long research tasks.")
     remote_control()
     MORE.write_text(json.dumps({"status": "done"}), encoding="utf-8")
@@ -612,7 +641,7 @@ def checks():
         out.append("There's no `python3` command, which the workspace's hooks use. In the Windows installer, tick "
                    "'Add python.exe to PATH', or use WSL2 (see README, 'If something goes wrong').")
     for line in out:
-        print(f"  ! {line}")
+        print("  " + S.warn(line))
     return out
 
 
@@ -710,7 +739,7 @@ def main(args):
     if mode == "hardened" and os.name == "nt":
         sys.exit("Hardened mode needs Linux, macOS or WSL2: its scripts and sandbox don't run on native Windows. "
                  "Install WSL2 and set the workspace up there, or use casual mode.")
-    print(f"Setting up {HERE} in {mode} mode.")
+    print(S.b(f"Setting up {HERE} in {mode} mode."))
     if mode == "hardened":
         strict_network()
     checks()
@@ -734,13 +763,14 @@ def main(args):
     subprocess.run([sys.executable, str(HERE / "scripts" / "validate_proposal.py"), "--init"],
                    check=False, stdout=subprocess.DEVNULL)
     print("  integrity manifest built (scripts/integrity.json)")
-    print("\nDone. Next:")
+    print(S.head("Done") + "\nNext:")
     print("  - Edit my/profile.md if you skipped any questions.")
     if mode == "hardened":
         print("  - Optional: build the analyst's Docker image once with sandbox/build.sh (see README, 'Hardened mode').")
-    for n in NEXT:
-        print(f"  - {n}")
-    print("  - Start Claude Code in this folder:  claude   (trust the folder when asked)")
+    for n in NEXT:   # "what it does:  the command" puts the command on its own, bold line
+        what, _, command = n.partition(":  ")
+        print(f"  - {what}:" + "\n" + S.cmd(command) if command else f"  - {n}")
+    print("  - Start Claude Code in this folder (trust the folder when asked):\n" + S.cmd("claude"))
     more_setup()
 
 

@@ -39,8 +39,11 @@ claude
 - setting up the eval harness's outside judges, ChatGPT and Gemini (free tiers are enough), and keeping eval
   runs' saved sessions past Claude Code's 30 days so they can serve as extra judges (a line in your user settings);
 - phone notifications for follow-ups ([Phone notifications](#phone-notifications-ntfy));
-- bringing in what other AI tools already know about you: memory or notes from Claude chats, ChatGPT, Gemini or
-  another agent. Claude then folds it into your profile and memory, with your OK (`/import-context`).
+- bringing in what other AI tools already know about you: your chat history from ChatGPT, Claude, Gemini or Claude
+  Code (each lets you download it; setup says how, and `scripts/import_chats.py` turns the download into one file
+  per chat in `my/`), or memory and notes. Chat history helps even if those tools remember little about you.
+  Claude then picks the chats about your work and folds what matters into your profile and memory, with your OK
+  (`/import-context`).
 
 Setup never schedules anything itself. It ends by listing the commands that start tech watch's and the follow-ups'
 schedules, then offers more options: the [safety mode](#two-modes-casual-and-hardened), your paper corpus, and using
@@ -424,6 +427,18 @@ agent that has read the judge notes makes the tests meaningless. Its README cove
 ## If something goes wrong
 
 Setup checks for the common problems and says which one it found. The usual ones, and their fixes:
+
+**Setup**
+- **Setup seems stuck while testing ChatGPT or Gemini:** each test now gives up after a minute or two, and Ctrl+C
+  skips it; setup carries on either way. A "busy" reply (HTTP 503 or 429) is Google's or OpenAI's servers, not your
+  setup: the judge is kept and evals retry. Test again later: `python3 setup_judges.py` in
+  `ai-welfare-eval-harness/evals/ClaudeImproverHarness`.
+- **ChatGPT setup says it needs Node.js:** the ChatGPT judge runs through the Codex CLI, a small app that needs
+  Node.js. On Windows, setup can install it for you (winget); otherwise download the version marked LTS from
+  [nodejs.org](https://nodejs.org), install it with the defaults, open a new terminal, and run setup again. ChatGPT
+  is optional: without it, a fresh Claude session judges in its place.
+- **Colours are hard to read, or show as odd symbols:** set `NO_COLOR=1` in your environment (PowerShell:
+  `setx NO_COLOR 1`, then open a new window) and the scripts print plain text.
 
 **Installing**
 - **`python3: command not found`**, or on Windows a Microsoft Store window opens: Python isn't installed, or isn't on

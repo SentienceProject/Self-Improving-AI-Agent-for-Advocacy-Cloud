@@ -22,6 +22,12 @@ import os
 import re
 import secrets
 import sys
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
+try:
+    from style import S  # noqa: E402  (readable colours in a terminal; plain text otherwise)
+except ImportError:      # an older copy without scripts/style.py
+    class S:
+        ok = warn = ask = b = staticmethod(str)
 import urllib.request
 from pathlib import Path
 
@@ -126,13 +132,13 @@ def main(a):
         return 0
     if a[0] == "--setup":
         cfg = setup()
-        print("Phone notifications are on.\n" + instructions(cfg))
+        print(S.ok("Phone notifications are on.") + "\n" + instructions(cfg))
         if not sys.stdin.isatty():
             print("Subscribe in the app, then send a test: python3 scripts/notify.py --test")
             return 0
-        input("  Press Enter once you've subscribed, and I'll send a test. ")
-        print("  Test sent: check your phone." if send("Welfare workspace", "Notifications work. You'll get them "
-                                                   "here.", cfg=cfg) else "  The test didn't go through (see above).")
+        input("  " + S.ask("Press Enter once you've subscribed, and I'll send a test.") + " ")
+        print("  " + S.ok("Test sent: check your phone.") if send("Welfare workspace", "Notifications work. You'll get them "
+                                                   "here.", cfg=cfg) else "  " + S.warn("The test didn't go through (see above)."))
         print("  For follow-up briefs: python3 scripts/followups.py schedule on --days 3")
         return 0
     if a[0] == "--off":

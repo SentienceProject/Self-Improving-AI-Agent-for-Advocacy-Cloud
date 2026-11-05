@@ -35,6 +35,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import notify  # noqa: E402
+try:
+    from style import S  # noqa: E402  (readable colours in a terminal; plain text otherwise)
+except ImportError:      # an older copy without scripts/style.py
+    class S:
+        ok = warn = ask = b = staticmethod(str)
 from rule_paths import rule_path  # noqa: E402
 
 HERE = Path(__file__).resolve().parents[1]
@@ -295,9 +300,9 @@ def schedule(action, days=None):
         if days or not setting(cfg, "followups_every_days", 0, 1, 365):
             cfg["followups_every_days"] = days or 3
             notify.save(cfg)
-            print(f"Follow-up briefs every {cfg['followups_every_days']} day(s) (change it: schedule on --days N).")
+            print(S.ok(f"Follow-up briefs every {cfg['followups_every_days']} day(s)") + " (change it: schedule on --days N).")
         if not notify.ready(cfg):
-            print("Note: phone notifications are off, so briefs won't be written until you turn them on: "
+            print("! Note: phone notifications are off, so briefs won't be written until you turn them on: "
                   "python3 scripts/notify.py --setup")
     py, script = sys.executable, (HERE / "scripts" / "followups.py").as_posix()
     claude = claude_bin()

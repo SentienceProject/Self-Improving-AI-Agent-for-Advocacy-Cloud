@@ -88,8 +88,15 @@ def tty():
         return False
 
 
-RED, YEL, GRN, DIM, BOLD, OFF = ("\033[31m", "\033[33m", "\033[32m", "\033[2m", "\033[1m", "\033[0m") \
-    if getattr(sys.stdout, "isatty", lambda: False)() else ("",) * 6
+# Bright colours only, and no dim text: dim grey and dark red vanish on PowerShell's blue background.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+try:
+    from style import S as _S  # turns colour on in Windows consoles; off when not a terminal or NO_COLOR is set
+    _COLOUR = _S.on
+except ImportError:
+    _COLOUR = getattr(sys.stdout, "isatty", lambda: False)()
+RED, YEL, GRN, DIM, BOLD, OFF = ("\033[91m", "\033[93m", "\033[92m", "", "\033[1m", "\033[0m") if _COLOUR \
+    else ("",) * 6
 RUNNER_EVENTS = ("staged", "cannot_stage", "stage_failed", "auto_applied")
 DECISIVE = ("approved", "rejected", "deferred", "shelved", "applied", "rolled_back", "kept", "removed",
             "trial_started") + RUNNER_EVENTS

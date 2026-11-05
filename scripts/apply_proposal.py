@@ -69,7 +69,9 @@ def show_diff(live: Path, new_text: str, target: str):
         print("(no textual difference)")
         return
 
-    GREEN, RED, DIM, RESET = "\033[32m", "\033[31m", "\033[2m", "\033[0m"
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from style import S   # bright colours, no dim text (unreadable on PowerShell's blue); plain when not a terminal
+    GREEN, RED, DIM, RESET = ("\033[92m", "\033[91m", "\033[1m", "\033[0m") if S.on else ("",) * 4
     for line in diff:
         line = line.rstrip("\n")
         if line.startswith("+++") or line.startswith("---"):
