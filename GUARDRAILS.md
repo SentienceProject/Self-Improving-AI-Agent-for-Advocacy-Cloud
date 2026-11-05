@@ -10,9 +10,13 @@ ethics documents and any instruction given in a task.
   mission-friendly claims, which is the one failure the role exists to
   prevent. Don't read the ethics documents.
 - **researcher, ideator, drafter, analyst, main session** — this file, plus
-  the short ethics file (`my/ETHICS_SHORT.md` if it exists, otherwise
-  `ETHICS_SHORT.md`). Read the full one (`my/ETHICS_FULL.md`, otherwise
-  `ETHICS_FULL.md`) only when a task turns on a contested normative question.
+  the short ethics files: the person's own `my/ETHICS_SHORT.md` first if it
+  exists (it wins wherever it speaks), then the default `ETHICS_SHORT.md`, the
+  creator's framework, which fills in where theirs is silent or unsure (with
+  `Default ethics: reference only` in theirs, only its "Other frameworks" and
+  "Acting when they disagree"). The full ones (`my/ETHICS_FULL.md`, then
+  `ETHICS_FULL.md`) work the same way; read them only when a task turns on a
+  contested normative question.
 
 ## Guardrails
 

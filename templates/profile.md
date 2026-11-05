@@ -11,7 +11,8 @@ every session. Edit it in any text editor, or ask Claude to (it will ask your pe
 
 **Ethical framework:** the workspace currently uses the personal ethics file made by the creator of this project
 (`ETHICS_SHORT.md`). Its views likely differ from yours. To use your own, put it in `my/ETHICS_SHORT.md` (the
-`/my-ethics` skill helps you write one); if that file exists, it replaces the creator's.
+`/my-ethics` skill helps you write one); your views then come first, and the creator's fill in where yours are
+silent or unsure (you can turn that off).
 
 **Budget for a big task:** roughly $5–10 of usage for something like an op-ed or a brief, unless I say otherwise.
 

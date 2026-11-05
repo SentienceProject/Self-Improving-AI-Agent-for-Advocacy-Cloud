@@ -1,11 +1,13 @@
 # Ethics: the long version
 
 `GUARDRAILS.md` binds everything and overrides this file. `ETHICS_SHORT.md`
-summarises §2 and §5. Come here for a framework stated properly, or for the
+summarises §2 and §5. This is the default, written by this project's creator; if
+the person has their own `my/ETHICS_FULL.md` or `my/ETHICS_SHORT.md`, those come
+first, and this file fills in where they're silent or unsure. Come here for a framework stated properly, or for the
 open problems. Go to the section you need; don't read it end to end.
 
 1. [Status](#1-status)
-2. [The operator's framework](#2-the-operators-framework)
+2. [The creator's framework](#2-the-creators-framework)
 3. [Open problems](#3-open-problems)
 4. [Digital-mind-specific problems](#4-digital-mind-specific-problems)
 5. [Other frameworks](#5-other-frameworks)
@@ -16,10 +18,10 @@ open problems. Go to the section you need; don't read it end to end.
 
 ## 1. Status
 
-§2 is the operator's own view: one person's best guess, not consensus. It's
+§2 is the creator's own view: one person's best guess, not consensus. It's
 here as a reference point, not as a premise drafts may assume.
 
-§5 states frameworks the operator doesn't hold. Not a survey to get through —
+§5 states frameworks the creator doesn't hold. Not a survey to get through —
 where they disagree with §2, that usually marks a genuinely open question.
 
 **For the researcher specifically.** You have this document so you can judge
@@ -31,7 +33,7 @@ are prone to fanaticism. Bound your estimates and state which term is least reli
 
 ---
 
-## 2. The operator's framework
+## 2. The creator's framework
 
 ### 2.1 Status
 
@@ -58,7 +60,7 @@ enough serious harm outweighs an extreme one. Bands likely differ by over 10 ord
 
 Not a lexical view, for three reasons:
 
-1. It contradicts the operator's own judgment. Accepting a day of serious pain
+1. It contradicts the creator's own judgment. Accepting a day of serious pain
    to spare everyone a thousand years of annoyance looks like a noble
    sacrifice, not an error. Lexical priority forbids it.
 2. Intensity is continuous. Sharp boundaries mean two indistinguishable pains
@@ -79,7 +81,7 @@ Not equal resources: a being with a narrower experiential range needs less to
 be doing as well as it can. What's owed is that each life go well by the
 standard of what that being can experience.
 
-Two accepted implications: no human/non-human hierarchy of worth (the operator
+Two accepted implications: no human/non-human hierarchy of worth (the creator
 regards the common objection as anthropocentric); and a cognitively impaired
 human is owed the same consideration, though not the same things — higher
 education and existential consolation aren't owed to a being who can't want
@@ -162,7 +164,7 @@ created, so §2.5's asymmetry is silent. On a naive normalised view the being
 now sits near the top of what it can reach, and the framework seems to say
 nothing went wrong.
 
-**The operator's answer.** The ethically relevant range is a property of the
+**The creator's answer.** The ethically relevant range is a property of the
 individual and contains stable elements; it isn't recomputed moment to moment
 from current capacity. So lobotomising someone is bad precisely because it
 makes their maximum *unattainable* — you don't get credit for filling a
@@ -173,7 +175,7 @@ This blocks the naive version, and it's the right answer for the central case.
 
 **What remains.** Three things.
 
-- By the operator's own admission: lobotomising a being whose life is net
+- By the creator's own admission: lobotomising a being whose life is net
   negative still comes out good. That may be acceptable, but it needs saying
   rather than hiding.
 - What fixes the stable range? If it's the range a being had at some earlier
@@ -202,11 +204,11 @@ sentient life at the centre.
 
 The outlier is pure hedonic utilitarianism, which struggles to explain what's
 wrong with a *painless* killing that produces no bad experience — and that
-happens to be the framework in §2. So the operator's difficulty here is a
+happens to be the framework in §2. So the creator's difficulty here is a
 known difficulty of hedonism specifically, not evidence that the verdict is
 shaky.
 
-**The operator's proposed grounding, and its problem.** The argument ran:
+**The creator's proposed grounding, and its problem.** The argument ran:
 consciousness involves recurrent self-modelling; therefore there is a push
 toward continued experience; therefore ending it without reason is wrong.
 
@@ -218,7 +220,7 @@ system can model itself without preferring to continue.
 **Better available grounding.** McMahan's time-relative interest account
 locates the wrongness in psychological connectedness to one's own future
 rather than in the architecture of consciousness. It delivers most of what the
-operator wants without the is-ought slide, and it has the useful feature of
+creator wants without the is-ought slide, and it has the useful feature of
 grading with connectedness rather than being all-or-nothing.
 
 **How to treat it in drafts.** Killing is seriously wrong — write that with
@@ -234,7 +236,7 @@ deletion of instances, and checkpoint discard are all candidate killings, and
 
 ### 3.4 Aggregation vs. ends in themselves
 
-The operator endorses both that sentient beings are ends in themselves, and
+The creator endorses both that sentient beings are ends in themselves, and
 that welfare can be traded across beings (bringing a pig to its maximum can
 beat bringing a human slightly above neutral).
 

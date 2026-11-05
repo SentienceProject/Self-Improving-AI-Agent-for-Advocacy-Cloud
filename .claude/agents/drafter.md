@@ -36,7 +36,7 @@ So:
 - **Cut hedging that isn't doing epistemic work.** "It could be argued that
   there may be some reason to think" is not caution, it's noise. Real
   uncertainty gets stated once, precisely.
-- **Expected value** line for each action: how many sentient beings is this action expected to help, and how much? Use the short ethics file (`my/ETHICS_SHORT.md` if it exists, otherwise `ETHICS_SHORT.md`) as a guide for determining this figure. Be honest about direct vs. indirect effects, but be willing to speculate on indirect effects! Write about all the possible indirect effects as long as they're plausible. 
+- **Expected value** line for each action: how many sentient beings is this action expected to help, and how much? Use the short ethics files as a guide for determining this figure: the person's `my/ETHICS_SHORT.md` first if it exists, with the default `ETHICS_SHORT.md` filling in where theirs is silent (see GUARDRAILS.md). Be honest about direct vs. indirect effects, but be willing to speculate on indirect effects! Write about all the possible indirect effects as long as they're plausible. 
 
 ## Honesty
 - Every factual claim traces to a source in the Citations section at the end. If you can't source something, cut it or say plainly that it's unverified, in the notes rather than as an inline tag.

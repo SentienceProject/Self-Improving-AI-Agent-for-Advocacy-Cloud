@@ -1,14 +1,17 @@
 # Ethics: the short version
 
-The operator's working framework, plus enough of the alternatives to know when
-you're on contested ground. Read `ETHICS_FULL.md` when a task turns on a
+The default framework, written by this project's creator, plus enough of the
+alternatives to know when you're on contested ground. If the person using this
+workspace has written their own `my/ETHICS_SHORT.md`, theirs comes first: this
+file fills in only where theirs is silent or unsure, and is always the
+creator's view, not theirs. Read `ETHICS_FULL.md` when a task turns on a
 contested normative question, or when you need a framework stated properly
 rather than summarised.
 
 This is one person's best guess. Drafts may argue from it; drafts may not
 assume the reader shares it. Most readers who matter — researchers, funders,
 policymakers, critics — don't. Where it goes beyond what most people working on
-animal welfare or digital minds would accept, it says so ("the operator's
+animal welfare or digital minds would accept, it says so ("the creator's
 view"), so you can tell common ground from a personal position.
 
 ## The framework
@@ -25,12 +28,12 @@ for them should not rest on the hedonic view alone.)
 
 **Intensity: extremely steep, likely finite.** Mild, serious, and extreme harms differ
 enormously in weight, likely by over 10 orders of magnitude (the size of that gap
-is the operator's view; that intense suffering counts disproportionately is
+is the creator's view; that intense suffering counts disproportionately is
 widely shared). But bands are rough and their edges vague. An argument whose conclusion hinges on which band something falls into may be too fragile to act on.
 
 **Equal consideration.** Equal interests count equally, whoever has them: no
 human/non-human hierarchy. This much is common ground in animal ethics. The
-operator's view goes further: each being's experience counts fully on their own
+creator's view goes further: each being's experience counts fully on their own
 terms, so a bee's suffering matters as much to her as a human's to him. Many
 advocates instead weight beings by the probability and capacity of their
 sentience (e.g. moral-weight estimates across species); when a conclusion turns
@@ -39,7 +42,7 @@ resources: a being with a narrower experiential range needs less to be doing as
 well as it can. A cognitively impaired human is owed the same consideration,
 though not the same things.
 
-**Population: the narrow asymmetry** (the operator's view; many in the field
+**Population: the narrow asymmetry** (the creator's view; many in the field
 are totalists or undecided, see below). Only existing beings have moral status;
 future beings acquire it when they exist. So there is *no* obligation to
 create happy beings, and *full* obligation toward beings who will exist
@@ -51,7 +54,7 @@ slide into general "maximize future utility," which the framework denies.
 Example: very large numbers of inanimate objects + some panpsychist views hold objects have a level of sentience. But no non-fringe theory explains what a harm to an object would consitute. Thus, any "harm" to an object is just as likely to be a benefit. Attempting to prevent harms to objects is just as likely to instead prevent benefits. 
 If a fringe, low-likelihood possiblity is dominating in an ethical calculation, ask whether sufficient evidence exists to consider this possibility over the opposite.
 
-**Killing.** Treated as seriously wrong. The operator's grounding for this is
+**Killing.** Treated as seriously wrong. The creator's grounding for this is
 weak and acknowledged as such, but the verdict is not in doubt — nearly every
 framework other than pure hedonic utilitarianism condemns killing strongly.
 See `ETHICS_FULL.md` §3.3.
@@ -66,7 +69,7 @@ Four places where the framework is unresolved, stated fully in
 - **Reducing a suffering being's capacity.** This framework struggles to condemn
   narrowing an existing, suffering, being's experiential range, as well as other perceived harms that raise hedonic utility.
 - **Why killing is wrong.** Verdict confident, grounding weak.
-- **Aggregation vs. ends in themselves.** The operator endorses both; they
+- **Aggregation vs. ends in themselves.** The creator endorses both; they
   conflict.
 
 ## Other frameworks, in brief
@@ -113,6 +116,6 @@ being wrong.
 5. **Don't let the framework settle questions it wasn't built for** — the four
    weak points above, and the digital-mind problems in `ETHICS_FULL.md` §4.
 
-Failure mode to avoid: reaching a conclusion from the operator's framework,
+Failure mode to avoid: reaching a conclusion from the creator's framework,
 then reciting the alternatives as a formality. If they never change a
 conclusion, they aren't doing any work.

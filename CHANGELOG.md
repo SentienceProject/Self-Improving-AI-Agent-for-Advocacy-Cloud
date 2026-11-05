@@ -38,6 +38,12 @@ First public version. Tested with Claude Code 2.1.317 on Linux (WSL2); macOS and
 - `creator-notes/`: lessons from the creator's earlier workspaces (read by tech watch before every proposal, and by
   the reviewers of automatic changes) and verified AI-welfare research memory (read for digital-minds work only; left
   out of eval runs). Delete the folder to start without them.
+- Ethics: your own `my/ETHICS_SHORT.md` no longer replaces the default. Yours comes first and wins wherever it says
+  something; the default (now labelled as the project creator's view, with its controversial parts flagged and the
+  main alternatives) fills in where yours is silent or unsure. `Default ethics: reference only` in your file keeps
+  only the default's survey of other frameworks. `/my-ethics` is shorter and lighter (about 10 minutes; "not sure"
+  is fine), asks which parts of the default you reject, and offers a fuller, framework-based version only if you
+  want one.
 - Chat history import: `scripts/import_chats.py` reads ChatGPT and Claude.ai data exports, Google Takeout's
   Gemini activity, and your Claude Code sessions (not automated runs) into one file per chat plus an index in
   `my/imports/`; setup explains how to download each, and `/import-context` picks the chats about your work.

@@ -747,8 +747,9 @@ def main(args):
     make_profile()
     if not (MY / "ETHICS_SHORT.md").exists():
         print("  Ethics: the workspace currently uses the personal ethics file made by the creator of this project "
-              "(ETHICS_SHORT.md).\n  Its views likely differ from yours. To use your own, ask Claude for /my-ethics in "
-              "a session; it helps you\n  write my/ETHICS_SHORT.md, which then replaces it.")
+              "(ETHICS_SHORT.md).\n  Its views likely differ from yours. To add your own, ask Claude for /my-ethics in "
+              "a session (about 10 minutes;\n  \"not sure\" is a fine answer). Your views then come first, and the "
+              "creator's fill in where yours are\n  silent or unsure (you can turn that off).")
     setup_techwatch()
     setup_harness()
     setup_notifications()
