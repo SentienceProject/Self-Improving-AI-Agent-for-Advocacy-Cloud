@@ -15,6 +15,8 @@ turn it off.
   everything Claude read, including drafts. Delete that folder's entries for this workspace to remove them, or set
   `"cleanupPeriodDays": 30` in `.claude/settings.local.json`. The eval harness's peer judges resume eval runs' saved
   sessions (the folders named after `ai-welfare-copies`), so keep those while you might still want peer judging.
+  If you said yes to keeping them in setup, `cleanupPeriodDays` in `~/.claude/settings.json` applies to every
+  Claude Code project on this computer; set it back (or delete the line) to return to Claude Code's 30 days.
 
 "Stays on your computer" means it isn't uploaded *as a file*. Anything Claude reads in a session is sent to
 Anthropic as part of that session (next section).

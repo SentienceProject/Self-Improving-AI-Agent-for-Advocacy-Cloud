@@ -36,7 +36,8 @@ claude
 - your cause, who you are and what you want help with (for `my/profile.md`);
 - whether tech watch runs automatically, and whether a change it prepares is tested and applied automatically when
   it passes (the default) or waits for you ([Tech watch](#tech-watch-keeping-the-workspace-up-to-date));
-- setting up the eval harness's outside judges, ChatGPT and Gemini (free tiers are enough);
+- setting up the eval harness's outside judges, ChatGPT and Gemini (free tiers are enough), and keeping eval
+  runs' saved sessions past Claude Code's 30 days so they can serve as extra judges (a line in your user settings);
 - phone notifications for follow-ups ([Phone notifications](#phone-notifications-ntfy));
 - bringing in what other AI tools already know about you: memory or notes from Claude chats, ChatGPT, Gemini or
   another agent. Claude then folds it into your profile and memory, with your OK (`/import-context`).

@@ -364,6 +364,7 @@ def setup_harness():
     judges = h / "evals" / "ClaudeImproverHarness" / "setup_judges.py"
     check = subprocess.run([sys.executable, str(judges), "--check"], cwd=judges.parent, capture_output=True,
                            text=True, timeout=120)
+    keep_sessions()
     if check.returncode == 0 and "not set up" not in check.stdout.lower():
         return
     cmd = f"cd {judges.parent.as_posix()} && python3 setup_judges.py"
@@ -373,6 +374,43 @@ def setup_harness():
         subprocess.run([sys.executable, str(judges)], cwd=judges.parent, check=False)
     else:
         NEXT.append(f"Set up the eval harness's outside judges (ChatGPT, Gemini):  {cmd}")
+
+
+USER_SETTINGS = Path.home() / ".claude" / "settings.json"
+KEEP_DAYS = 99999   # the same as this workspace's own .claude/settings.json
+
+
+def keep_sessions():
+    """The eval harness's peer judges resume eval runs' saved Claude Code sessions, and Claude Code deletes sessions
+    after 30 days unless your user settings say otherwise. Asks, then sets cleanupPeriodDays in
+    ~/.claude/settings.json (a backup is kept next to it)."""
+    try:
+        cfg = json.loads(USER_SETTINGS.read_text(encoding="utf-8")) if USER_SETTINGS.exists() else {}
+    except (OSError, ValueError):
+        return print(f"  ! {USER_SETTINGS} isn't valid JSON, so setup left it alone. To keep sessions for the eval "
+                     f"harness's peer judges, add \"cleanupPeriodDays\": {KEEP_DAYS} to it yourself.")
+    try:
+        days = int(cfg.get("cleanupPeriodDays") or 30) if isinstance(cfg, dict) else KEEP_DAYS
+    except (TypeError, ValueError):
+        days = 30
+    if not isinstance(cfg, dict) or days >= KEEP_DAYS:
+        return
+    if not sys.stdin.isatty():
+        NEXT.append(f"To keep eval runs' sessions for peer judging, add \"cleanupPeriodDays\": {KEEP_DAYS} to "
+                    f"{USER_SETTINGS} (or run setup again in a terminal)")
+        return
+    a = ask("The eval harness can use eval runs' own saved sessions as extra judges (\"peers\"), but Claude Code "
+            "deletes sessions after\n  30 days. Keep them? This sets cleanupPeriodDays in ~/.claude/settings.json, "
+            "so all your Claude Code sessions,\n  from every project, are kept until you delete them (they hold what "
+            "Claude read; see PRIVACY.md). [Y/n]", "y").lower()
+    if a.startswith("n"):
+        return print("  left as it is (peer judging then works only for evals from the last 30 days)")
+    if USER_SETTINGS.exists():
+        shutil.copy2(USER_SETTINGS, USER_SETTINGS.with_name("settings.json.before-ai-welfare-setup"))
+    USER_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+    cfg["cleanupPeriodDays"] = KEEP_DAYS
+    USER_SETTINGS.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+    print(f"  set cleanupPeriodDays to {KEEP_DAYS} in {USER_SETTINGS} (the old file is settings.json.before-ai-welfare-setup)")
 
 
 IMPORTS = MY / "imports"   # what you bring in from other AI tools, waiting for /import-context
