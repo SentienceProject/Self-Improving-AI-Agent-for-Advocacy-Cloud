@@ -30,3 +30,8 @@ First public version. Tested with Claude Code 2.1.317 on Linux (WSL2); macOS and
   (safety mode, paper corpus, `/remote-control`), with "not now" reminding you the next day (`setup.py --more`).
 - The agents' write guards work on Windows (paths with spaces or backslashes, Git Bash and WSL path forms) and with
   casual mode's run IDs. README: "If something goes wrong".
+- Windows: absolute paths in permission rules are now written the way Claude Code reads them (`//c/Users/...`).
+  Before, tech watch's scouts couldn't save their notes or proposals there, and the read-block rules for scouts,
+  follow-up briefs, the eval harness's runs and the layers' harness rules did nothing. A run whose saves were
+  refused is now reported as a problem, not "ok", and `techwatch.py doctor` tries a real save. After updating,
+  run `python3 setup.py` once to refresh your settings.

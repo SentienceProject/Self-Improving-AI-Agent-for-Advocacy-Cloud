@@ -57,9 +57,12 @@ MACHINE = "## Machine (written by setup.py; don't edit by hand)"
 
 def fill(obj):
     """The layer with {{WORKSPACE}}, {{HOME}} and {{HARNESS}} (the eval harness beside this workspace in the
-    repository) replaced by real paths."""
+    repository) replaced by real paths, and {{HARNESS_RULE}} by the harness's path in permission-rule form."""
+    harness = find_harness() or HERE.parent / "ai-welfare-eval-harness"
+    sys.path.insert(0, str(HERE / "scripts"))
+    from rule_paths import rule_path   # permission rules want "//c/Users/..." on Windows, "//home/..." elsewhere
     text = (json.dumps(obj).replace("{{WORKSPACE}}", HERE.as_posix()).replace("{{HOME}}", Path.home().as_posix())
-            .replace("{{HARNESS}}", (find_harness() or HERE.parent / "ai-welfare-eval-harness").as_posix()))
+            .replace("{{HARNESS_RULE}}", rule_path(harness)).replace("{{HARNESS}}", harness.as_posix()))
     return json.loads(text)
 
 

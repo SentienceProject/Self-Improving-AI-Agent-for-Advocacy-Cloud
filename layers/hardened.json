@@ -125,7 +125,7 @@
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(~/ai-welfare-evals/**)",
-      "Read(/{{HARNESS}}/**)",
+      "Read({{HARNESS_RULE}}/**)",
       "Edit(./.claude/**)",
       "Edit(./CLAUDE.md)",
       "Edit(./ETHICS.md)",

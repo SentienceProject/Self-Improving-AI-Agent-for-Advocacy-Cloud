@@ -35,6 +35,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import notify  # noqa: E402
+from rule_paths import rule_path  # noqa: E402
 
 HERE = Path(__file__).resolve().parents[1]
 WS = HERE / "workspace"
@@ -129,15 +130,16 @@ def claude_bin():
 def settings():
     """Read the workspace and nothing else; the guard hook also keeps Glob and Grep inside it."""
     ws, home = HERE.as_posix(), Path.home().as_posix()
+    wsr, homer = rule_path(HERE), rule_path(Path.home())   # permission rules take "//" absolute paths (rule_paths.py)
     # The same Python as this script: on Windows "python3" may be missing, and a hook that can't start fails open.
     guard = f'"{Path(sys.executable).as_posix()}" "{(HERE / "techwatch" / "scripts" / "scout_guard.py").as_posix()}" --read "{ws}"'
     return {
         "permissions": {
             "defaultMode": "dontAsk",
-            "allow": [f"Read(/{ws}/**)", "Glob", "Grep"],
+            "allow": [f"Read({wsr}/**)", "Glob", "Grep"],
             "deny": ["Bash", "PowerShell", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch", "CronCreate",
-                     "RemoteTrigger", "ScheduleWakeup", f"Read(/{ws}/my/notify.json)", f"Read(/{ws}/.env)",
-                     f"Read(/{ws}/**/.env)", f"Read(/{home}/.ssh/**)", f"Read(/{home}/.claude/**)"],
+                     "RemoteTrigger", "ScheduleWakeup", f"Read({wsr}/my/notify.json)", f"Read({wsr}/.env)",
+                     f"Read({wsr}/**/.env)", f"Read({homer}/.ssh/**)", f"Read({homer}/.claude/**)"],
         },
         "hooks": {"PreToolUse": [{"matcher": "Read|Glob|Grep", "hooks": [{"type": "command", "command": guard}]}]},
     }

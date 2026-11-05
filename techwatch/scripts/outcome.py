@@ -50,6 +50,9 @@ def reset_epoch(text: str, now: float) -> float | None:
     return at.timestamp() + 5 * 60  # a few minutes' slack after the reset
 
 
+WRITE_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
+
+
 def classify(result: dict | None, stderr: str = "", now: float | None = None) -> tuple:
     now = time.time() if now is None else now
     if not result:
@@ -57,6 +60,14 @@ def classify(result: dict | None, stderr: str = "", now: float | None = None) ->
         why = (stderr.strip().splitlines() or ["no result written"])[-1][:160]
         return ("retry", int(now), f"no result ({why})")
     if not result.get("is_error") and result.get("subtype") == "success":
+        # A run whose saves were refused finished, but its notes or proposals may only be in its log: not "ok".
+        refused = [d for d in result.get("permission_denials") or []
+                   if isinstance(d, dict) and d.get("tool_name") in WRITE_TOOLS]
+        if refused:
+            where = str((refused[0].get("tool_input") or {}).get("file_path", ""))[-80:]
+            return ("done", f"{len(refused)} file save(s) refused (e.g. {where or '?'}); what it wrote is only in its "
+                            "JSON log in techwatch/logs/. Check the permission rules (python3 techwatch/scripts/"
+                            "techwatch.py doctor)")
         return ("ok",)
     msg = str(result.get("result") or result.get("subtype") or "")
     status = result.get("api_error_status")

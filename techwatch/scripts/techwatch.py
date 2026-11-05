@@ -40,6 +40,8 @@ STATE, LOGS, INBOX = TW / "state", TW / "logs", TW / "inbox"
 CONFIG = json.loads((TW / "config.json").read_text(encoding="utf-8"))
 sys.path.insert(0, str(TW / "scripts"))
 import outcome   # noqa: E402
+sys.path.insert(0, str(WS / "scripts"))
+from rule_paths import rule_path   # noqa: E402
 import review    # noqa: E402
 
 TOOLS = "Read,Glob,Grep,Edit,Write,WebSearch,WebFetch"
@@ -148,6 +150,7 @@ def scout_settings(writable):
     """Settings for one scout run: read the workspace, write only `writable`, nothing else. Absolute paths, so
     they don't depend on where Claude Code thinks the project is."""
     ws, home = WS.as_posix(), Path.home().as_posix()
+    wsr, homer = rule_path(WS), rule_path(Path.home())   # permission rules take "//" absolute paths (rule_paths.py)
     py = f'"{Path(sys.executable).as_posix()}"'   # not "python3": on Windows it may be missing, and the hook would fail open
     guard = (f'{py} "{(TW / "scripts" / "scout_guard.py").as_posix()}" '
              + " ".join(f'"{(TW / w).as_posix()}"' for w in writable))
@@ -155,17 +158,17 @@ def scout_settings(writable):
     return {
         "permissions": {
             "defaultMode": "dontAsk",
-            "allow": [f"Read(/{ws}/**)", "Glob", "Grep", "WebSearch", "WebFetch"]
-                     + [f"Edit(/{(TW / w).as_posix()}/**)" for w in writable],
+            "allow": [f"Read({wsr}/**)", "Glob", "Grep", "WebSearch", "WebFetch"]
+                     + [f"Edit({rule_path(TW / w)}/**)" for w in writable],
             "deny": ["Bash", "PowerShell", "NotebookEdit", "CronCreate", "RemoteTrigger", "ScheduleWakeup",
-                     f"Read(/{home}/.ssh/**)", f"Read(/{home}/.aws/**)", f"Read(/{home}/.claude/.credentials.json)",
-                     f"Read(/{home}/.config/anthropic/**)", f"Read(/{home}/.git-credentials)",
-                     f"Read(/{home}/.config/gh/**)", f"Read(/{home}/ai-welfare-evals/**)",
-                     f"Read(/{(WS.parent / 'ai-welfare-eval-harness').as_posix()}/**)",
-                     f"Read(/{ws}/.env)", f"Read(/{ws}/**/.env)", f"Read(/{home}/.codex/**)",
-                     f"Read(/{home}/.config/gcloud/**)", f"Read(/{home}/.azure/**)", f"Read(/{home}/.kube/**)",
-                     f"Read(/{home}/.netrc)", f"Read(/{home}/.gnupg/**)", f"Read(/{home}/.claude/settings.json)",
-                     f"Read(/{home}/ai-welfare-checkpoints/**)"],
+                     f"Read({homer}/.ssh/**)", f"Read({homer}/.aws/**)", f"Read({homer}/.claude/.credentials.json)",
+                     f"Read({homer}/.config/anthropic/**)", f"Read({homer}/.git-credentials)",
+                     f"Read({homer}/.config/gh/**)", f"Read({homer}/ai-welfare-evals/**)",
+                     f"Read({rule_path(WS.parent / 'ai-welfare-eval-harness')}/**)",
+                     f"Read({wsr}/.env)", f"Read({wsr}/**/.env)", f"Read({homer}/.codex/**)",
+                     f"Read({homer}/.config/gcloud/**)", f"Read({homer}/.azure/**)", f"Read({homer}/.kube/**)",
+                     f"Read({homer}/.netrc)", f"Read({homer}/.gnupg/**)", f"Read({homer}/.claude/settings.json)",
+                     f"Read({homer}/ai-welfare-checkpoints/**)"],
         },
         "hooks": {"PreToolUse": [{"matcher": "Edit|Write|MultiEdit|NotebookEdit",
                                   "hooks": [{"type": "command", "command": guard}]},
@@ -481,13 +484,19 @@ def selftest():
 
 
 def doctor():
+    """Starts a scout exactly as runs do (its settings, guard and tools) and checks it can save a file to the inbox:
+    a scout whose saves are refused does its work and loses it (Windows paths once caused that)."""
+    probe = TW / "inbox" / ".doctor-write-check.md"
+    probe.unlink(missing_ok=True)
     settings = STATE / "scout-settings-doctor.json"
     STATE.mkdir(parents=True, exist_ok=True)
     settings.write_text(json.dumps(scout_settings(("inbox",))), encoding="utf-8")
     r = subprocess.run([claude_bin(), "-p", "--model", "haiku", "--max-budget-usd", "0.05", "--settings", str(settings),
                         "--setting-sources", "", "--permission-mode", "dontAsk", "--tools", TOOLS,
                         "--strict-mcp-config", "--no-session-persistence", "--output-format", "stream-json",
-                        "--verbose"], input="Hi! This is a setup check. Please reply with just OK. Thank you!",
+                        "--verbose"], input=(f"Hi! This is a setup check. If you're willing, please use the Write "
+                                             f"tool to create the file {probe.as_posix()} containing just the word "
+                                             "ok, then reply with just OK. Thank you!"),
                        cwd=WS, capture_output=True, text=True,
                        env={k: v for k, v in os.environ.items() if k != "CLAUDECODE"})
     for line in r.stdout.splitlines():
@@ -502,6 +511,12 @@ def doctor():
             print("connectors loaded (should be none):", [t for t in tools if t.startswith("mcp__")] or "none")
         if e.get("type") == "result":
             print("login/result:", "OK" if not e.get("is_error") else e.get("result"))
+            if e.get("permission_denials"):
+                print("refused calls:", [d.get("tool_name") for d in e["permission_denials"]])
+    saved = probe.exists()
+    print("can save to techwatch/inbox (should be yes):", "yes" if saved else
+          "NO: scouts' notes and proposals would be lost. Please report this, with the refused calls above.")
+    probe.unlink(missing_ok=True)
 
 
 def main(a):
