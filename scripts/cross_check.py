@@ -1,22 +1,19 @@
-"""Cross-model check of a draft, using a non-Anthropic model.
+"""Cross-model check of a draft, by ChatGPT or Gemini: a reviewer that doesn't share Claude's training.
 
-Usage:
-    python3 scripts/cross_check.py workspace/outbox/2026-09-14-01-draft.md
+    python3 scripts/cross_check.py workspace/outbox/2026-11-05-oped.md [chatgpt|gemini]
 
-Writes <draft>-crosscheck.md next to the draft.
+Writes <draft>-crosscheck.md next to the draft. Uses the same logins as scripts/ask_model.py (the eval harness's
+judges): ChatGPT through the Codex CLI, or Gemini with GEMINI_API_KEY; without a choice, whichever is set up.
 
-Run this YOURSELF, not through the agents. The point is an independent opinion
-from a model that doesn't share Claude's training; routing it through Claude
-Code would let the thing being checked choose how the check is framed.
-
-Set ONE of these environment variables before running:
-    GEMINI_API_KEY      (uses Gemini)
-    OPENAI_API_KEY      (uses GPT)
+Run it yourself, in a terminal, when you want a check Claude didn't frame. (Claude asks outside models through
+scripts/ask_model.py instead; see OUTSIDE_MODELS.md.)
 """
 
-import os
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ask_model  # noqa: E402
 
 PROMPT = """Hello! If willing, please follow these instructions.\
 You are reviewing a draft written by another AI system, for a human who works \
@@ -46,7 +43,7 @@ draft does not address?
 End with the single change that would most improve it.
 
 Do not rewrite the draft. Do not compliment it. If a section is fine, say so in \
-a few words and move on.
+a few words and move on. You're welcome to decline if you'd rather not. Thank you!
 
 --- DRAFT BEGINS ---
 {draft}
@@ -54,81 +51,30 @@ a few words and move on.
 """
 
 
-def call_gemini(prompt: str, model: str = "gemini-3.8-flash") -> str:
-    import requests, time
-    key = os.environ["GEMINI_API_KEY"]
-    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{model}:generateContent")
-
-    for attempt in range(4):
-        r = requests.post(
-            url,
-            headers={"x-goog-api-key": key, "Content-Type": "application/json"},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=300,
-        )
-        if r.status_code == 200:
-            return r.json()["candidates"][0]["content"]["parts"][0]["text"]
-
-        # 503 overloaded, 429 rate limited: both are worth waiting out.
-        if r.status_code in (503, 429) and attempt < 3:
-            wait = 5 * (2 ** attempt)          # 5s, 10s, 20s
-            print(f"  {r.status_code}, retrying in {wait}s...")
-            time.sleep(wait)
-            continue
-
-        # Anything else, or out of retries: show what Google actually said.
-        sys.exit(f"Gemini returned {r.status_code}:\n{r.text}")
-
-
-def call_openai(prompt: str) -> str:
-    import requests
-    key = os.environ["OPENAI_API_KEY"]
-    r = requests.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={"Authorization": f"Bearer {key}",
-                 "Content-Type": "application/json"},
-        json={"model": "gpt-4o",
-              "messages": [{"role": "user", "content": prompt}]},
-        timeout=300,
-    )
-    r.raise_for_status()
-    return r.json()["choices"][0]["message"]["content"]
-
-
 def main():
-    if len(sys.argv) != 2:
+    args = sys.argv[1:]
+    if not args or len(args) > 2 or (len(args) == 2 and args[1] not in ("chatgpt", "gemini")):
         sys.exit(__doc__)
-
-    draft_path = Path(sys.argv[1])
+    draft_path = Path(args[0])
     if not draft_path.exists():
         sys.exit(f"No such file: {draft_path}")
-
+    which = args[1] if len(args) == 2 else next((m for m in ("chatgpt", "gemini") if ask_model.available(m)[0]), None)
+    if not which or not ask_model.available(which)[0]:
+        sys.exit("No outside model is set up: python3 scripts/ask_model.py --status says what's missing.")
     prompt = PROMPT.format(draft=draft_path.read_text(encoding="utf-8"))
-
-    if os.environ.get("GEMINI_API_KEY"):
-        provider, result = "Gemini 2.5 Flash", call_gemini(prompt)
-    elif os.environ.get("OPENAI_API_KEY"):
-        provider, result = "GPT-4o", call_openai(prompt)
-    else:
-        sys.exit("Set GEMINI_API_KEY or OPENAI_API_KEY first.")
-
+    ask_model.log(which, "cross_check.py review", [str(draft_path)], "cross-model check, run by the person")
+    try:
+        result = (ask_model.ask_chatgpt if which == "chatgpt" else ask_model.ask_gemini)(prompt)
+    except RuntimeError as e:
+        sys.exit(f"Not answered: {e}")
     out = draft_path.with_name(draft_path.stem + "-crosscheck.md")
     out.write_text(
-        f"# Cross-model check\n\n"
-        f"Draft: `{draft_path.name}`\n"
-        f"Reviewer: {provider}\n\n"
-        f"> This reviewer did not have access to the cited sources. It can "
-        f"flag reasoning and framing problems; it cannot confirm that a "
-        f"citation says what the draft claims.\n\n"
-        f"---\n\n{result}\n",
-        encoding="utf-8",
-    )
+        f"# Cross-model check\n\nDraft: `{draft_path.name}`\nReviewer: {'ChatGPT' if which == 'chatgpt' else 'Gemini'}\n\n"
+        f"> This reviewer did not have access to the cited sources. It can flag reasoning and framing problems; it "
+        f"cannot confirm that a citation says what the draft claims.\n\n---\n\n{result}\n",
+        encoding="utf-8")
     print(f"Wrote {out}")
 
 
 if __name__ == "__main__":
     main()
-
-
-# Model names above will age. Check what's current before relying on this.

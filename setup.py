@@ -7,6 +7,8 @@
     python3 setup.py --search      also set up semantic corpus search (hardened mode; needs Ollama)
     python3 setup.py --status      show the current mode and what's set up; change nothing
     python3 setup.py --more        the optional extras: safety mode, your paper corpus, using sessions from your phone
+    python3 setup.py --ask-outside-models     ask before each call Claude makes to ChatGPT or Gemini (off by default;
+                                              --no-ask-outside-models turns it off again)
 
 Fewer (or more) permission prompts. The workspace's rules are asks, not blocks: Claude can do each thing after you
 say yes. To stop being asked about one, or to start being asked:
@@ -347,6 +349,12 @@ def setup_notifications():
     NEXT.append(f"Start the follow-up briefs' schedule:  python3 scripts/followups.py schedule on --days {days}")
 
 
+OUTSIDE_NOTE = ("  ChatGPT and Gemini (once set up) also help Claude during your tasks: second opinions, critiques and "
+                "cross-checks\n  (scripts/ask_model.py). Claude doesn't ask you before these calls, even when it "
+                "sends files from workspace/;\n  each one is logged in workspace/logs/outside-models.md. To be asked "
+                "first: python3 setup.py --ask-outside-models")
+
+
 def setup_harness():
     """The eval harness beside this workspace: it tests tech watch's changes before they're applied. Unlocks its
     tasks (which tests need) and offers to set up its outside judges."""
@@ -369,12 +377,13 @@ def setup_harness():
                            text=True, timeout=120)
     keep_sessions()
     if check.returncode == 0 and "not set up" not in check.stdout.lower():
-        return
+        return print(OUTSIDE_NOTE)
     cmd = f"cd {judges.parent.as_posix()} && python3 setup_judges.py"
     if sys.stdin.isatty() and not ask("The eval harness judges changes with ChatGPT and Gemini as well as Claude (free "
                                       "tiers are enough; a few minutes).\n  Set them up now? [Y/n]",
                                       "y").lower().startswith("n"):
         subprocess.run([sys.executable, str(judges)], cwd=judges.parent, check=False)
+        print(OUTSIDE_NOTE)
     else:
         NEXT.append(f"Set up the eval harness's outside judges (ChatGPT, Gemini):  {cmd}")
 
@@ -627,9 +636,25 @@ def show_rules():
             print(f"  {'you: ' + k:11} {r}")
 
 
+OUTSIDE_RULES = ("Bash(python3 scripts/ask_model.py *)", "Bash(python3 {ws}/scripts/ask_model.py *)")
+
+
+def outside_rules():
+    return [r.format(ws=HERE.as_posix()) for r in OUTSIDE_RULES]   # an ask rule for a form a mode doesn't allow is harmless
+
+
 def rule_command(args):
-    """Handle --allow/--ask/--default/--allow-all/--rules. Returns True if one was given."""
+    """Handle --allow/--ask/--default/--allow-all/--rules and --(no-)ask-outside-models. True if one was given."""
     MY.mkdir(exist_ok=True)
+    if "--ask-outside-models" in args or "--no-ask-outside-models" in args:
+        ask_first = "--ask-outside-models" in args
+        for r in outside_rules():
+            set_override(r, "ask" if ask_first else None)
+        apply_layer(current_mode() or "casual")
+        print("Claude now asks you before each call to ChatGPT or Gemini (scripts/ask_model.py)." if ask_first else
+              "Claude may call ChatGPT and Gemini without asking again (the default). Every call is still logged "
+              "in workspace/logs/outside-models.md.")
+        return True
     if "--rules" in args:
         show_rules()
         return True
@@ -662,7 +687,8 @@ def rule_command(args):
 def main(args):
     if sys.version_info < (3, 9):
         sys.exit("Python 3.9 or newer is needed.")
-    rule_flags = ("--allow", "--preapprove", "--ask", "--default", "--allow-all")
+    rule_flags = ("--allow", "--preapprove", "--ask", "--default", "--allow-all", "--ask-outside-models",
+                  "--no-ask-outside-models")
     if not STATE.exists() and any(f in args for f in rule_flags):
         print("This workspace isn't set up yet, so setting it up first.")
         main([a for a in args if a in ("--casual", "--hardened")])

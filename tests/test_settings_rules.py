@@ -47,6 +47,7 @@ EXCLUDED = {
     f"{Path(SEARCH_PY).as_posix()} {REPO.as_posix()}/scripts/corpus_search.py *",
     f"python3 {REPO.as_posix()}/scripts/fetch_pdf.py *",
     f"python3 {REPO.as_posix()}/scripts/fetch_repo.py *",
+    f"python3 {REPO.as_posix()}/scripts/ask_model.py *",   # outside models: their logins live outside the sandbox
 }
 
 _spec = importlib.util.spec_from_file_location("setup_mod", REPO / "setup.py")

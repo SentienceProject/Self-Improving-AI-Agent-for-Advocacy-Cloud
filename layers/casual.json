@@ -70,6 +70,10 @@
       "Read({{HARNESS_RULE}}/evals/tasks-animals/**)",
       "Read({{HARNESS_RULE}}/evals/legacy-rubric-eval/improver_tasks/**)",
       "Read(~/ai-welfare-evals/**)"
+    ],
+    "allow": [
+      "Bash(python3 scripts/ask_model.py *)",
+      "Bash(python3 {{WORKSPACE}}/scripts/ask_model.py *)"
     ]
   },
   "sandbox": {
@@ -187,6 +191,10 @@
         "www.medrxiv.org",
         "psyarxiv.com"
       ]
-    }
+    },
+    "excludedCommands": [
+      "python3 scripts/ask_model.py *",
+      "python3 {{WORKSPACE}}/scripts/ask_model.py *"
+    ]
   }
 }

@@ -90,7 +90,8 @@
   "permissions": {
     "defaultMode": "default",
     "allow": [
-      "Bash(python3 scripts/corpus_search.py *)"
+      "Bash(python3 scripts/corpus_search.py *)",
+      "Bash(python3 {{WORKSPACE}}/scripts/ask_model.py *)"
     ],
     "ask": [
       "Bash(pip install *)",
@@ -218,7 +219,8 @@
       "python3 {{WORKSPACE}}/scripts/run_analysis.py *",
       "{{HOME}}/.venvs/ai-welfare-search/bin/python {{WORKSPACE}}/scripts/corpus_search.py *",
       "python3 {{WORKSPACE}}/scripts/fetch_pdf.py *",
-      "python3 {{WORKSPACE}}/scripts/fetch_repo.py *"
+      "python3 {{WORKSPACE}}/scripts/fetch_repo.py *",
+      "python3 {{WORKSPACE}}/scripts/ask_model.py *"
     ],
     "filesystem": {
       "denyRead": [

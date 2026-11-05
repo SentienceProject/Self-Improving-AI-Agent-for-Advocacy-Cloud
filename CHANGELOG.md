@@ -38,3 +38,7 @@ First public version. Tested with Claude Code 2.1.317 on Linux (WSL2); macOS and
 - `creator-notes/`: lessons from the creator's earlier workspaces (read by tech watch before every proposal, and by
   the reviewers of automatic changes) and verified AI-welfare research memory (read for digital-minds work only; left
   out of eval runs). Delete the folder to start without them.
+- Outside models during tasks: once ChatGPT or Gemini is set up (the eval harness's logins), Claude can ask them for
+  second opinions, critiques and cross-checks (`scripts/ask_model.py`, `OUTSIDE_MODELS.md`). No prompt by default,
+  even with files from `workspace/`; every call is logged in `workspace/logs/outside-models.md`;
+  `setup.py --ask-outside-models` makes each call ask. `scripts/cross_check.py` now uses the same logins.

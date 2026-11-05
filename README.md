@@ -94,6 +94,12 @@ Other things worth knowing:
   after the deliverable. PDFs need pandoc or LibreOffice; without them you get a page to print to PDF.
 - **Connecting your tools.** Ask Claude to `/connect` a reference manager, cloud drive or notes app. It explains the
   options and risks, and you do the installing. Sending through a connected app always asks you first.
+- **Second opinions from other AI models.** Once ChatGPT or Gemini is set up (setup offers it, for the eval
+  harness), Claude can ask them for critiques and cross-checks during your tasks (`scripts/ask_model.py`;
+  `OUTSIDE_MODELS.md` has its rules). A model from another company catches things Claude critics miss. It doesn't
+  ask you first, even when it sends files from `workspace/`; every call is logged in
+  `workspace/logs/outside-models.md`. To be asked before each call: `python3 setup.py --ask-outside-models`.
+  `scripts/cross_check.py <draft>` is the same kind of check, run by you.
 - **Citation check.** Before the verifier reads a draft, Claude runs `scripts/check_citations.py` on it. The script
   checks that every arXiv ID and DOI exists and matches the cited title, author and year, flags retracted papers,
   and checks quotes word for word against the corpus. It uses no AI. It only catches broken references, not a
@@ -386,6 +392,7 @@ PRIVACY.md                   where your data goes
 VERSION, CHANGELOG.md        the version and what changed
 examples/                    real outputs, unedited
 CLAUDE.md, GUARDRAILS.md     how Claude works here, and the honesty, consent and outreach rules
+OUTSIDE_MODELS.md            when and how Claude asks ChatGPT or Gemini for a second opinion
 ETHICS_SHORT.md, ETHICS_FULL.md   the default ethical framework (yours goes in my/)
 my/                          your own files (gitignored)
 .claude/agents/              researcher, critic, verifier, ideator, wild-ideator, drafter, helper, analyst
