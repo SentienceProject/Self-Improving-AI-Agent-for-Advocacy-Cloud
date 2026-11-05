@@ -35,6 +35,20 @@ GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 MAX_FILE_BYTES = 400_000
 
 
+def node_on_path():
+    """Windows: Node.js installed after this window opened isn't on its PATH yet; the Codex CLI needs it."""
+    if os.name != "nt":
+        return
+    have = os.environ.get("PATH", "").lower().split(os.pathsep)
+    for d in (Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "nodejs",
+              Path(os.environ.get("APPDATA", "~")) / "npm"):
+        if d.is_dir() and str(d).lower() not in have:
+            os.environ["PATH"] = str(d) + os.pathsep + os.environ.get("PATH", "")
+
+
+node_on_path()
+
+
 def codex():
     for p in (shutil.which("codex"), Path.home() / ".npm-global" / "bin" / "codex",
               Path(os.environ.get("APPDATA", "~")) / "npm" / "codex.cmd"):

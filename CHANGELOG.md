@@ -43,6 +43,9 @@ First public version. Tested with Claude Code 2.1.317 on Linux (WSL2); macOS and
   `my/imports/`; setup explains how to download each, and `/import-context` picks the chats about your work.
 - Easier to read: setup and the scripts use bold headings, coloured questions, green ticks and yellow warnings,
   chosen to read on dark, light and PowerShell's blue backgrounds (no dim grey). `NO_COLOR=1` turns colour off.
+- Windows: signing in to ChatGPT right after setup installs Node.js works (it failed with '"node" is not
+  recognized', because the window's PATH predated the install). Gemini's key is checked in seconds without using
+  its free quota, and a slow or busy Google no longer counts as a bad key.
 - Judge setup no longer hangs: each connection test gives up within a minute or two, Ctrl+C skips any step, and a
   busy server keeps the judge instead of failing. Step-by-step help for installing Node.js (offered via winget on
   Windows) and for setting the Gemini key on Windows.
