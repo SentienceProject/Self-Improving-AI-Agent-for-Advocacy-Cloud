@@ -81,11 +81,10 @@ well-designed test can beat it. A hunch can't.
 
 ## 4. Ideation
 
-- **Wild ideation has a real but narrow upside, and it's expensive as built.** It produced one clearly unique idea
-  in the comparison, and took 20 to 40% of a run's tokens. Most of its value came from the regular ideator's dry run
-  and from asking for divergent ideas, not from the card-and-disguise machinery.
-- **The filter has to actually reject.** The translating step kept 67 of 67, 68 of 68 and 69 of 69 ideas, and later
-  dropped 0 of 99 and 0 of 101: the drafter then read more wild text than research. A filter needs a hard cut.
+- **Wild ideation is expensive, but it greatly increases creativity.** The difficulty is applying wildly creative
+  ideas: they're hard to turn into a usable draft, so much of the gain is lost by the final draft, and reviewers who
+  compare final drafts then discount wild ideation. So don't propose cutting it on the strength of final-draft scores
+  alone; helping drafts carry the best ideas through is the better target.
 - **Models' ratings of their own ideas' rarity are unreliable.** Ideators converged two to four times on principles
   they rated as rare.
 - **"Manipulative" was read inconsistently** between runs (the same kinds of idea dropped in one run and kept in
