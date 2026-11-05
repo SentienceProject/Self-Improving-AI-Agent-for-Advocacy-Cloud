@@ -17,6 +17,10 @@ turn it off.
   sessions (the folders named after `ai-welfare-copies`), so keep those while you might still want peer judging.
   If you said yes to keeping them in setup, `cleanupPeriodDays` in `~/.claude/settings.json` applies to every
   Claude Code project on this computer; set it back (or delete the line) to return to Claude Code's 30 days.
+- **Settings setup may add to `~/.claude/settings.json`**, each only on your yes: `cleanupPeriodDays` (above),
+  `remoteControlAtStartup` (every session can be followed from the Claude app or claude.ai/code, signed in as you),
+  and, in hardened mode, `strictAllowlist`. The file as it was before setup first changed it is kept as
+  `settings.json.before-ai-welfare-setup`.
 
 "Stays on your computer" means it isn't uploaded *as a file*. Anything Claude reads in a session is sent to
 Anthropic as part of that session (next section).

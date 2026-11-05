@@ -44,7 +44,7 @@ claude
 
 Setup never schedules anything itself. It ends by listing the commands that start tech watch's and the follow-ups'
 schedules, then offers more options: the [safety mode](#two-modes-casual-and-hardened), your paper corpus, and using
-a session from your phone (`/remote-control`, or `/rc`). Say "not now" and you'll be reminded the next day; run
+a session from your phone (`/remote-control`, or `/rc`; setup can also turn it on for every session). Say "not now" and you'll be reminded the next day; run
 `python3 setup.py --more` any time.
 
 Then type `claude` (or open the folder in the Claude desktop app's Code tab), say yes when it asks whether to trust
@@ -151,6 +151,9 @@ who plan to add capabilities (analysis containers, new tools, connectors) and wa
   allowlist, read-only scripts, hidden eval files and more);
 - Manual permission mode, strict deny lists (blocks rather than asks), no retrying commands outside the sandbox,
   and a sandbox that refuses to start if it's unavailable;
+- a strict network limit: sandboxed commands reach only the listed research sites. Claude Code takes this one from
+  your user settings (`"strictAllowlist": true` under `sandbox` > `network` in `~/.claude/settings.json`), so setup
+  asks before adding it there, and it then applies to all your Claude Code projects;
 - **automatic run logs** and saved subagent outputs (`workspace/logs/`);
 - the **analyst** agent, which runs analysis code in a locked-down Docker container with no network (build it once
   with `sandbox/build.sh`), and allowlisted downloads of PDFs and code releases with provenance;
@@ -450,6 +453,12 @@ Setup checks for the common problems and says which one it found. The usual ones
   isn't putting the ntfy app to sleep (battery settings), and try `python3 scripts/notify.py --test`.
 
 **Updates and the eval harness**
+- **You asked Claude to run an eval or a tech-watch test, and the judges or the agent runs fail with network
+  errors**: inside Claude Code, commands run in the sandbox, which doesn't allow the judges' sites (ChatGPT, OpenAI,
+  Gemini) or Claude's own API for the nested runs. Approve the prompts when Claude Code asks, or run the command in
+  a terminal yourself (`cd ../ai-welfare-eval-harness/evals/ClaudeImproverHarness`, then the command); scheduled
+  tech-watch runs aren't sandboxed and don't hit this. Setup doesn't allow those sites everywhere, since that would
+  open a route out of the sandbox for every command.
 - **`update.py` says this isn't a git clone**: the ZIP download can't update itself. Clone with git, then copy your
   `my/` and `workspace/` folders across.
 - **A judge fails with "503", "429" or "quota"** (usually Gemini's free tier, which allows only a few requests a day): it's busy or

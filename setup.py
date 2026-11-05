@@ -380,20 +380,56 @@ USER_SETTINGS = Path.home() / ".claude" / "settings.json"
 KEEP_DAYS = 99999   # the same as this workspace's own .claude/settings.json
 
 
-def keep_sessions():
-    """The eval harness's peer judges resume eval runs' saved Claude Code sessions, and Claude Code deletes sessions
-    after 30 days unless your user settings say otherwise. Asks, then sets cleanupPeriodDays in
-    ~/.claude/settings.json (a backup is kept next to it)."""
+def user_settings():
+    """~/.claude/settings.json as a dict, {} if it doesn't exist, or None if it isn't valid JSON (left alone then)."""
     try:
         cfg = json.loads(USER_SETTINGS.read_text(encoding="utf-8")) if USER_SETTINGS.exists() else {}
     except (OSError, ValueError):
-        return print(f"  ! {USER_SETTINGS} isn't valid JSON, so setup left it alone. To keep sessions for the eval "
-                     f"harness's peer judges, add \"cleanupPeriodDays\": {KEEP_DAYS} to it yourself.")
+        return None
+    return cfg if isinstance(cfg, dict) else None
+
+
+def set_user_setting(keys, value, what):
+    """Set one value in ~/.claude/settings.json (keys: the path to it, e.g. ("sandbox", "network",
+    "strictAllowlist")), keeping everything else and a backup of the file as it was before setup first changed it.
+    Only call this after the person said yes."""
+    cfg = user_settings()
+    if cfg is None:
+        print(f"  ! {USER_SETTINGS} isn't valid JSON, so setup left it alone. To {what}, add "
+              f"{json.dumps({keys[-1]: value})} under {' > '.join(keys[:-1]) or 'the top level'} yourself.")
+        return False
+    backup = USER_SETTINGS.with_name("settings.json.before-ai-welfare-setup")
+    if USER_SETTINGS.exists() and not backup.exists():
+        shutil.copy2(USER_SETTINGS, backup)
+    d = cfg
+    for k in keys[:-1]:
+        if not isinstance(d.get(k), dict):
+            d[k] = {}
+        d = d[k]
+    d[keys[-1]] = value
+    USER_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
+    USER_SETTINGS.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
+    print(f"  set {' > '.join(keys)} to {json.dumps(value)} in {USER_SETTINGS}"
+          + (f" (a copy from before setup changed it: {backup.name})" if backup.exists() else ""))
+    return True
+
+
+def get_user_setting(*keys):
+    d = user_settings() or {}
+    for k in keys:
+        d = d.get(k) if isinstance(d, dict) else None
+    return d
+
+
+def keep_sessions():
+    """The eval harness's peer judges resume eval runs' saved Claude Code sessions, and Claude Code deletes sessions
+    after 30 days unless your user settings say otherwise. Asks, then sets cleanupPeriodDays in
+    ~/.claude/settings.json."""
     try:
-        days = int(cfg.get("cleanupPeriodDays") or 30) if isinstance(cfg, dict) else KEEP_DAYS
+        days = int(get_user_setting("cleanupPeriodDays") or 30)
     except (TypeError, ValueError):
         days = 30
-    if not isinstance(cfg, dict) or days >= KEEP_DAYS:
+    if days >= KEEP_DAYS:
         return
     if not sys.stdin.isatty():
         NEXT.append(f"To keep eval runs' sessions for peer judging, add \"cleanupPeriodDays\": {KEEP_DAYS} to "
@@ -405,12 +441,35 @@ def keep_sessions():
             "Claude read; see PRIVACY.md). [Y/n]", "y").lower()
     if a.startswith("n"):
         return print("  left as it is (peer judging then works only for evals from the last 30 days)")
-    if USER_SETTINGS.exists():
-        shutil.copy2(USER_SETTINGS, USER_SETTINGS.with_name("settings.json.before-ai-welfare-setup"))
-    USER_SETTINGS.parent.mkdir(parents=True, exist_ok=True)
-    cfg["cleanupPeriodDays"] = KEEP_DAYS
-    USER_SETTINGS.write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
-    print(f"  set cleanupPeriodDays to {KEEP_DAYS} in {USER_SETTINGS} (the old file is settings.json.before-ai-welfare-setup)")
+    set_user_setting(("cleanupPeriodDays",), KEEP_DAYS, "keep sessions for the eval harness's peer judges")
+
+
+def strict_network():
+    """Hardened mode: commands in the sandbox reach only the listed research sites. Claude Code takes that from your
+    user settings (sandbox > network > strictAllowlist), so setup asks to set it there."""
+    if get_user_setting("sandbox", "network", "strictAllowlist") is True:
+        return
+    if not sys.stdin.isatty():
+        NEXT.append(f"For hardened mode's strict network limit, add \"strictAllowlist\": true under \"sandbox\" > "
+                    f"\"network\" in {USER_SETTINGS}")
+        return
+    a = ask("  Hardened mode holds sandboxed commands to the listed research sites, but only if your user settings say "
+            "so\n  (sandbox > network > strictAllowlist in ~/.claude/settings.json). That applies to every Claude Code "
+            "project\n  on this computer: a sandboxed command can then only reach sites a project allows, instead of "
+            "asking you. Set it? [Y/n]", "y").lower()
+    if a.startswith("n"):
+        return print("  left as it is: unlisted sites ask you first instead of being blocked")
+    set_user_setting(("sandbox", "network", "strictAllowlist"), True, "turn on hardened mode's strict network limit")
+
+
+def remote_control():
+    """Opt-in: every Claude Code session starts with Remote Control on, so you can follow it from your phone."""
+    if get_user_setting("remoteControlAtStartup") is True or not sys.stdin.isatty():
+        return
+    a = ask("   Start every Claude Code session with Remote Control on, so you can always pick it up on your phone? "
+            "This sets\n   remoteControlAtStartup in ~/.claude/settings.json, for all your projects. [y/N]", "n").lower()
+    if a.startswith("y"):
+        set_user_setting(("remoteControlAtStartup",), True, "start sessions with Remote Control on")
 
 
 IMPORTS = MY / "imports"   # what you bring in from other AI tools, waiting for /import-context
@@ -492,6 +551,8 @@ def more_setup(asked_by_user=False):
         mode = "hardened" if mode == "casual" else "casual"
         apply_layer(mode)
         write_machine(mode)
+        if mode == "hardened":
+            strict_network()
         print(f"   now in {mode} mode" + (" (optional: build the analyst's container with sandbox/build.sh)"
                                           if mode == "hardened" else ""))
     print("\n2. Your paper corpus: papers Claude can read and quote, kept in workspace/corpus/.")
@@ -503,8 +564,8 @@ def more_setup(asked_by_user=False):
                                   "n").lower().startswith("y"):
         setup_search()
     print("\n3. Using a session from your phone: in any Claude Code session here, type /remote-control (or /rc). You "
-          "can then\n   follow and steer it from the Claude app or claude.ai/code, handy for long research tasks. "
-          "Nothing to set up now.")
+          "can then\n   follow and steer it from the Claude app or claude.ai/code, handy for long research tasks.")
+    remote_control()
     MORE.write_text(json.dumps({"status": "done"}), encoding="utf-8")
     print("\nThat's all the extra setup. Run python3 setup.py --more any time to go through it again.")
 
@@ -621,6 +682,8 @@ def main(args):
         sys.exit("Hardened mode needs Linux, macOS or WSL2: its scripts and sandbox don't run on native Windows. "
                  "Install WSL2 and set the workspace up there, or use casual mode.")
     print(f"Setting up {HERE} in {mode} mode.")
+    if mode == "hardened":
+        strict_network()
     checks()
     MY.mkdir(exist_ok=True)
     make_profile()
