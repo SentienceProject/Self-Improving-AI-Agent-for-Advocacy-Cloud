@@ -16,6 +16,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+if os.name == "nt":   # they use Linux and macOS file features (O_NOFOLLOW, fcntl); so does hardened mode
+    raise unittest.SkipTest("hardened mode's scripts need Linux, macOS or WSL2, not native Windows")
+
 REPO = Path(__file__).resolve().parents[1]
 GUARD_SRC = REPO / ".claude" / "hooks" / "analyst_guard.py"
 

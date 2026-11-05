@@ -11,20 +11,23 @@ in the rules) inside the workspace, away from .env files. Exit 2 blocks the call
 Any error blocks too: a guard that fails open isn't a guard.
 """
 import json
+import os
+import re
 import sys
 from pathlib import Path
 
 
 def inside(target, dirs):
-    return any(target == a or a in target.parents for a in dirs)
+    key = lambda q: os.path.normcase(str(q))   # Windows paths aren't case-sensitive
+    return any(key(target) == key(a) or key(a) in {key(x) for x in target.parents} for a in dirs)
 
 
 def check_read(ws, event):
     ti, cwd = event.get("tool_input") or {}, Path(event.get("cwd") or ws)
     paths = [ti.get("file_path"), ti.get("path")]
     pattern = ti.get("pattern") if event.get("tool_name") == "Glob" else ti.get("glob")
-    if pattern and (pattern.startswith(("/", "~")) or ".." in pattern):
-        paths.append(pattern.split("*")[0] or "/")
+    if pattern:   # the fixed part before any wildcard, wherever it points (/x, ~/x, C:\\x, \\\\server, ../x)
+        paths.append(re.split(r"[*?\[{]", pattern, maxsplit=1)[0] or ".")
     for raw in filter(None, paths):
         target = (cwd / Path(raw).expanduser()).resolve()
         if not inside(target, [ws]):

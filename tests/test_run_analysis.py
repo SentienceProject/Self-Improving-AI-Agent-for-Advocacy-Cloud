@@ -20,6 +20,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+if os.name == "nt":   # they use Linux and macOS file features (O_NOFOLLOW, fcntl); so does hardened mode
+    raise unittest.SkipTest("hardened mode's scripts need Linux, macOS or WSL2, not native Windows")
+
 REPO = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location(
     "run_analysis", REPO / "scripts" / "run_analysis.py")

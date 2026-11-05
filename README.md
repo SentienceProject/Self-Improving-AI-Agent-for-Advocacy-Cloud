@@ -419,6 +419,9 @@ Setup checks for the common problems and says which one it found. The usual ones
   repository needs you to be signed in to GitHub (`gh auth login`, or a personal access token as the password).
 
 **Running**
+- **On native Windows (not WSL2), the sandbox doesn't run.** Shell commands aren't held to this folder or to the
+  research sites; only Claude Code's own permission prompts stand in. Setup says so. Hardened mode isn't available
+  there, and the test suite skips its tests. For the full protection, use WSL2.
 - **Claude seems to ignore the workspace's rules, or the helper agents can write anywhere**: the folder isn't
   trusted. Claude Code only runs the agents' safety guards in a trusted folder. Start `claude` in
   `ai-welfare-workspace` and say yes to "trust this folder".

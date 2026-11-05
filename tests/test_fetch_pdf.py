@@ -14,6 +14,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+if os.name == "nt":   # they use Linux and macOS file features (O_NOFOLLOW, fcntl); so does hardened mode
+    raise unittest.SkipTest("hardened mode's scripts need Linux, macOS or WSL2, not native Windows")
+
 REPO = Path(__file__).resolve().parents[1]
 SRC = REPO / "scripts" / "fetch_pdf.py"
 PDF = b"%PDF-1.7\n" + b"x" * 1000

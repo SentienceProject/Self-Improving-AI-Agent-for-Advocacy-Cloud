@@ -7,6 +7,7 @@ tested by running scripts/sandbox_probe.sh inside Claude Code.
     python3 tests/test_preflight.py -v
 """
 
+import os
 import json
 import shutil
 import subprocess
@@ -14,6 +15,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+if os.name == "nt":   # they use Linux and macOS file features (O_NOFOLLOW, fcntl); so does hardened mode
+    raise unittest.SkipTest("hardened mode's scripts need Linux, macOS or WSL2, not native Windows")
 
 REPO = Path(__file__).resolve().parents[1]
 HOOK_SRC = REPO / ".claude" / "hooks" / "preflight.py"

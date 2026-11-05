@@ -13,7 +13,8 @@ turn it off.
 - **Session transcripts.** Claude Code keeps every session's full transcript in `~/.claude/projects/`, and this
   workspace sets `cleanupPeriodDays` to keep them indefinitely (hardened mode's run logs rely on them). They hold
   everything Claude read, including drafts. Delete that folder's entries for this workspace to remove them, or set
-  `"cleanupPeriodDays": 30` in `.claude/settings.local.json`.
+  `"cleanupPeriodDays": 30` in `.claude/settings.local.json`. The eval harness's peer judges resume eval runs' saved
+  sessions (the folders named after `ai-welfare-copies`), so keep those while you might still want peer judging.
 
 "Stays on your computer" means it isn't uploaded *as a file*. Anything Claude reads in a session is sent to
 Anthropic as part of that session (next section).

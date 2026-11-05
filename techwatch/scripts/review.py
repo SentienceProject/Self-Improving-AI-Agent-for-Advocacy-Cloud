@@ -79,8 +79,17 @@ REVIEWED = re.compile(r"^(scripts/|tests/|techwatch/tests/|\.claude/settings\.js
 FRONTMATTER_FILES = re.compile(r"^\.claude/(agents|skills|commands)/")
 NEVER_KEYS = ("hooks", "mcpServers", "permissionMode", "disable-model-invocation")
 
+def tty():
+    """True if someone can answer questions here: a terminal on stdin. False with no stdin at all (some Windows and
+    scheduled runs) and in Claude Code's `!`, which has no terminal."""
+    try:
+        return bool(sys.stdin) and sys.stdin.isatty()
+    except (AttributeError, ValueError, OSError):
+        return False
+
+
 RED, YEL, GRN, DIM, BOLD, OFF = ("\033[31m", "\033[33m", "\033[32m", "\033[2m", "\033[1m", "\033[0m") \
-    if sys.stdout.isatty() else ("",) * 6
+    if getattr(sys.stdout, "isatty", lambda: False)() else ("",) * 6
 RUNNER_EVENTS = ("staged", "cannot_stage", "stage_failed", "auto_applied")
 DECISIVE = ("approved", "rejected", "deferred", "shelved", "applied", "rolled_back", "kept", "removed",
             "trial_started") + RUNNER_EVENTS
@@ -550,11 +559,11 @@ def cmd_decide(pid, event, rest):
         rest = [x for x in rest if x not in ("--kind", "--as-is")]
         if scope is None:
             a = ask("Not as it is, but a variant or something built on it could be worth proposing (v), or not this "
-                    "kind of change at all (k)?", "V/k") if sys.stdin.isatty() else ""
+                    "kind of change at all (k)?", "V/k") if tty() else ""
             scope = "kind" if a.startswith("k") else "as_is"
         extra["scope"] = scope
     note = " ".join(rest)
-    if event in ("rejected", "shelved") and not note and sys.stdin.isatty():
+    if event in ("rejected", "shelved") and not note and tty():
         note = input("Why? (scouts read this; Enter to skip) ").strip()
     record(pid, event, note, **extra)
     print(f"{pid}: {event}" + (f" until {extra['until']}" if extra.get("until") else "")
@@ -580,7 +589,7 @@ def lint(text):
 
 
 def ask(q, choices="y/N"):
-    if not sys.stdin.isatty():
+    if not tty():
         return ""
     return input(f"{q} [{choices}] ").strip().lower()
 
@@ -693,7 +702,7 @@ def cmd_apply(pid, each=False, auto=None, by_settings=False, yes=False):
         return False
     if auto or yes:
         each = False
-    elif writes and not sys.stdin.isatty():
+    elif writes and not tty():
         # In Claude Code, `!` commands have no terminal to answer in: say how to apply exactly what was shown.
         return print(f"Nothing written yet. To apply exactly the change above: review.py apply {pid} --yes "
                      "(or run review.py in a terminal to answer file by file).")
@@ -1032,7 +1041,7 @@ def walk_through():
     evs = events()
     todo = [d.name for d in proposals() if status_of(d.name, evs) == "staged"
             and (not test_request(d.name, evs) or tested_waiting(d.name, evs))]
-    if todo and sys.stdin.isatty():
+    if todo and tty():
         print(f"{BOLD}Decide now?{OFF}")
         for pid in todo:
             ready_choices(pid)
@@ -1254,7 +1263,7 @@ def cmd_rollback(pid, yes=False):
     f = STAGED / pid / "applied.json"
     if not f.exists():
         sys.exit(f"Nothing recorded as applied for {pid}.")
-    if not yes and not sys.stdin.isatty():
+    if not yes and not tty():
         sys.exit(f"This asks before each file, so run it in a terminal, or add --yes: review.py rollback {pid} --yes")
     entries = json.loads(f.read_text(encoding="utf-8"))
     if not safe_to_undo(pid):

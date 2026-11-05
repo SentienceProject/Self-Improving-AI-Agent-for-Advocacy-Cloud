@@ -39,7 +39,7 @@ class Workspace(unittest.TestCase):
         self.review = load(self.ws / "techwatch" / "scripts" / "review.py", f"review_{id(self)}")
         self.review.ask = lambda q, choices="y/N": "y"
         from unittest import mock
-        self.tty = mock.patch.object(self.review.sys.stdin, "isatty", lambda: True)   # as if in a terminal
+        self.tty = mock.patch.object(self.review, "tty", lambda: True)   # as if in a terminal
         self.tty.start()
 
     def tearDown(self):

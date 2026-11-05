@@ -445,7 +445,11 @@ def more_setup(asked_by_user=False):
           "   Casual: Claude Code's sandbox and a few ask-first rules, no stricter than plain Claude Code. Fine for most "
           "people.\n   Hardened: strict rules, a preflight check, run logs, and a Docker container for analysis code. "
           "For sensitive work.")
-    want = ask(f"   Switch to {'hardened' if mode == 'casual' else 'casual'} mode? [y/N]", "n").lower()
+    if mode == "casual" and os.name == "nt":
+        print("   Hardened mode needs Linux, macOS or WSL2, so it isn't available on native Windows.")
+        want = "n"
+    else:
+        want = ask(f"   Switch to {'hardened' if mode == 'casual' else 'casual'} mode? [y/N]", "n").lower()
     if want.startswith("y"):
         mode = "hardened" if mode == "casual" else "casual"
         apply_layer(mode)
@@ -489,6 +493,10 @@ def checks():
                            "Update it: claude update")
         except (OSError, subprocess.TimeoutExpired):
             pass
+    if os.name == "nt":
+        out.append("This is native Windows, where Claude Code's sandbox doesn't run: shell commands aren't held to this "
+                   "folder or to the research sites, and only Claude Code's own permission prompts stand in for that. "
+                   "For the full protection, use WSL2 (README, 'If something goes wrong').")
     if os.name == "nt" and not shutil.which("python3"):
         out.append("There's no `python3` command, which the workspace's hooks use. In the Windows installer, tick "
                    "'Add python.exe to PATH', or use WSL2 (see README, 'If something goes wrong').")
@@ -571,6 +579,9 @@ def main(args):
         print(f"  phone notifications: {'on' if notify.ready() else 'off'}")
         return
     mode = "hardened" if "--hardened" in args else "casual" if "--casual" in args else current_mode() or "casual"
+    if mode == "hardened" and os.name == "nt":
+        sys.exit("Hardened mode needs Linux, macOS or WSL2: its scripts and sandbox don't run on native Windows. "
+                 "Install WSL2 and set the workspace up there, or use casual mode.")
     print(f"Setting up {HERE} in {mode} mode.")
     checks()
     MY.mkdir(exist_ok=True)

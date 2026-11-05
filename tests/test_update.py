@@ -40,11 +40,13 @@ class TestUpdate(unittest.TestCase):
         for name in ("CLAUDE.md", "notes.md", "other.md"):
             (m / name).write_text(f"{name} v1\nline two\n")
         git(root, "init", "-q", "-b", "main")
+        git(root, "config", "core.autocrlf", "false")   # on Windows, git may otherwise rewrite line endings
         git(m, "-c", "user.name=m", "-c", "user.email=m@x", "add", "-A")
         git(m, "-c", "user.name=m", "-c", "user.email=m@x", "commit", "-qm", "v1")
         git(m, "remote", "add", "origin", str(self.up))
         git(m, "push", "-q", "-u", "origin", "main")
-        subprocess.run(["git", "clone", "-q", "-b", "main", str(self.up), str(user_root)], check=True)
+        subprocess.run(["git", "clone", "-q", "-c", "core.autocrlf=false", "-b", "main", str(self.up), str(user_root)],
+                       check=True)
 
     def tearDown(self):
         self.tmp.cleanup()

@@ -7,6 +7,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+if os.name == "nt":   # they use Linux and macOS file features (O_NOFOLLOW, fcntl); so does hardened mode
+    raise unittest.SkipTest("hardened mode's scripts need Linux, macOS or WSL2, not native Windows")
+
 HERE = Path(__file__).resolve().parent
 CANDIDATES = [HERE.parent / ".claude" / "hooks" / "save_returns.py", HERE / "save_returns.py"]
 spec = importlib.util.spec_from_file_location("save_returns", next(p for p in CANDIDATES if p.exists()))

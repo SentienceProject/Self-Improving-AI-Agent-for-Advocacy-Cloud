@@ -15,6 +15,9 @@ import urllib.error
 import zipfile
 from pathlib import Path
 
+if os.name == "nt":   # they use Linux and macOS file features (O_NOFOLLOW, fcntl); so does hardened mode
+    raise unittest.SkipTest("hardened mode's scripts need Linux, macOS or WSL2, not native Windows")
+
 REPO = Path(__file__).resolve().parents[1]
 SRC = REPO / "scripts" / "fetch_repo.py"
 if not SRC.exists():                       # still in workspace/drafts/

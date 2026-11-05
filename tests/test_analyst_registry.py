@@ -7,10 +7,14 @@ every tool call. Standard library only (no YAML parser needed).
     python3 tests/test_analyst_registry.py -v
 """
 
+import os
 import re
 import stat
 import unittest
 from pathlib import Path
+
+if os.name == "nt":   # they use Linux and macOS file features (O_NOFOLLOW, fcntl); so does hardened mode
+    raise unittest.SkipTest("hardened mode's scripts need Linux, macOS or WSL2, not native Windows")
 
 REPO = Path(__file__).resolve().parents[1]
 AGENT = REPO / ".claude" / "agents" / "analyst.md"

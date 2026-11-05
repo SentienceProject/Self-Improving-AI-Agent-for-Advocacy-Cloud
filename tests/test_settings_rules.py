@@ -97,7 +97,8 @@ class TestSettingsRules(unittest.TestCase):
             allow = s.get("permissions", {}).get("allow", [])
             self.assertFalse([r for r in allow if r.startswith("WebFetch(domain:")])
 
-    @unittest.skipUnless(USER.exists(), "no user settings file")
+    @unittest.skipUnless(USER.exists() and SETUP.current_mode() == "hardened",
+                         "only hardened mode asks for this in your user settings")
     def test_strict_allowlist_in_user_settings(self):
         net = self.user.get("sandbox", {}).get("network", {})
         self.assertIs(net.get("strictAllowlist"), True)
