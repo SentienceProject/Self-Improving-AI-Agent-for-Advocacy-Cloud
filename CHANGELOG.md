@@ -40,8 +40,9 @@ First public version. Tested with Claude Code 2.1.317 on Linux (WSL2); macOS and
   out of eval runs). Delete the folder to start without them.
 - `/plain-prose`: a final editing pass for outward-facing writing that removes AI writing patterns without
   adding facts or dropping hedges (adapted from humanizer and avoid-ai-writing, both MIT). In a small blind test
-  (three advocacy pieces, ChatGPT judging), the revision pass read as the most human and best for its audience;
-  drafting with the guide in mind did worse, so it's a pass on finished drafts only.
+  (three advocacy pieces, seven blind judgments by ChatGPT and Gemini), a draft plus this revision pass did best
+  overall; drafting with the guide in mind was weaker for its audience and added unsupported claims, so it's a
+  pass on finished drafts only.
 - Ethics: your own `my/ETHICS_SHORT.md` no longer replaces the default. Yours comes first and wins wherever it says
   something; the default (now labelled as the project creator's view, with its controversial parts flagged and the
   main alternatives) fills in where yours is silent or unsure. `Default ethics: reference only` in your file keeps

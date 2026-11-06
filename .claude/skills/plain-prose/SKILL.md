@@ -6,9 +6,10 @@ description: A final editing pass that removes AI writing patterns from outward-
 # Plain prose: a final pass for outward-facing writing
 
 Use this on a **finished draft**, as a separate revision pass, not as instructions while drafting. In a small
-blind test in this workspace (three advocacy pieces, judged by ChatGPT), a revision pass with this guide read as
-the most human and the best for its audience, while drafting with the guide in mind added unsupported claims and
-read worse.
+blind test in this workspace (three advocacy pieces, seven judgments by ChatGPT and Gemini), a normal draft
+followed by this revision pass did best overall: best for its audience, and nearly tied for sounding the most
+human. Drafting with the guide in mind sounded slightly more human but was weaker for its audience on average and
+added more unsupported claims; a plain draft sounded the least human.
 
 **This workspace's rules come first:**
 - Keep every hedge the evidence needs (GUARDRAILS.md: a vanished hedge is the commonest failure). The guide's
