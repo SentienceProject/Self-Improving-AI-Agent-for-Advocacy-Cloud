@@ -394,7 +394,7 @@ def setup_harness():
             subprocess.run([sys.executable, str(judges)], cwd=judges.parent, check=False)
         except KeyboardInterrupt:
             print(f"\n  skipped (any time later:  {cmd})")
-        print(OUTSIDE_NOTE)
+        # setup_judges.py itself explains the outside-models default once a model is ready; don't say it twice
     else:
         NEXT.append(f"Set up the eval harness's outside judges (ChatGPT, Gemini):  {cmd}")
 
