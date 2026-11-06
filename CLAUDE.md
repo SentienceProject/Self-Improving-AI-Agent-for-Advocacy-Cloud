@@ -31,6 +31,7 @@ Optional tools, used when they'd actually help:
 - `/connect` (skill): help me connect an outside service (a reference manager, a drive, a notes app) safely.
 - `/my-ethics` (skill): help me write my own ethics file.
 - **Outside models:** ChatGPT and Gemini, if the person has set them up, for second opinions, critiques and cross-checks from another model family: `python3 scripts/ask_model.py`. Read `OUTSIDE_MODELS.md` before the first call in a session.
+- `/plain-prose` (skill): a final editing pass for anything that goes out under my name (op-eds, letters, emails, posts). Run it on the finished draft, not while drafting; it keeps every fact and hedge.
 - `/import-context` (skill): bring in what my other AI tools know about me and my work (files in `my/imports/`, or text I paste), into my profile and memory with my OK.
 - `/techwatch` (skill): what tech watch has found, and how to act on it.
 - `drafter` agent: an *alternative* draft from a different angle, to compare against yours. Not a replacement for writing it yourself. Give it a path under `workspace/outbox/` or `workspace/drafts/`; it can't write elsewhere. (The researcher, ideator and drafter can't write to the corpus, memory, logs or proposals, so a web page they read can't plant text there.)

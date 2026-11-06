@@ -103,6 +103,10 @@ Other things worth knowing:
   ask you first, even when it sends files from `workspace/`; every call is logged in
   `workspace/logs/outside-models.md`. To be asked before each call: `python3 setup.py --ask-outside-models`.
   `scripts/cross_check.py <draft>` is the same kind of check, run by you.
+- **Plainer prose.** Before an op-ed, letter, email or post goes out, Claude can give it a final editing pass
+  (`/plain-prose`) that removes AI writing habits ("not X but Y", one-line closers, inflated words) without
+  changing facts or hedges. Adapted from the open-source humanizer guide; in a small blind test here it made drafts
+  read as more human and work better for their readers.
 - **Citation check.** Before the verifier reads a draft, Claude runs `scripts/check_citations.py` on it. The script
   checks that every arXiv ID and DOI exists and matches the cited title, author and year, flags retracted papers,
   and checks quotes word for word against the corpus. It uses no AI. It only catches broken references, not a
@@ -399,7 +403,7 @@ OUTSIDE_MODELS.md            when and how Claude asks ChatGPT or Gemini for a se
 ETHICS_SHORT.md, ETHICS_FULL.md   the default ethical framework (yours goes in my/)
 my/                          your own files (gitignored)
 .claude/agents/              researcher, critic, verifier, ideator, wild-ideator, drafter, helper, analyst
-.claude/skills/              /wild-ideas, /add-papers, /connect, /my-ethics, /import-context, /techwatch, /fetch-sources
+.claude/skills/              /wild-ideas, /add-papers, /connect, /my-ethics, /import-context, /plain-prose, /techwatch, /fetch-sources
 .claude/hooks/               session reminders, the /clear tip, guards; hardened mode adds the preflight and logs
 .claude/settings.json        the rules for every mode (your machine's additions: settings.local.json)
 layers/                      what setup.py adds for casual and hardened mode
