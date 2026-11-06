@@ -23,7 +23,8 @@
       "Bash(python3 scripts/feedback.py *)",
       "Bash(python3 scripts/export.py *)",
       "Bash(python3 scripts/import_zotero.py *)",
-      "Bash(python3 scripts/compat_check.py)"
+      "Bash(python3 scripts/compat_check.py)",
+      "Bash(python3 scripts/backlog.py *)"
     ]
   },
   "sandbox": {

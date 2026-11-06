@@ -12,6 +12,7 @@ applying it.*
   claims against sources; read-only), `ideator` (angles; also translates and filters wild ideas), `wild-ideator`
   (disguised-goal brainstorming from random cards), `drafter` (alternative drafts), `helper` (any role the main
   session writes), `analyst` (hardened mode: analysis code in a Docker container with no network).
+- **Backlog** (optional): `scripts/backlog.py`, unattended runs with leftover weekly usage (README).
 - **Skills**: `/wild-ideas`, `/add-papers`, `/connect`, `/my-ethics`, `/plain-prose`, `/techwatch`, `/fetch-sources` (hardened).
 - **Models**: agents run on Opus or inherit the session's model; tech-watch dailies on Sonnet.
 - **Corpus**: `workspace/corpus/`, papers as text, searched with grep; semantic search (Ollama + ChromaDB) in

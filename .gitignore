@@ -19,6 +19,7 @@ workspace/outbox/*
 workspace/logs/*
 workspace/drafts/*
 workspace/ideas/*
+workspace/backlog/
 workspace/mem/*
 workspace/inbox/*
 workspace/analysis/*

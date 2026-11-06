@@ -31,6 +31,7 @@ Optional tools, used when they'd actually help:
 - `/connect` (skill): help me connect an outside service (a reference manager, a drive, a notes app) safely.
 - `/my-ethics` (skill): help me write my own ethics file.
 - **Outside models:** ChatGPT and Gemini, if the person has set them up, for second opinions, critiques and cross-checks from another model family: `python3 scripts/ask_model.py`. Read `OUTSIDE_MODELS.md` before the first call in a session.
+- **Backlog** (only if the session start lists one): ideas and unfinished work saved for spare weekly usage, in `workspace/backlog/`. If your work finishes an item: `python3 scripts/backlog.py done B3 --result <path>`. If it does part of one: `python3 scripts/backlog.py progress B3 --path <path> --note "what it adds; what's left"`, so a later backlog run can build on it. If you notice something worth doing but not worth usage now: `python3 scripts/backlog.py add "one-line goal" --size small|medium|large --details "..."` (or, if the session start says I approve items, suggest it to me). Don't spend turns on this otherwise.
 - `/plain-prose` (skill): a final editing pass for anything that goes out under my name (op-eds, letters, emails, posts). Run it on the finished draft, not while drafting; it keeps every fact and hedge.
 - `/import-context` (skill): bring in what my other AI tools know about me and my work (files in `my/imports/`, or text I paste), into my profile and memory with my OK.
 - `/techwatch` (skill): what tech watch has found, and how to act on it.

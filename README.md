@@ -306,6 +306,29 @@ also works, but can stop with a merge conflict.)
 
 Ask Claude about `/techwatch` for the details, or read `techwatch/README.md`.
 
+## A backlog for leftover usage (optional)
+
+A Pro or Max plan's weekly allowance is lost if it isn't used before the reset. The backlog puts it to work:
+ideas, unfinished work and things to look into that aren't worth usage now go on a list
+(`workspace/backlog/BACKLOG.md`), and near the end of each weekly cycle, if usage is left, they run one by one in
+full, unattended workspace sessions.
+
+- **Turn it on** in `python3 setup.py --more` (option 4); it writes your settings to `my/backlog.md`. Then start the
+  hourly check once: `python3 scripts/backlog.py schedule on`. `python3 scripts/backlog.py status` shows your
+  settings, your usage, and whether a run would start now.
+- **When it runs** (all changeable in `my/backlog.md`): when the weekly reset is less than 24 hours away and weekly
+  usage is below 85%; it stops starting items at 90%, leaving the rest for you. Tech watch and the eval harness go
+  first. Each item is capped (about $15 of usage by default).
+- **What goes on it:** anything you add (`python3 scripts/backlog.py add "one-line goal"`, or a `## heading` in the
+  file), and, unless you chose "suggest only", ideas Claude notices during sessions, marked as Claude's. Every
+  session sees a short version of the list at the start: when its work finishes an item it marks it done, and when
+  it does part of one it records that in `PROGRESS.md`, so a later backlog run builds on it instead of starting over.
+- **Safety:** nobody is there to approve anything, so anything that would ask you first is refused: backlog runs
+  can't send, post or share. Results go to `workspace/backlog/results/`, and the next session start (and your phone,
+  if notifications are on) tells you. Items older than three weeks wait until you say `keep` or `drop`.
+- It needs the eval harness beside the workspace (that's how usage is read), and Claude Code must trust the
+  workspace folder (open `claude` there once and accept); otherwise nothing runs, and `status` says why.
+
 ## Phone notifications (ntfy)
 
 [ntfy](https://ntfy.sh) is a free app that shows notifications sent to a "topic", a private name only you know.

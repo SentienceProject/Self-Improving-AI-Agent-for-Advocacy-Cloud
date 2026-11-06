@@ -568,8 +568,8 @@ def more_setup(asked_by_user=False):
         if state.get("status") in ("done", "declined"):
             return
         print(S.head("More setup options"))
-        a = ask("More setup options: the safety mode (casual or hardened), your paper corpus, and using sessions from "
-                "your phone.\n  Go through them now (y), not now (Enter: you'll be reminded tomorrow), or no (n)? "
+        a = ask("More setup options: the safety mode (casual or hardened), your paper corpus, using sessions from "
+                "your phone,\n  and a backlog that uses leftover weekly usage.\n  Go through them now (y), not now (Enter: you'll be reminded tomorrow), or no (n)? "
                 "[y/L/n]", "l").lower()
         if a.startswith("n"):
             MORE.write_text(json.dumps({"status": "declined"}), encoding="utf-8")
@@ -607,8 +607,31 @@ def more_setup(asked_by_user=False):
     print("\n" + S.b("3. Using a session from your phone") + ": in any Claude Code session here, type /remote-control (or /rc). You "
           "can then\n   follow and steer it from the Claude app or claude.ai/code, handy for long research tasks.")
     remote_control()
+    backlog_setup()
     MORE.write_text(json.dumps({"status": "done"}), encoding="utf-8")
     print("\nThat's all the extra setup. Run python3 setup.py --more any time to go through it again.")
+
+
+def backlog_setup():
+    """Option 4: the backlog, run with the usage left at the end of each weekly cycle."""
+    print("\n" + S.b("4. A backlog for leftover usage") + ": ideas, unfinished work and things to look into that "
+          "aren't worth usage now go\n   on a list (workspace/backlog/). Near the end of each weekly usage cycle, if "
+          "usage is left, they run one by\n   one in full, unattended sessions, which can't send or post anything; "
+          "results wait for you in workspace/backlog/results/.")
+    f = MY / "backlog.md"
+    if f.exists():
+        return print("   Already set up: your settings are in my/backlog.md "
+                     "(python3 scripts/backlog.py status shows them).")
+    if not ask("   Turn it on? [y/N]", "n").lower().startswith("y"):
+        return print("   skipped (later: python3 setup.py --more)")
+    text = (HERE / "templates" / "backlog.md").read_text(encoding="utf-8")
+    if not ask("   Claude adds ideas it notices during sessions on its own (Enter), or only suggests them to you (s)? "
+               "[A/s]", "a").lower().startswith("a"):
+        text = text.replace("**Claude adds items:** yes", "**Claude adds items:** suggest only", 1)
+    f.write_text(text, encoding="utf-8")
+    print("   " + TICK + " wrote my/backlog.md: runs start when the weekly reset is within 24 hours and usage is below "
+          "85%, and stop\n     at 90%; tech watch and the eval harness go first. Change any of it in that file.\n"
+          "   To start the hourly check:\n" + S.cmd("python3 scripts/backlog.py schedule on"))
 
 
 def checks():

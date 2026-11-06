@@ -38,6 +38,10 @@ First public version. Tested with Claude Code 2.1.317 on Linux (WSL2); macOS and
 - `creator-notes/`: lessons from the creator's earlier workspaces (read by tech watch before every proposal, and by
   the reviewers of automatic changes) and verified AI-welfare research memory (read for digital-minds work only; left
   out of eval runs). Delete the folder to start without them.
+- Backlog (optional, `setup.py --more`): ideas and unfinished work run with the usage left near the end of each
+  weekly cycle (`scripts/backlog.py`). Starts when the reset is within 24 hours and weekly usage is below 85%,
+  stops at 90%, lets tech watch and the eval harness go first; every session sees the short list and records
+  finished items or progress; unattended runs can't send or post. All settings in `my/backlog.md`.
 - `/plain-prose`: a final editing pass for outward-facing writing that removes AI writing patterns without
   adding facts or dropping hedges (adapted from humanizer and avoid-ai-writing, both MIT). In a small blind test
   (three advocacy pieces, seven blind judgments by ChatGPT and Gemini), a draft plus this revision pass did best

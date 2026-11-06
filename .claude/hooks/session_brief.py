@@ -162,7 +162,7 @@ def setup_lines():
         more = {}
     if more.get("status") == "later" and more.get("remind", "") <= date.today().isoformat():
         out.append("More setup options are waiting: the safety mode (casual or hardened), your paper corpus, and "
-                   "using sessions from your phone (/rc). Run  python3 setup.py --more  in a terminal, or ask Claude "
+                   "using sessions from your phone (/rc), and a backlog for leftover weekly usage. Run  python3 setup.py --more  in a terminal, or ask Claude "
                    "to walk you through them.")
         f.write_text(json.dumps({**more, "status": "reminded"}), encoding="utf-8")
     return out
@@ -191,13 +191,38 @@ def compat_lines():
             "! python3 scripts/compat_check.py"]
 
 
+def backlog_lines():
+    """If the backlog is on: its short list (so sessions can mark items done or add progress), and new results."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    try:
+        import backlog as B
+    except ImportError:
+        return []
+    s = B.settings()
+    if not B.on(s):
+        return []
+    items, out = B.short(8), []
+    adds = "the person approves items: suggest ideas to them instead of adding" if not s["claude adds items"].lower().startswith("y") else \
+        "Claude may add items"
+    if items:
+        out.append(f"Backlog (workspace/backlog/; {adds}; CLAUDE.md says how to mark one done or add progress):\n  "
+                   + "\n  ".join(items))
+    st = B.state()
+    if st.get("unseen"):
+        out.append(f"Backlog runs finished since you were last here: {', '.join(st['unseen'])}. Results are in "
+                   "workspace/backlog/results/ (DONE.md and PROGRESS.md say which).")
+        st["unseen"] = []
+        B.save_state(st)
+    return out
+
+
 def main():
     lines = []
     try:
         lines += first_run()
     except Exception:
         pass
-    for part in (applied_lines, techwatch_lines, update_lines, compat_lines, setup_lines):
+    for part in (applied_lines, techwatch_lines, update_lines, compat_lines, setup_lines, backlog_lines):
         try:
             lines += part()
         except Exception:
