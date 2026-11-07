@@ -119,10 +119,10 @@ class TestPathsAcrossSystems(unittest.TestCase):
         spec.loader.exec_module(self.g)
 
     def test_windows_path_styles_match_the_folder(self):
-        base = "C:\\Users\\Sky Travis\\repo\\ai-welfare-workspace\\workspace\\ideas"
-        for raw in ("C:\\Users\\Sky Travis\\repo\\ai-welfare-workspace\\workspace\\ideas\\a-wild-1.md",
-                    "/c/Users/Sky Travis/repo/ai-welfare-workspace/workspace/ideas/a-wild-1.md",
-                    "/mnt/c/Users/Sky Travis/repo/ai-welfare-workspace/workspace/ideas/a-wild-1.md"):
+        base = "C:\\Users\\Jo Example\\repo\\ai-welfare-workspace\\workspace\\ideas"
+        for raw in ("C:\\Users\\Jo Example\\repo\\ai-welfare-workspace\\workspace\\ideas\\a-wild-1.md",
+                    "/c/Users/Jo Example/repo/ai-welfare-workspace/workspace/ideas/a-wild-1.md",
+                    "/mnt/c/Users/Jo Example/repo/ai-welfare-workspace/workspace/ideas/a-wild-1.md"):
             self.assertTrue(self.g.norm(raw).startswith(self.g.norm(base) + "/"), raw)
 
     def test_dotdot_cant_leave_the_folder(self):

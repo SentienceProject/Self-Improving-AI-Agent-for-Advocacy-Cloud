@@ -23,7 +23,7 @@ def path_rules(rules):
 class TestRulePaths(unittest.TestCase):
     def test_forms(self):
         self.assertEqual(rule_path("/home/ana/ws"), "//home/ana/ws")
-        self.assertEqual(rule_path("C:\\Users\\Sky Travis\\ws"), "//c/Users/Sky Travis/ws")
+        self.assertEqual(rule_path("C:\\Users\\Jo Example\\ws"), "//c/Users/Jo Example/ws")
         self.assertEqual(rule_path("C:/Users/Ana"), "//c/Users/Ana")
 
     def assert_absolute_forms(self, rules):
@@ -45,11 +45,11 @@ class TestRulePaths(unittest.TestCase):
         """The reported bug: on Windows the scouts' Edit rule came out as /C:/... and every save was refused."""
         import techwatch
         from unittest import mock
-        ws = Path("C:/Users/Sky Travis/repo/ai-welfare-workspace")
+        ws = Path("C:/Users/Jo Example/repo/ai-welfare-workspace")
         with mock.patch.object(techwatch, "WS", ws), mock.patch.object(techwatch, "TW", ws / "techwatch"):
             p = techwatch.scout_settings(("inbox",))["permissions"]
-        self.assertIn("Edit(//c/Users/Sky Travis/repo/ai-welfare-workspace/techwatch/inbox/**)", p["allow"])
-        self.assertIn("Read(//c/Users/Sky Travis/repo/ai-welfare-workspace/**)", p["allow"])
+        self.assertIn("Edit(//c/Users/Jo Example/repo/ai-welfare-workspace/techwatch/inbox/**)", p["allow"])
+        self.assertIn("Read(//c/Users/Jo Example/repo/ai-welfare-workspace/**)", p["allow"])
         for r in p["allow"] + p["deny"]:
             self.assertNotRegex(r, r"\(/[A-Za-z]:", r)
 
