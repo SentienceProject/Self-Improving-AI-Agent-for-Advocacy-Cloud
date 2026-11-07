@@ -13,26 +13,10 @@ hooks.log
 my/*
 !my/README.md
 
-# Your research stays local. Remove a line to share that folder.
-workspace/corpus/*
-workspace/outbox/*
-workspace/logs/*
-workspace/drafts/*
-workspace/ideas/*
-workspace/backlog/
-workspace/mem/*
-workspace/inbox/*
-workspace/analysis/*
-workspace/staging/*
-workspace/index/*
-workspace/repos/*
-workspace/requests/*
-workspace/proposals/*/
-workspace/memory.md
-workspace/feedback.jsonl
-workspace/followups/*
-!workspace/**/.gitkeep
-!workspace/corpus/SOURCES.md
+# Your research stays local: everything in workspace/ (drafts, memory, corpus, logs, and any folder an agent
+# creates there) is ignored, apart from the few files the repository ships, which git keeps tracking anyway. To
+# share a file from there on purpose: git add -f <file>.
+workspace/*
 
 # Tech watch's findings and state are yours too.
 techwatch/inbox/*

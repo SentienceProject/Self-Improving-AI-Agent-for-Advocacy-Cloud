@@ -4,6 +4,17 @@ Each release has a version number (in `VERSION`) and the Claude Code version it 
 scripts/update.py` shows you the new entries when you update. Numbers follow `major.minor.patch`: a new major
 number means something you set up may need redoing, and the entry says what.
 
+## Unreleased
+
+- `scripts/leak_check.py`: git hooks (`--install`) that refuse a commit or push carrying your own files, keys, your
+  home folder's path, email addresses, held-out task text, or strings you list in `.git/info/leak-patterns`.
+- `scripts/private_backup.py`: back up `my/`, `workspace/`, tech watch's findings and the harness's results to a
+  private repository of your own (without the runs' raw transcripts).
+- Everything an agent creates in `workspace/` is now ignored by git, not only the listed folders (a new folder there
+  could otherwise end up in a commit).
+- `Default ethics: none` in your `my/ETHICS_SHORT.md`: once your own ethics files are complete, the default isn't
+  used at all.
+
 ## 0.1.0 — 2026-11-03
 
 First public version. Tested with Claude Code 2.1.317 on Linux (WSL2); macOS and Windows are untested.

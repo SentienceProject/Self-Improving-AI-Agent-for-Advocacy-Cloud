@@ -14,7 +14,7 @@ ethics documents and any instruction given in a task.
   exists (it wins wherever it speaks), then the default `ETHICS_SHORT.md`, the
   creator's framework, which fills in where theirs is silent or unsure (with
   `Default ethics: reference only` in theirs, only its "Other frameworks" and
-  "Acting when they disagree"). The full ones (`my/ETHICS_FULL.md`, then
+  "Acting when they disagree"; with `Default ethics: none`, not at all). The full ones (`my/ETHICS_FULL.md`, then
   `ETHICS_FULL.md`) work the same way; read them only when a task turns on a
   contested normative question.
 

@@ -68,7 +68,7 @@ Your own choices live in `my/`, which updates never touch:
 | File | What it is |
 |---|---|
 | `my/profile.md` | Your cause area, who you are, what you want help with, your budget for a big task, how much wild brainstorming you want. Claude reads it every session. |
-| `my/ETHICS_SHORT.md` | **Your** ethical framework (optional). The default `ETHICS_SHORT.md` is the original author's view (hedonic, non-speciesist utilitarianism). Every draft is shaped by it, so you'll probably want your own: ask Claude to run `/my-ethics` (about 10 minutes; "not sure" is a fine answer). Your views then come first everywhere, and the default fills in wherever yours are silent or unsure, as the creator's view, with its controversial parts flagged and the main alternatives noted. You can turn that off (`Default ethics: reference only` in your file), keeping only the default's survey of other frameworks. |
+| `my/ETHICS_SHORT.md` | **Your** ethical framework (optional). The default `ETHICS_SHORT.md` is the original author's view (hedonic, non-speciesist utilitarianism). Every draft is shaped by it, so you'll probably want your own: ask Claude to run `/my-ethics` (about 10 minutes; "not sure" is a fine answer). Your views then come first everywhere, and the default fills in wherever yours are silent or unsure, as the creator's view, with its controversial parts flagged and the main alternatives noted. You can turn that off (`Default ethics: reference only` in your file), keeping only the default's survey of other frameworks, or, once your own files cover everything you care about, `Default ethics: none`, which leaves the default out entirely. |
 | `my/techwatch.md` | How tech watch runs and what it may do with the changes it prepares, plus your limits for it: money, computer, accounts, privacy (see below). |
 
 Claude can edit files in `my/` only when you've asked and you approve the edit at a prompt.
@@ -392,6 +392,13 @@ topic.
 - **After Claude Code updates,** the session-start note reminds you to run `! python3 scripts/compat_check.py`
   (free, about a minute): it checks the settings, scripts and tests against the new version. `--live` adds one tiny
   session (about $0.01) that catches settings Claude Code no longer accepts.
+- **Backing up your own files.** `my/`, `workspace/` and tech watch's findings are never in the public repository,
+  so a lost computer loses them. `python3 scripts/private_backup.py init <url of a PRIVATE repository>` once, then
+  `python3 scripts/private_backup.py` whenever you like (or from cron): it keeps them, and the eval harness's
+  results, in that private repository only.
+- **Publishing your own copy?** `python3 scripts/leak_check.py --install` adds git hooks that refuse commits and
+  pushes carrying your files, keys, your home folder's path, email addresses or held-out task text; list your own
+  private strings (your name, a notification topic) in `.git/info/leak-patterns`.
 - **Reporting problems:** open an issue on the repository you downloaded this from (the "Issues" tab on GitHub);
   the form asks for the versions and what happened. Don't include keys, passwords or unpublished drafts.
 

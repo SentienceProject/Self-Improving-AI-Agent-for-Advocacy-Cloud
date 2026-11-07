@@ -6,7 +6,7 @@ this folder, so put your own choices here rather than editing `CLAUDE.md` or the
 | File | What it is | Created by |
 |---|---|---|
 | `profile.md` | Your cause area, who you are, your budget and creativity preferences, anything Claude should always know. `CLAUDE.md` reads it every session. | `setup.py`, or Claude on your first session |
-| `ETHICS_SHORT.md` (optional) | Your own ethical views. They come first everywhere; the default `ETHICS_SHORT.md` (the creator's) fills in where yours are silent or unsure, unless your file says `Default ethics: reference only`. | You, or the `/my-ethics` skill |
+| `ETHICS_SHORT.md` (optional) | Your own ethical views. They come first everywhere; the default `ETHICS_SHORT.md` (the creator's) fills in where yours are silent or unsure, unless your file says `Default ethics: reference only` (only the default's survey of other frameworks) or, once your own files are complete, `Default ethics: none` (the default isn't used at all). | You, or the `/my-ethics` skill |
 | `ETHICS_FULL.md` (optional) | The long version, if you want one. Works the same way with the default `ETHICS_FULL.md`. | You |
 | `techwatch.md` | Your limits for tech watch: money, platforms, privacy, what never to propose. | `setup.py` |
 | `imports/` | Notes and memory you brought in from other AI tools, waiting for `/import-context` (then moved to `imports/done/`). | `setup.py`, or you |
