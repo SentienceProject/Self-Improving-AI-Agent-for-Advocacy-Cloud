@@ -86,6 +86,42 @@ class SaveReturnsTest(unittest.TestCase):
         save_returns.main(self.event("researcher", "a7", "run 2026-10-05-03", "s", "[]"), self.logs)
         self.assertIn("s", (self.logs / "2026-10-05-03-findings.md").read_text())
 
+    def add_lines(self, agent_id, *records):
+        with open(self.tmp / "sess" / "subagents" / f"agent-{agent_id}.jsonl", "a") as f:
+            for r in records:
+                f.write(json.dumps(r) + "\n")
+
+    @staticmethod
+    def handback(tid, msg):
+        return {"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "id": tid, "name": "SubagentHandback", "input": {"message": msg}}]}}
+
+    @staticmethod
+    def result(tid, error):
+        return {"type": "user", "message": {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": tid, "is_error": error, "content": "x"}]}}
+
+    def test_report_delivered_by_handback_is_saved(self):
+        # Run 2026-11-07-04: the researcher reported with SubagentHandback, last_assistant_message was empty, and
+        # its findings entry was saved blank.
+        ev = self.event("researcher", "b1", "Run ID: 2026-11-07-04. question", "")
+        self.add_lines("b1", self.handback("t1", "Title: Consciousness in AI (2023), Butlin"), self.result("t1", False))
+        save_returns.main(ev, self.logs)
+        self.assertIn("Consciousness in AI (2023), Butlin", (self.logs / "2026-11-07-04-findings.md").read_text())
+
+    def test_refused_handback_is_skipped_for_the_final_text(self):
+        ev = self.event("critic", "b2", "run 2026-11-07-04", "the plain-text report")
+        self.add_lines("b2", self.handback("t1", "blocked attempt"), self.result("t1", True))
+        save_returns.main(ev, self.logs)
+        text = (self.logs / "2026-11-07-04-critique.md").read_text()
+        self.assertIn("the plain-text report", text)
+        self.assertNotIn("blocked attempt", text)
+
+    def test_new_meta_shape_gives_the_type(self):
+        meta = json.dumps({"agentType": "researcher", "isBuiltIn": False, "description": "x"})
+        save_returns.main(self.event("smoke", "b3", "run 2026-11-07-04", "found it", meta), self.logs)
+        self.assertIn("found it", (self.logs / "2026-11-07-04-findings.md").read_text())
+
     def test_unnamed_agent_heading_unchanged(self):
         meta = json.dumps({"agentType": "ideator", "spawnedAgentType": "ideator"})
         save_returns.main(self.event("ideator", "a8", "run 2026-10-05-02", "x", meta), self.logs)

@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""PreToolUse guard for the researcher, ideator and drafter subagents. Fails closed.
+"""PreToolUse guard for the researcher, helper, critic, verifier, ideator and drafter subagents. Fails closed.
 
-    agent_guard.py researcher   Bash only for the semantic corpus search (hardened mode), in the exact form
-                                preflight.py enforces; no other shell
-    agent_guard.py ideator      Write/Edit only under workspace/ideas/
-    agent_guard.py drafter      Write/Edit only under workspace/outbox/ and workspace/drafts/
+    agent_guard.py researcher   no writes; Bash only for find_text.py and the semantic corpus search (hardened mode)
+    agent_guard.py helper       the same as the researcher
+    agent_guard.py critic       no writes; Bash only for find_text.py
+    agent_guard.py verifier     no writes; Bash only for find_text.py
+    agent_guard.py ideator      Write/Edit only under workspace/ideas/; Bash only for find_text.py
+    agent_guard.py drafter      Write/Edit only under workspace/outbox/ and workspace/drafts/; Bash only for find_text.py
+
+Bash commands must match the exact forms preflight.py enforces. find_text.py is the read-only text search and file
+listing that stands in for the Grep and Glob tools, which some Claude Code builds don't give subagents.
 
 Wired from the `hooks` field of each agent's file in .claude/agents/, so it runs only inside that agent.
 settings.json allows Edit on workspace/** for everyone; this narrows it, so a web page an agent read can't get it
@@ -20,7 +25,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WS = ROOT / "workspace"
-WRITE_DIRS = {"ideator": ["ideas"], "drafter": ["outbox", "drafts"], "researcher": []}
+WRITE_DIRS = {"ideator": ["ideas"], "drafter": ["outbox", "drafts"], "researcher": [], "helper": [], "critic": [],
+              "verifier": []}
+SEMANTIC_SEARCH_ROLES = {"researcher", "helper"}
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
 
@@ -45,13 +52,17 @@ def check_write(role, tool_input):
 
 def check_bash(role, tool_input):
     cmd = tool_input.get("command")
-    if role == "researcher" and isinstance(cmd, str):
-        sys.path.insert(0, str(Path(__file__).resolve().parent))
-        from preflight import CORPUS_SEARCH_RE
-        if CORPUS_SEARCH_RE.fullmatch(cmd.strip()):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from preflight import CORPUS_SEARCH_RE, FIND_TEXT_RE, FIND_TEXT_USAGE
+    if isinstance(cmd, str):
+        if FIND_TEXT_RE.fullmatch(cmd.strip()):
             return
-    block(role, "no shell for this agent, except the semantic corpus search command exactly as the main session "
-                "gave it. Use Grep, Glob and Read for files.")
+        if role in SEMANTIC_SEARCH_ROLES and CORPUS_SEARCH_RE.fullmatch(cmd.strip()):
+            return
+    also = (", or the semantic corpus search command exactly as the main session gave it"
+            if role in SEMANTIC_SEARCH_ROLES else "")
+    block(role, f"the only shell for this agent is the read-only search, run as exactly: {FIND_TEXT_USAGE}{also}. "
+                "Inside the quotes, no $ ` \\ \" or !. Read opens files.")
 
 
 def main():

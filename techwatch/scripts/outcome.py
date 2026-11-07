@@ -51,6 +51,16 @@ def reset_epoch(text: str, now: float) -> float | None:
 
 
 WRITE_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
+# Claude Code's own auto-memory (~/.claude/projects/<project>/memory/). A scout that tries to save a memory note
+# there is refused, which is right, but its real work (inbox, proposals, staged bundle) was saved: not a failure.
+AUTO_MEMORY_RE = re.compile(r"[\\/]\.claude[\\/]projects[\\/][^\\/]+[\\/]memory[\\/]")
+
+
+def lost_save(denial) -> bool:
+    if not isinstance(denial, dict) or denial.get("tool_name") not in WRITE_TOOLS:
+        return False
+    path = str((denial.get("tool_input") or {}).get("file_path") or "")
+    return not AUTO_MEMORY_RE.search(path)
 
 
 def classify(result: dict | None, stderr: str = "", now: float | None = None) -> tuple:
@@ -61,8 +71,7 @@ def classify(result: dict | None, stderr: str = "", now: float | None = None) ->
         return ("retry", int(now), f"no result ({why})")
     if not result.get("is_error") and result.get("subtype") == "success":
         # A run whose saves were refused finished, but its notes or proposals may only be in its log: not "ok".
-        refused = [d for d in result.get("permission_denials") or []
-                   if isinstance(d, dict) and d.get("tool_name") in WRITE_TOOLS]
+        refused = [d for d in result.get("permission_denials") or [] if lost_save(d)]
         if refused:
             where = str((refused[0].get("tool_input") or {}).get("file_path", ""))[-80:]
             return ("done", f"{len(refused)} file save(s) refused (e.g. {where or '?'}); what it wrote is only in its "

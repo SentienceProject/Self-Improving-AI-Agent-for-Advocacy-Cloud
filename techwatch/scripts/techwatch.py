@@ -162,6 +162,7 @@ def scout_settings(writable):
              + " ".join(f'"{(TW / w).as_posix()}"' for w in writable))
     read_guard = f'{py} "{(TW / "scripts" / "scout_guard.py").as_posix()}" --read "{ws}"'
     return {
+        "autoMemoryEnabled": False,   # scouts keep no Claude Code memory; their notes go in techwatch/inbox
         "permissions": {
             "defaultMode": "dontAsk",
             "allow": [f"Read({wsr}/**)", "Glob", "Grep", "WebSearch", "WebFetch"]
@@ -217,6 +218,7 @@ def scout(mode, prompt_file, extra="", writable=("inbox", "proposals")):
            "--name", f"techwatch-{mode}-{stamp}", "--output-format", "json"]
     log(f"start {mode} model={run['model']} effort={run['effort']} cap=${run['max_budget_usd']}")
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+    env["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] = "1"   # also set in the settings; either one is enough
     with open(out, "w", encoding="utf-8") as fo, open(err, "w", encoding="utf-8") as fe:
         rc = subprocess.run(cmd, input=prompt, cwd=WS, env=env, stdout=fo, stderr=fe, text=True).returncode
     try:

@@ -59,9 +59,38 @@ def spawned_type(transcript, reported):
     """The agent type it was spawned as; a named teammate reports its name instead."""
     try:
         meta = json.loads(transcript.with_suffix(".meta.json").read_text(encoding="utf-8"))
-        return meta.get("spawnedAgentType") or meta.get("customAgentType") or reported
+        return (meta.get("spawnedAgentType") or meta.get("customAgentType") or meta.get("agentType")
+                or reported)
     except (OSError, ValueError, AttributeError):
         return reported
+
+
+def handback_text(path):
+    """The report a subagent delivered with SubagentHandback, if it used it (Claude Code 2.1.3xx and later).
+
+    Then the report is that tool call's `message`, and the event's last_assistant_message is empty or only a
+    leftover. The last handback that wasn't refused wins. None if there was none."""
+    calls, refused = [], set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    content = (json.loads(line).get("message") or {}).get("content")
+                except ValueError:
+                    continue
+                for b in content if isinstance(content, list) else []:
+                    if not isinstance(b, dict):
+                        continue
+                    if b.get("type") == "tool_use" and b.get("name") == "SubagentHandback":
+                        msg = (b.get("input") or {}).get("message")
+                        if isinstance(msg, str) and msg.strip():
+                            calls.append((b.get("id"), msg))
+                    elif b.get("type") == "tool_result" and b.get("is_error"):
+                        refused.add(b.get("tool_use_id"))
+    except OSError:
+        return None
+    ok = [msg for cid, msg in calls if cid not in refused]
+    return ok[-1] if ok else None
 
 
 def read_prompt(path):
@@ -107,7 +136,7 @@ def main(event, logs=LOGS):
     logs.mkdir(parents=True, exist_ok=True)
     append_once(logs / f"{run_id}-prompts.md", agent_id, f"Prompt to {heading}", prompt)
     if agent_type in RETURN_FILES:
-        text = event.get("last_assistant_message") or ""
+        text = handback_text(transcript) or event.get("last_assistant_message") or ""
         append_once(logs / f"{run_id}-{RETURN_FILES[agent_type]}.md", agent_id, heading, text)
     return run_id
 

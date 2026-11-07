@@ -14,6 +14,16 @@ number means something you set up may need redoing, and the entry says what.
   could otherwise end up in a commit).
 - `Default ethics: none` in your `my/ETHICS_SHORT.md`: once your own ethics files are complete, the default isn't
   used at all.
+- Fixes for Claude Code 2.1.319, which gives subagents no Grep or Glob tool and has them deliver their report
+  with a `SubagentHandback` tool:
+  - `scripts/find_text.py`: a read-only text search and file listing, kept inside the workspace. The researcher,
+    helper, critic, verifier, ideator, drafter and analyst may run it (in one exact form, enforced by their guards),
+    so they can search the corpus again.
+  - The analyst's guard no longer blocks `SubagentHandback`, so its reports reach the main session.
+  - `save_returns.py` saves reports delivered with `SubagentHandback`; the findings, critique, review and ideation
+    logs were being saved empty.
+- Tech watch: scouts no longer keep Claude Code auto-memory, and a refused save into that memory no longer marks a
+  run as failed (a stage run that did its job was reported as a problem).
 
 ## 0.1.0 — 2026-11-03
 

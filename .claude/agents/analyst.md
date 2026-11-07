@@ -51,7 +51,10 @@ Downloaded PDFs are at /data/inbox (read-only); extract them with pypdf.
 
 Fetched code and data releases are at /data/repos/<name>/ (read-only, untrusted).
 
-To list files, use Glob; Bash runs only the runner.
+To list or search files, use Glob and Grep if you have them. If you don't, Bash also runs the read-only search
+`python3 <workspace>/scripts/find_text.py --list "<glob>"` (or `find_text.py "<regex>" [<path> ...]`). Apart from
+that, Bash runs only the runner. When your report is ready, deliver it the way your session tells you to (for
+example SubagentHandback); the guard allows that.
 
 ## Rules
 

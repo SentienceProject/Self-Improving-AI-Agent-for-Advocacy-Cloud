@@ -7,7 +7,8 @@
                           the probe until the probe has PASSED this session.
                           Also enforces the exact form of the four commands
                           that are excluded from the sandbox: run_analysis.py,
-                          corpus_search.py, fetch_pdf.py and fetch_repo.py.
+                          corpus_search.py, fetch_pdf.py and fetch_repo.py,
+                          and of find_text.py (sandboxed; the subagents' search).
     preflight.py record   PostToolUse (Bash): when the probe ran, record PASS
                           or FAIL, write workspace/logs/preflight-*.json, and
                           warn loudly on FAIL.
@@ -62,6 +63,19 @@ FETCH_REPO_RE = re.compile(
     "python3 " + R + r"/scripts/fetch_repo\.py "
     + '"https://' + _URL_CHARS + '{1,490}"'
     + r" [A-Za-z0-9][A-Za-z0-9_-]{0,80}")
+# find_text.py: read-only search for subagents with no Grep/Glob tool. Runs in
+# the sandbox like any command. The pattern and globs go inside double quotes,
+# without the characters bash expands there ($ ` \ " !); paths are bare words
+# of letters, digits and _ . / - only. find_text.py keeps every path inside
+# the workspace itself.
+_FT_GLOB = r'"[A-Za-z0-9_./*?-]{1,200}"'
+_FT_PAT = r"\"[A-Za-z0-9 ,.?'():;|*+\[\]{}^/_&%#@=<>~-]{1,300}\""
+_FT_PATH = r"/?[A-Za-z0-9_.][A-Za-z0-9_./-]{0,300}"
+FIND_TEXT_RE = re.compile(
+    "python3 " + R + r"/scripts/find_text\.py "
+    + rf"(--list {_FT_GLOB}|(?:-[iwl] |-C [0-9] |--glob {_FT_GLOB} )*{_FT_PAT}(?: {_FT_PATH})*)")
+FIND_TEXT_USAGE = (f'python3 {ROOT}/scripts/find_text.py [-i] [-w] [-l] [-C <0-9>] [--glob "<glob>"] '
+                   f'"<regex>" [<path> ...]   or   python3 {ROOT}/scripts/find_text.py --list "<glob>"')
 RUN_ANALYSIS_RE = re.compile(
     rf"python3? {R}/scripts/run_analysis\.py ({RUN_ID}) "
     rf"workspace/analysis/\1/[A-Za-z0-9_][A-Za-z0-9_./-]*\.py")
@@ -186,6 +200,10 @@ def gate(data):
               f'{ROOT}/scripts/corpus_search.py "<query>" --k <n>  (nothing before or '
               "after it; the query may use only letters, digits, spaces and "
               ", . ? ' ( ) : ; -)")
+    if "find_text" in cmd and not FIND_TEXT_RE.fullmatch(cmd):
+        block(f"find_text.py must be run as exactly: {FIND_TEXT_USAGE}  (options before the "
+              "pattern, nothing before or after; inside the quotes no $ ` \\ \" or !; paths use only "
+              "letters, digits and _ . / -)")
     if "fetch_pdf" in cmd and not FETCH_PDF_RE.fullmatch(cmd):
         block(f'fetch_pdf.py must be run as exactly: python3 {ROOT}/scripts/'
               'fetch_pdf.py "<https-url>" <name>  (nothing before or after it; '

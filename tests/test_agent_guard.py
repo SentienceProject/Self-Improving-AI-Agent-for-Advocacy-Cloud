@@ -76,6 +76,29 @@ class AgentGuardTest(unittest.TestCase):
         self.assertEqual(self.run_guard("researcher", "Bash", {"command": good}), 0)
         self.assertEqual(self.run_guard("researcher", "Bash", {"command": good + "; rm -rf workspace"}), 2)
 
+    def test_every_role_may_run_find_text_and_nothing_else(self):
+        good = f'python3 {self.root}/scripts/find_text.py -i "fish pain" workspace/corpus'
+        for role in ("researcher", "helper", "critic", "verifier", "ideator", "drafter"):
+            with self.subTest(role=role):
+                self.assertEqual(self.run_guard(role, "Bash", {"command": good}), 0)
+                self.assertEqual(self.run_guard(role, "Bash", {"command": good + "; id"}), 2)
+                self.assertEqual(self.run_guard(role, "Bash", {"command": "grep -r fish workspace"}), 2)
+                self.assertEqual(self.run_guard(role, "PowerShell", {"command": good}), 0)
+
+    def test_semantic_search_only_for_researcher_and_helper(self):
+        py = Path.home() / ".venvs" / "ai-welfare-search" / "bin" / "python"
+        good = f'{py} {self.root}/scripts/corpus_search.py "fish pain evidence" --k 8'
+        self.assertEqual(self.run_guard("helper", "Bash", {"command": good}), 0)
+        for role in ("critic", "verifier", "ideator", "drafter"):
+            with self.subTest(role=role):
+                self.assertEqual(self.run_guard(role, "Bash", {"command": good}), 2)
+
+    def test_read_only_roles_write_nothing(self):
+        for role in ("helper", "critic", "verifier"):
+            with self.subTest(role=role):
+                self.assertEqual(self.write(role, "workspace/ideas/a.md"), 2)
+                self.assertEqual(self.write(role, "workspace/outbox/a.md", "Edit"), 2)
+
     def test_read_tools_pass(self):
         self.assertEqual(self.run_guard("researcher", "Read", {"file_path": "/etc/hostname"}), 0)
 

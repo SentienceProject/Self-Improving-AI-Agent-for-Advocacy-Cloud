@@ -6,11 +6,15 @@ while the analyst is active, before every tool call it makes. It enforces
 the scoping that the `tools` field can't express:
 
   Read, Grep, Glob   allowed
+  SubagentHandback   allowed: it's how a subagent delivers its report in newer
+                     Claude Code builds (blocking it loses the report)
   Write              only new files in <repo>/workspace/analysis/<run-id>/...
                      (checked after resolving symlinks; never overwrites)
   Bash               only the exact command
                      python3 <repo>/scripts/run_analysis.py <run-id> workspace/analysis/<run-id>/<file>.py
-                     (or `python` instead of `python3`), with no shell syntax at all
+                     (or `python` instead of `python3`), with no shell syntax at all,
+                     or the read-only search scripts/find_text.py in the exact
+                     form preflight.py enforces (Grep/Glob stand-in)
   anything else      blocked
 
 Exit 0 lets the call continue to the normal permission checks. Exit 2 blocks
@@ -35,6 +39,8 @@ RUN_ID = r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}"
 RUN_ID_RE = re.compile(RUN_ID)
 SAFE_CHARS_RE = re.compile(r"[A-Za-z0-9_./ -]+")
 READ_ONLY_TOOLS = {"Read", "Grep", "Glob"}
+HANDBACK_TOOLS = {"SubagentHandback"}   # delivers the final report to the caller; carries text only
+FIND_TEXT_PREFIX = f"python3 {ROOT}/scripts/find_text.py "
 
 
 def block(reason: str):
@@ -46,6 +52,12 @@ def check_bash(tool_input: dict):
     cmd = tool_input.get("command")
     if not isinstance(cmd, str) or not cmd.strip():
         block("empty Bash command")
+    if cmd.startswith(FIND_TEXT_PREFIX):
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from preflight import FIND_TEXT_RE, FIND_TEXT_USAGE   # an import error blocks (fail closed)
+        if FIND_TEXT_RE.fullmatch(cmd):
+            return
+        block(f"find_text.py must be run as exactly: {FIND_TEXT_USAGE}")
     # Letters, digits and _ . / - and plain spaces only: no ; & | $ ` quotes,
     # redirects, newlines, tabs, globs or VAR=value prefixes.
     if not SAFE_CHARS_RE.fullmatch(cmd):
@@ -98,7 +110,7 @@ def main():
         tool_input = data.get("tool_input") or {}
         if not isinstance(tool_input, dict):
             block("malformed tool_input")
-        if tool in READ_ONLY_TOOLS:
+        if tool in READ_ONLY_TOOLS or tool in HANDBACK_TOOLS:
             sys.exit(0)
         if tool == "Bash":
             check_bash(tool_input)

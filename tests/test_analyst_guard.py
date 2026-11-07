@@ -215,6 +215,23 @@ class TestOtherTools(GuardTest):
                                           "tool_input": {"file_path": "/etc/hosts"}})
                 self.assertAllowed(code)
 
+    def test_handback_allowed(self):
+        # Newer Claude Code builds deliver a subagent's report through this tool; blocking it lost every report.
+        code, _ = self.run_guard({"tool_name": "SubagentHandback", "tool_input": {"message": "Results: ..."}})
+        self.assertAllowed(code)
+
+    def test_find_text_allowed_in_exact_form(self):
+        shutil.copy(GUARD_SRC.parent / "preflight.py", self.root / ".claude" / "hooks" / "preflight.py")
+        base = f"python3 {self.root}/scripts/find_text.py"
+        self.assertAllowed(self.bash(f'{base} --list "workspace/repos/*.json"', raw=True))
+        self.assertAllowed(self.bash(f'{base} -i "fish" workspace/corpus', raw=True))
+        self.assertBlocked(self.bash(f'{base} "fish"; id', raw=True))
+        self.assertBlocked(self.bash(f'{base} "$(id)"', raw=True))
+
+    def test_find_text_blocked_without_the_pattern_module(self):
+        # Fails closed: if preflight.py can't be imported, the search is refused rather than waved through.
+        self.assertBlocked(self.bash(f'python3 {self.root}/scripts/find_text.py "fish"', raw=True))
+
     def test_everything_else_blocked(self):
         for tool in ["Edit", "NotebookEdit", "WebFetch", "WebSearch", "Agent",
                      "Task", "PowerShell", "Monitor", "Skill", "SendMessage",

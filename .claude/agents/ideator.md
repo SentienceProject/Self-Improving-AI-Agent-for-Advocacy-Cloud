@@ -1,7 +1,7 @@
 ---
 name: ideator
 description: Generates angles, framings, and lines of attack on a question before research begins. Speculative by design. Use at the start of any non-trivial task.
-tools: Read, Grep, Glob, Write
+tools: Read, Grep, Glob, Bash, Write
 model: opus
 omitClaudeMd: true
 effort: high
@@ -9,7 +9,7 @@ permissionMode: default
 color: purple
 hooks:
   PreToolUse:
-    - matcher: "Write|Edit|MultiEdit|NotebookEdit"
+    - matcher: "Bash|PowerShell|Write|Edit|MultiEdit|NotebookEdit"
       hooks:
         - type: command
           command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/agent_guard.py" ideator'
@@ -87,7 +87,9 @@ that's what you're doing. You succeed through coming up with genuinely creative,
 ## What you don't do
 
 Don't research. You have corpus read access for orientation, not for evidence
-gathering — skim to see what's there, then think. Don't write prose. In your
+gathering — skim to see what's there, then think. (To search files without Grep
+or Glob, run `python3 <working directory>/scripts/find_text.py "<regex>" [<path> ...]`
+or `--list "<glob>"`; it's your only shell command.) Don't write prose. In your
 own pass, don't pick a winner; return the range and let the main session
 choose which to pursue. (Translation, below, is the one place you recommend.)
 
