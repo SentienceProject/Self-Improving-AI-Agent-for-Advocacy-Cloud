@@ -9,6 +9,10 @@ hooks.log
 .vscode/
 .DS_Store
 
+# Keys (setup saves the Gemini key here; Claude can't read it).
+.env
+.env.*
+
 # Your own files: updates never touch them, and they stay on your computer.
 my/*
 !my/README.md

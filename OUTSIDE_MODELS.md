@@ -9,14 +9,15 @@ a task, once the person has set them up (setup does it with the eval harness's j
 | `gemini` | Gemini Flash, through its free API key | general reasoning; checking a claim against a passage |
 
 ```
-python3 scripts/ask_model.py chatgpt "Please critique this draft for overstated claims. Thank you!" --file workspace/outbox/2026-11-05-oped.md --purpose "critique of the op-ed"
-python3 scripts/ask_model.py gemini "..." --file a.md --file b.md --purpose "..."
-python3 scripts/ask_model.py --status
+python3 <this workspace's folder>/scripts/ask_model.py chatgpt "Please critique this draft for overstated claims. Thank you!" --file workspace/outbox/2026-11-05-oped.md --purpose "critique of the op-ed"
+python3 <this workspace's folder>/scripts/ask_model.py gemini "..." --file a.md --file b.md --purpose "..."
+python3 <this workspace's folder>/scripts/ask_model.py --status
 ```
 
-Write the command on one line, exactly in this form, with nothing in front of it (no environment variables), so the person's
-settings recognise it and let it run outside the sandbox, where the logins are. In hardened mode, use the full path
-instead: `python3 <this workspace's folder>/scripts/ask_model.py ...` (hardened mode allows only that form).
+Use the full path (e.g. `python3 /home/you/ai-welfare-workspace/scripts/ask_model.py ...`) and write the command on
+one line, with nothing in front of it: no `cd ...;`, no `&&`, no environment variables. Only that exact form is let
+out of the sandbox, where the logins are; any other form runs inside it, where ChatGPT and Gemini look "not set up"
+even when they are. If a call says it may have run in the sandbox, run it again in that form.
 
 **Why use them.** Claude critics share Claude's blind spots: LLM judges agree with each other more than with people,
 and prefer their own model family. A model from another family catches different things. Good uses: a skeptical
