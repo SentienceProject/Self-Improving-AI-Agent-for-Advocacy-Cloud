@@ -6,6 +6,10 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- `scripts/check_frontmatter.py` (and `tests/test_frontmatter.py`): finds agent, skill and command files whose
+  frontmatter Claude Code can't load, such as an unquoted description containing ": " ("mapping values are not
+  allowed in this context"); `--fix` quotes the value. Fixed: the `helper` agent's description.
+
 - Tech watch: a **check run** after every staging. A fresh Opus run (up to $2, `runs.check` in
   `techwatch/config.json`) reviews the prepared change before it's tested, fixes or widens it, and writes
   `CHECK.md` with a verdict. Nothing automatic happens to a change until its check finishes; the reviewers, the four
