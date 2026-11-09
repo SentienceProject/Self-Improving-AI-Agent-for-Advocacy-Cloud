@@ -22,6 +22,10 @@ number means something you set up may need redoing, and the entry says what.
   - The analyst's guard no longer blocks `SubagentHandback`, so its reports reach the main session.
   - `save_returns.py` saves reports delivered with `SubagentHandback`; the findings, critique, review and ideation
     logs were being saved empty.
+- The analyst now reads the image's package list from `sandbox/requirements.in` and `requirements.txt` instead
+  of a list in its instructions that had fallen behind (it was missing pypdf and pyarrow), so approving a package
+  request no longer needs a matching edit to `analyst.md`. Its description of the container's folders is also
+  tidied up.
 - Tech watch: scouts no longer keep Claude Code auto-memory, and a refused save into that memory no longer marks a
   run as failed (a stage run that did its job was reported as a problem).
 

@@ -13,6 +13,8 @@ itself, writes the draft, has it critiqued and fact-checked, and saves it in `wo
 you decide what leaves your computer. [PRIVACY.md](PRIVACY.md) lists what is sent where (Anthropic, websites, and the
 optional outside judges) and how to turn each part off.
 
+**Please use caution when using this workspace for social media.** Obviously AI-generated advocacy content can damage the credibility of the animal- and digital-minds-advocacy fields.
+
 ## See what it produces
 
 [`examples/`](examples/) has real, unedited outputs, with what was asked, what it cost and how long it took, so
@@ -538,8 +540,8 @@ Setup checks for the common problems and says which one it found. The usual ones
 
 ## Known rough edges
 
-- **macOS and Windows are untested.** Everything was tested on Linux (WSL2). The known Linux-only spots have been
-  fixed, but nobody has run it on a Mac or on Windows without WSL2 yet; on Windows, the open question is whether the
+- **macOS is untested; Windows without WSL2 is only partially tested.** Everything was tested on Linux (WSL2). The known Linux-only spots have been
+  fixed, but nobody has run it on a Mac yet; on Windows, the open question is whether the
   `python3` hooks run at all. Reports welcome.
 - **Checkpoints are full copies.** The eval harness's checkups keep a full copy of the workspace in
   `~/ai-welfare-checkpoints/`, drafts included. Delete old ones you don't need.
