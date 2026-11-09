@@ -791,6 +791,21 @@ class TestCheckRun(TestAutomatic):
         self.assertEqual(self.review.check_of("p1"), "pending")
         self.assertEqual(self.review.to_check(), ["p1"])
 
+    def test_a_check_keeps_the_stage_time_record_of_files_it_left_alone(self):
+        (self.ws / "a.md").write_text("as staged\n")
+        self.staged("p1", target="a.md")
+        tw = self.runner()
+        tw.record_bases("p1")
+        staged_hash = json.loads((self.ws / "techwatch" / "state" / "stage-bases" / "p1.json").read_text())["a.md"]
+        (self.ws / "a.md").write_text("edited by you after staging\n")
+        self.review.record("p1", "check_pending")
+        self.fake_scout = lambda mode: (self.write_check("FIXED", widen=True), ("ok", "", ""))[1]
+        tw.check("p1")
+        bases = json.loads((self.ws / "techwatch" / "state" / "stage-bases" / "p1.json").read_text())
+        self.assertEqual(bases["a.md"], staged_hash, "the change to a.md still rests on the staged version")
+        self.assertIn("other.md", bases)
+        self.assertIn("a.md (changed since the change was prepared)", self.review.classify("p1")[0])
+
     def test_check_steering_lines_hold_the_change_for_you(self):
         self.staged("p1", target="a.md")
         (self.ws / "techwatch" / "staged" / "p1" / "CHECK.md").write_text("Narrow: yes\nVERDICT: READY\nok\n")

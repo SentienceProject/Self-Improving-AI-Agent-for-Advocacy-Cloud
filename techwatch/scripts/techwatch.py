@@ -326,11 +326,31 @@ def check(pid):
         verdict, reason = "UNCHECKED", "the check run left no manifest.json; the stage run's version was restored"
     note = first_line_of_check(bundle) if verdict in review.CHECK_VERDICTS else (reason or "no verdict in CHECK.md")
     review.record(pid, "checked", note, verdict=verdict or "UNCHECKED")
-    record_bases(pid)   # the check may have added targets: record what every target looks like now
+    # The check may have added targets or rebuilt a target's new contents from the file as it is now: record those
+    # as they are now. A target whose part the check left alone still rests on the version the stage run read.
+    record_bases(pid, keep=untouched_targets(pre, bundle))
     log(f"check {pid}: {verdict or 'UNCHECKED'}{f' ({note})' if note else ''}")
     if not verdict:
         problem(f"the check run of {pid} gave no verdict ({reason or 'see its CHECK.md'}); it waits for you as staged")
     return kind, retry_at, reason
+
+
+def untouched_targets(pre, bundle):
+    """Targets whose change (action and new contents) is the same before and after the check run."""
+    def changes(root):
+        try:
+            mf = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+        out = {}
+        for ch in mf.get("changes", []):
+            p = review.resolve(ch.get("target", "")) if ch.get("action") in ("write", "append") else None
+            if p is not None:
+                src = root / str(ch.get("source", ""))
+                out[p.relative_to(WS).as_posix()] = (ch.get("action"), src.read_bytes() if src.is_file() else None)
+        return out
+    before, after = changes(pre), changes(bundle)
+    return {rel for rel, v in after.items() if before.get(rel) == v}
 
 
 def first_line_of_check(bundle):
@@ -346,19 +366,26 @@ def first_line_of_check(bundle):
     return ""
 
 
-def record_bases(pid):
+def record_bases(pid, keep=()):
     """What each target looked like when the change was prepared (the runner writes this, not the scout), so
-    review.py can tell if a file changed since and refuse to undo those edits automatically."""
+    review.py can tell if a file changed since and refuse to undo those edits automatically. keep: targets whose
+    earlier record stays (the check run didn't touch their part of the change, so it still rests on that version)."""
     try:
         mf = json.loads((TW / "staged" / pid / "manifest.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return
+    d = STATE / "stage-bases"
+    try:
+        old = json.loads((d / f"{pid}.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        old = {}
     bases = {}
     for ch in mf.get("changes", []):
         p = review.resolve(ch.get("target", "")) if ch.get("action") in ("write", "append") else None
         if p is not None:
-            bases[p.relative_to(WS).as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
-    d = STATE / "stage-bases"
+            rel = p.relative_to(WS).as_posix()
+            bases[rel] = old[rel] if rel in keep and rel in old else (
+                hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None)
     d.mkdir(parents=True, exist_ok=True)
     (d / f"{pid}.json").write_text(json.dumps(bases, indent=1), encoding="utf-8")
 
