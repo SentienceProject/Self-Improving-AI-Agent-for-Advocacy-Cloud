@@ -6,7 +6,11 @@
                                                         and what my/techwatch.md says to do with ready changes
     python3 techwatch/scripts/techwatch.py weekly       a weekly scan now (Opus, up to $4 of usage)
     python3 techwatch/scripts/techwatch.py daily        a daily scan now (Sonnet, up to $1)
-    python3 techwatch/scripts/techwatch.py stage <id>   prepare the exact change for one proposal (Opus, up to $3)
+    python3 techwatch/scripts/techwatch.py stage <id>   prepare the exact change for one proposal (Opus, up to $3),
+                                                        then check it (below)
+    python3 techwatch/scripts/techwatch.py check <id>   a second, fresh run reviews a prepared change and fixes or
+                                                        improves it (it may widen it) before it's tested (Opus, up
+                                                        to $2); runs by itself after every staging
     python3 techwatch/scripts/techwatch.py sensor       check the watched pages for changes (free, no model)
     python3 techwatch/scripts/techwatch.py schedule on|off|status
                                                         run `run` automatically every hour (it acts at most once a
@@ -51,6 +55,7 @@ from rule_paths import rule_path   # noqa: E402
 import review    # noqa: E402
 
 TOOLS = "Read,Glob,Grep,Edit,Write,WebSearch,WebFetch"
+SCANS = ("daily", "weekly")
 TODAY = date.today().isoformat()
 
 
@@ -197,11 +202,11 @@ def pending_reports():
 def scout(mode, prompt_file, extra="", writable=("inbox", "proposals")):
     """One headless run. Returns (outcome, retry_at, reason): outcome is ok | done (failed, don't retry: money was
     spent) | retry (failed before spending anything)."""
-    if not within_cap(mode if mode in CONFIG["runs"] else "stage"):
+    if not within_cap(mode):
         return "done", "", "monthly cap"
     run = CONFIG["runs"][mode]
     stamp = datetime.now().strftime("%Y-%m-%d-%H%M")
-    if mode != "stage":
+    if mode in SCANS:
         extra = f"Sensor reports to triage (today's, plus any a failed run never read): {pending_reports()}\n{extra}"
     prompt = (f"Run ID: techwatch-{stamp}-{mode}\nToday: {TODAY}\nMode: {mode}\n"
               f"Budget cap for this run: ${run['max_budget_usd']} (hard; the run is cut off at the cap, so write "
@@ -232,10 +237,10 @@ def scout(mode, prompt_file, extra="", writable=("inbox", "proposals")):
     with open(STATE / "runs.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps({"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "mode": mode,
                             "exit": rc, "cost_usd": cost, "outcome": kind}) + "\n")
-    if kind == "ok" and mode != "stage":
+    if kind == "ok" and mode in SCANS:
         mark("scout_ok", TODAY)
     elif kind == "done":
-        if mode != "stage":
+        if mode in SCANS:
             mark("scout_ok", TODAY)
         problem(f"{mode} run failed and won't be retried (it already spent ${cost}): {reason}")
     elif kind == "retry":
@@ -282,7 +287,63 @@ def stage(pid):
     if kind != "retry":
         log(f"stage {pid}: {review.mark_stage_result(pid, reason)}")
         record_bases(pid)
+        if review.status_of(pid) == "staged" and checks_on():
+            review.record(pid, "check_pending", "the check run reviews the change before anything else happens")
+            ckind, cretry, _ = check(pid)
+            if ckind == "retry":   # the change stays waiting for its check; the next run tries again
+                return ckind, cretry, reason
     return kind, retry_at, reason
+
+
+def checks_on():
+    return "check" in CONFIG.get("runs", {}) and (TW / "prompts" / "check.md").exists()
+
+
+def check(pid):
+    """A fresh run reviews pid's prepared change against the proposal and the workspace as it is now, fixes what's
+    wrong and improves it (it may widen it), and says whether it's worth testing. Everything after this (the
+    reviewers' four criteria, AUTO_NEVER, the narrowness count, the test's bundle hash) judges the change as the
+    check left it. The stage run's version is kept in state/pre-check/<id>/ so review.py can show what changed."""
+    bundle = TW / "staged" / pid
+    if review.status_of(pid) != "staged" or not (bundle / "manifest.json").exists():
+        log(f"check: {pid} has no prepared change waiting (status {review.status_of(pid)})")
+        return "done", "", "no prepared change waiting"
+    if review.check_of(pid) != "pending":
+        review.record(pid, "check_pending", "check run asked for by hand")
+    pre = review.PRE_CHECK / pid
+    shutil.rmtree(pre, ignore_errors=True)
+    shutil.copytree(bundle, pre, ignore=shutil.ignore_patterns("CHECK.md", "backup", "applied*.json"))
+    (bundle / "CHECK.md").unlink(missing_ok=True)   # an earlier check's verdict mustn't count for this one
+    kind, retry_at, reason = scout("check", "check.md", f"Proposal: techwatch/proposals/{pid}/\n"
+                                   f"Prepared change to check: techwatch/staged/{pid}/", writable=(f"staged/{pid}",))
+    if kind == "retry":
+        return kind, retry_at, reason
+    verdict = review.check_verdict(pid) if kind == "ok" else None
+    if not (bundle / "manifest.json").exists() and verdict != "CANNOT_FIX":
+        # a check that broke the manifest leaves no change at all: put the stage run's version back
+        shutil.rmtree(bundle, ignore_errors=True)
+        shutil.copytree(pre, bundle)
+        verdict, reason = "UNCHECKED", "the check run left no manifest.json; the stage run's version was restored"
+    note = first_line_of_check(bundle) if verdict in review.CHECK_VERDICTS else (reason or "no verdict in CHECK.md")
+    review.record(pid, "checked", note, verdict=verdict or "UNCHECKED")
+    record_bases(pid)   # the check may have added targets: record what every target looks like now
+    log(f"check {pid}: {verdict or 'UNCHECKED'}{f' ({note})' if note else ''}")
+    if not verdict:
+        problem(f"the check run of {pid} gave no verdict ({reason or 'see its CHECK.md'}); it waits for you as staged")
+    return kind, retry_at, reason
+
+
+def first_line_of_check(bundle):
+    """The one-line summary under CHECK.md's verdict, for the ledger."""
+    try:
+        lines = (bundle / "CHECK.md").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ""
+    for i, line in enumerate(lines):
+        if re.match(r"^\W*VERDICT:", line, re.I):
+            rest = [x.strip() for x in lines[i + 1:] if x.strip()]
+            return (rest[0] if rest else "")[:200]
+    return ""
 
 
 def record_bases(pid):
@@ -360,6 +421,12 @@ def scans_and_staging(scheduled):
                 return
         elif not scheduled:
             log(f"no scan due (last weekly {st('last_weekly') or 'never'}); run `weekly` or `daily` to scan anyway")
+    for pid in review.to_check()[:3] if checks_on() else []:
+        kind, retry_at, _ = check(pid)
+        if kind == "retry":
+            if scheduled:
+                mark("retry_after", retry_at or time.time() + 3600)
+            return
     for pid in review.to_stage(int(CONFIG.get("autonomy_level", 0)))[:3]:
         kind, retry_at, _ = stage(pid)
         if kind == "retry":
@@ -480,7 +547,7 @@ def selftest():
         print(f"FAIL: {msg}")
     if not shutil.which("claude"):
         fail("`claude` isn't on PATH")
-    for m in ("daily", "weekly", "stage"):
+    for m in ("daily", "weekly", "stage", "check"):
         if m not in CONFIG.get("runs", {}):
             fail(f"config.json has no runs.{m}")
         if not (TW / "prompts" / f"{m}.md").exists():
@@ -538,7 +605,7 @@ def main(a):
         return sys.exit(0 if selftest() else 1)
     if cmd == "doctor":
         return doctor()
-    if cmd not in ("run", "sensor", "daily", "weekly", "stage"):
+    if cmd not in ("run", "sensor", "daily", "weekly", "stage", "check"):
         print(__doc__)
         return sys.exit(2)
     with Lock():
@@ -554,6 +621,10 @@ def main(a):
             if len(a) < 2:
                 sys.exit("usage: techwatch.py stage <proposal-id>")
             stage(a[1])
+        elif cmd == "check":
+            if len(a) < 2:
+                sys.exit("usage: techwatch.py check <proposal-id>")
+            check(a[1])
     print("\n" + S.b("What needs you:") + f"  python3 {(TW / 'scripts' / 'review.py').relative_to(WS).as_posix()}")
 
 

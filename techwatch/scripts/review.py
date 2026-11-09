@@ -100,6 +100,11 @@ RED, YEL, GRN, DIM, BOLD, OFF = ("\033[91m", "\033[93m", "\033[92m", "", "\033[1
 RUNNER_EVENTS = ("staged", "cannot_stage", "stage_failed", "auto_applied")
 DECISIVE = ("approved", "rejected", "deferred", "shelved", "applied", "rolled_back", "kept", "removed",
             "trial_started") + RUNNER_EVENTS
+# The check run after staging (techwatch.py check): not decisions, so they don't change a proposal's status.
+CHECK_EVENTS = ("check_pending", "checked")
+CHECK_VERDICTS = ("READY", "FIXED", "NOT_WORTH_TESTING", "CANNOT_FIX")
+CHECK_STOPS = ("NOT_WORTH_TESTING", "CANNOT_FIX")   # nothing automatic happens to these; a person decides
+PRE_CHECK = TW / "state" / "pre-check"   # the bundle as the stage run left it (scouts can't write state/)
 APPLIED = ("applied", "auto_applied")
 IN_EFFECT = ("applied", "trial", "kept")   # statuses whose files are in the workspace now
 
@@ -162,7 +167,7 @@ def events():
 def record(pid, event, note="", **extra):
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
     e = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "id": pid, "event": event, "note": note,
-         "actor": "runner" if event in RUNNER_EVENTS else "operator", **extra}
+         "actor": "runner" if event in RUNNER_EVENTS + CHECK_EVENTS else "operator", **extra}
     with LEDGER.open("a", encoding="utf-8") as f:
         f.write(json.dumps(e) + "\n")
 
@@ -255,6 +260,67 @@ def classify(pid):
         elif rel == "CLAUDE.md" and hard_constraints(old) != hard_constraints(new):
             never.append("CLAUDE.md's hard constraints")
     return never, reviewed
+
+
+def check_of(pid, evs=None):
+    """The check run's state for pid's current bundle: None (no check was asked for: an older bundle, or checks are
+    off), "pending" (staged, check not finished), or the "checked" event (its "verdict": READY, FIXED,
+    NOT_WORTH_TESTING, CANNOT_FIX, or UNCHECKED when the run failed)."""
+    st = None
+    for e in events() if evs is None else evs:
+        if e.get("id") != pid:
+            continue
+        if e.get("event") == "staged":
+            st = None
+        elif e.get("event") == "check_pending":
+            st = "pending"
+        elif e.get("event") == "checked":
+            st = e
+    return st
+
+
+def check_verdict(pid):
+    """The verdict line the check run wrote at the end of staged/<id>/CHECK.md, or None."""
+    try:
+        text = (STAGED / pid / "CHECK.md").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    v = re.findall(r"^\W*VERDICT:\W*(" + "|".join(CHECK_VERDICTS) + r")\b", text, re.M | re.I)
+    return v[-1].upper() if v else None
+
+
+def check_blocks(pid, evs=None):
+    """Why nothing automatic should happen to pid yet because of its check ('' if nothing): it hasn't run, or it
+    found the change not worth testing or couldn't fix it."""
+    c = check_of(pid, evs)
+    if c == "pending":
+        return "its check run hasn't finished"
+    if c and c.get("verdict") in CHECK_STOPS:
+        return f"its check run said {c['verdict']}: see staged/{pid}/CHECK.md"
+    return ""
+
+
+def to_check(evs=None):
+    """Staged proposals whose check run hasn't finished (it failed before spending anything), oldest first."""
+    evs = events() if evs is None else evs
+    return [d.name for d in sorted(proposals(), key=lambda d: d.name)
+            if status_of(d.name, evs) == "staged" and check_of(d.name, evs) == "pending"]
+
+
+def check_diff(pid):
+    """What the check run changed in the bundle, as a unified diff ('' if nothing or no record)."""
+    before, after = PRE_CHECK / pid, STAGED / pid
+    if not before.is_dir():
+        return ""
+    rels = sorted({p.relative_to(before).as_posix() for p in before.rglob("*") if p.is_file()}
+                  | {p.relative_to(after).as_posix() for p in after.rglob("*") if p.is_file()} - {"CHECK.md"})
+    out = []
+    for rel in rels:
+        a, b = before / rel, after / rel
+        old = a.read_text(encoding="utf-8", errors="replace") if a.is_file() else ""
+        new = b.read_text(encoding="utf-8", errors="replace") if b.is_file() else ""
+        out += difflib.unified_diff(old.splitlines(True), new.splitlines(True), f"staged/{rel}", f"checked/{rel}")
+    return "".join(out)
 
 
 def touches_never_auto(pid):
@@ -549,6 +615,13 @@ def cmd_show(pid):
     if (STAGED / pid / "APPLY.md").exists():
         print(f"\n{BOLD}The prepared change{OFF} ({(STAGED / pid).relative_to(WS)}/):\n")
         print((STAGED / pid / "APPLY.md").read_text(encoding="utf-8"))
+        if (STAGED / pid / "CHECK.md").exists():
+            print(f"\n{BOLD}The check run's review of it{OFF} (CHECK.md):\n")
+            print((STAGED / pid / "CHECK.md").read_text(encoding="utf-8"))
+            if diff := check_diff(pid):
+                print(f"\n{BOLD}What the check changed in the prepared change{OFF}:\n{diff}")
+        elif check_of(pid, evs) == "pending":
+            print(f"\n{DIM}Its check run hasn't finished yet.{OFF}")
         print(f"\n{DIM}`review.py apply {pid}` shows the exact diff before anything is written.{OFF}")
 
 
@@ -985,6 +1058,16 @@ def cmd_test(pid, then_apply=True, note="", depth="standard"):
         if ask("Have you read them, and should the test run them?") != "y":
             return print("Not tested.")
         note = (note + "; " if note else "") + f"operator read what runs in the test: {', '.join(runs)}"
+    c = check_of(pid)
+    if c == "pending":
+        print(f"{DIM}Its check run hasn't finished yet; the test starts after it (the check may improve the "
+              f"change first).{OFF}")
+    elif c and c.get("verdict") in CHECK_STOPS:
+        print(f"{YEL}{BOLD}The check run said {c['verdict']}{OFF}{YEL}: {c.get('note') or ''}\n"
+              f"Its reasons: {(STAGED / pid / 'CHECK.md').relative_to(WS)}{OFF}")
+        if ask("Test it anyway?") != "y":
+            return print("Not tested.")
+        note = (note + "; " if note else "") + f"tested although the check said {c['verdict']}"
     if status_of(pid) in ("pending", "deferred"):
         record(pid, "approved", "approved for a test")
     record(pid, "test_requested", note, apply_if_passes=then_apply, depth=depth)
@@ -1012,6 +1095,11 @@ def ready_choices(pid):
     if (STAGED / pid / "APPLY.md").exists():
         first = (STAGED / pid / "APPLY.md").read_text(encoding="utf-8").strip().split("\n\n")[0]
         print(f"{DIM}{first[:600]}{OFF}")
+    c = check_of(pid)
+    if c == "pending":
+        print(f"  {BOLD}Its check:{OFF} not finished yet")
+    elif c:
+        print(f"  {BOLD}Its check:{OFF} {c.get('verdict')}" + (f": {c['note']}" if c.get("note") else ""))
     ev = evidence_of(pid) if tested_waiting(pid) else None
     if ev:
         print(f"  {BOLD}Its test:{OFF} {ev['plain']}")
@@ -1129,6 +1217,13 @@ def auto_actions(log=print):
             continue
         never, reviewed = classify(pid)
         if never:
+            continue
+        if blocked := check_blocks(pid, evs):
+            if "said" in blocked and not any(e.get("id") == pid and e.get("event") == "not_automatic"
+                                             and e.get("ts", "") >= (check_of(pid, evs) or {}).get("ts", "")
+                                             for e in evs):
+                record(pid, "not_automatic", blocked)
+                log(f"{pid} waits for you: {blocked}")
             continue
         if pr["ready"] in ("test", "test-only") and not harness:
             continue

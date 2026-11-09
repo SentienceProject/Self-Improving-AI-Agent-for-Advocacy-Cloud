@@ -14,8 +14,8 @@ decision easy.
 ## When they ask what's waiting
 
 1. Read `techwatch/state/ledger.jsonl` (decisions so far), the proposals in `techwatch/proposals/` whose status
-   isn't decided, and for each, `techwatch/staged/<id>/APPLY.md` if it exists. The newest note in
-   `techwatch/inbox/` has context.
+   isn't decided, and for each, `techwatch/staged/<id>/APPLY.md` and `CHECK.md` (a second run's review of the
+   prepared change, ending in a verdict) if they exist. The newest note in `techwatch/inbox/` has context.
 2. For each item, in plain words: what it is, what would change for them, cost, risk, and your honest view. If you
    disagree with a proposal, say so. Point out anything that touches permissions, hooks, the guardrails or the
    ethics files.

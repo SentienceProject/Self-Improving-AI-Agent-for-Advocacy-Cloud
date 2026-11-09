@@ -15,8 +15,8 @@ Same as level 0, except that every notable or major proposal is staged straight 
 operator decides once, with the idea and the exact diff in front of them (`review.py apply <id>` approves and
 applies in one step). Minor proposals still wait for `approve`.
 
-- *Cost:* staging spend on proposals that get rejected (at most `runs.stage.max_budget_usd` each, within
-  `monthly_cap_usd`).
+- *Cost:* staging spend on proposals that get rejected (at most `runs.stage.max_budget_usd` plus
+  `runs.check.max_budget_usd` for the check run that follows each staging, within `monthly_cap_usd`).
 
 ## Level 2: auto-apply a narrow, reversible class
 

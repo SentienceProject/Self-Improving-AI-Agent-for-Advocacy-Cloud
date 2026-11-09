@@ -116,6 +116,9 @@ def change_text(pid, limit=400):
     bundle = review.STAGED / pid
     if (bundle / "APPLY.md").exists():
         parts.append("WHAT IT DOES (APPLY.md):\n" + (bundle / "APPLY.md").read_text(encoding="utf-8"))
+    if (bundle / "CHECK.md").exists():   # a second run's review, which may have changed or widened the change
+        parts.append("WHAT A CHECK RUN FOUND AND CHANGED (CHECK.md):\n"
+                     + (bundle / "CHECK.md").read_text(encoding="utf-8"))
     lines = []
     try:
         mf = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
@@ -202,7 +205,8 @@ def ask_outside(who, prompt, harness):
 
 
 def review_change(pid, force=False):
-    """The reviewers' answers for pid, cached unless the staged change changed since."""
+    """The reviewers' answers for pid, cached unless the staged change changed since (so a change the check run
+    edited or widened is judged afresh, as it now is)."""
     CACHE.mkdir(parents=True, exist_ok=True)
     f = CACHE / f"{pid}.json"
     stamp = max((p.stat().st_mtime for p in (review.STAGED / pid).rglob("*") if p.is_file()), default=0)
@@ -214,7 +218,8 @@ def review_change(pid, force=False):
         except (KeyError, ValueError):
             age_h = 0
         # a reviewer that didn't answer (an outage) counts as "no", and is asked again after a day
-        if cached.get("bundle_mtime") == stamp and not (silent and age_h > 20):
+        if (cached.get("bundle_mtime") == stamp and cached.get("bundle") == review.bundle_hash(pid)
+                and not (silent and age_h > 20)):
             return cached
     ctx = change_text(pid)
     fence = "=" * 20 + f" UNTRUSTED MATERIAL {__import__('secrets').token_hex(4)} " + "=" * 20
@@ -229,7 +234,7 @@ def review_change(pid, force=False):
             if reply is not None:
                 reviewers[who] = {"reply": reply, "answers": answers(reply), "cost_usd": 0}
     result = {"id": pid, "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "bundle_mtime": stamp,
-              "reviewers": reviewers}
+              "bundle": review.bundle_hash(pid), "reviewers": reviewers}
     f.write_text(json.dumps(result, indent=1), encoding="utf-8")
     return result
 

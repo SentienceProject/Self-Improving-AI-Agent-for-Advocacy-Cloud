@@ -15,6 +15,12 @@
       "model": "opus",
       "effort": "high",
       "max_budget_usd": 3.0
+    },
+    "check": {
+      "_comment": "Reviews and improves each prepared change before it's tested. Remove this block to turn checks off.",
+      "model": "opus",
+      "effort": "high",
+      "max_budget_usd": 2.0
     }
   },
   "cadence": {

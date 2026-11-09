@@ -48,7 +48,19 @@ exact diff; a proposal or change containing text that looks addressed to a revie
 agree, so fooling one model isn't enough. None of this is airtight, which is why the riskiest kinds of change
 never apply automatically.
 
-**Tests run only after a change passes these checks.** A test runs the changed workspace on real tasks, and
+**Every prepared change is checked before anything else happens to it.** Straight after the stage run, a second,
+fresh run (the check run, `runs.check` in `config.json`, up to $2) reads the proposal, the change and the files it
+touches, looks for mistakes, gaps, unflagged risks and a test that couldn't show anything, and fixes them in place.
+It may widen the change when the proposal needs more than the stage run prepared. It ends `CHECK.md` with a
+verdict: `READY`, `FIXED`, `NOT_WORTH_TESTING` or `CANNOT_FIX`. A test costs $10-40, so catching a broken change
+here is much cheaper than finding out from a test. Until the check finishes, nothing automatic happens to the change
+and the harness doesn't start its test; after `NOT_WORTH_TESTING` or `CANNOT_FIX`, nothing automatic happens at all
+(`review.py test` still lets you test it, after showing you why). Whatever the check leaves is judged as it then is:
+the reviewers are asked again, the four criteria, the size count and the never-automatic rules all apply to the
+checked change, and the test tests exactly that. `review.py show <id>` shows `CHECK.md` and what the check changed.
+To turn checks off, remove `runs.check` from `config.json`; `techwatch.py check <id>` checks one change again.
+
+**Tests run only after a change passes the checks above.** A test runs the changed workspace on real tasks, and
 Claude Code runs some things by itself outside the sandbox: hooks, MCP servers, some settings. So a change that
 adds or changes those is never tested automatically: when you ask for a test of one, `review.py` names what would
 run and waits until you say you've read it, and the eval harness refuses to build a test arm with unread code of
@@ -158,6 +170,8 @@ of the folder and run both.
    │
    └─ stage run (Opus, ≤$3) ─ for each notable or major proposal (and any you approve): the exact change
          → staged/<id>/ manifest.json, files/, APPLY.md (plain words), ROLLBACK.md, EVAL.md
+         └─ check run (Opus, ≤$2) ─ a fresh run reviews that change, fixes or widens it, and says whether it's
+            worth testing → staged/<id>/CHECK.md
    │
    └─ then, as my/techwatch.md says: apply what passed its test, ask for tests, or apply; start the harness's
       test queue in the background if a test is waiting
@@ -200,10 +214,10 @@ back after, which works on uncommitted changes.
 
 ## Who can write what
 
-| | Scouts (scan and stage runs) | You |
+| | Scouts (scan, stage and check runs) | You |
 |---|---|---|
 | `techwatch/inbox/`, `proposals/` | scan runs write | read |
-| `techwatch/staged/<id>/` | that proposal's stage run writes | read; `apply` uses it |
+| `techwatch/staged/<id>/` | that proposal's stage run, then its check run, write | read; `apply` uses it |
 | `techwatch/state/` (ledger, run log) | read only | `review.py` writes |
 | `config.json`, `AUTONOMY.md`, `WATCHLIST.md`, `scripts/`, `prompts/` | read only | edit by hand |
 | the rest of the workspace, `my/` | read only | `apply` writes the changes you accept |

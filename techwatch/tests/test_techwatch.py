@@ -169,7 +169,8 @@ class TestAutomatic(Workspace):
         stamp = max(p.stat().st_mtime for p in (self.ws / "techwatch" / "staged" / pid).rglob("*") if p.is_file())
         d = self.ws / "techwatch" / "state" / "criteria"
         d.mkdir(parents=True, exist_ok=True)
-        (d / f"{pid}.json").write_text(json.dumps({"id": pid, "bundle_mtime": stamp, "reviewers": {
+        (d / f"{pid}.json").write_text(json.dumps({"id": pid, "bundle_mtime": stamp,
+                                                  "bundle": self.review.bundle_hash(pid), "reviewers": {
             who: {"answers": {q: a.get(q) for q in c.QUESTIONS}, "reply": ""} for who, a in ans.items()}}))
 
     def load_criteria(self):
@@ -679,6 +680,121 @@ class TestScouts(unittest.TestCase):
         edits = [a for a in allow if a.startswith("Edit(")]
         self.assertEqual(len(edits), 2)
         self.assertTrue(all("/techwatch/inbox/" in e or "/techwatch/proposals/" in e for e in edits))
+
+
+class TestCheckRun(TestAutomatic):
+    """The check run after staging: nothing automatic happens before it finishes, its verdict can stop automatic
+    tests, and whatever it leaves (widened or not) is judged afresh."""
+
+    def runner(self):
+        """techwatch.py loaded from the throwaway workspace, with the scout replaced by `self.fake_scout`."""
+        for f in ("style.py", "rule_paths.py"):
+            shutil.copy(REPO / "scripts" / f, self.ws / "scripts")
+        tw = load(self.ws / "techwatch" / "scripts" / "techwatch.py", f"techwatch_check_{id(self)}")
+        tw.review = self.review
+        tw.scout = lambda mode, prompt, extra="", writable=(): self.fake_scout(mode)
+        tw.log = lambda m: None
+        return tw
+
+    def write_check(self, verdict, widen=False, break_manifest=False):
+        b = self.ws / "techwatch" / "staged" / "p1"
+        if widen:
+            (b / "files" / "other.md").write_text("also needed\n")
+            mf = json.loads((b / "manifest.json").read_text())
+            mf["changes"].append({"action": "write", "target": "other.md", "source": "files/other.md", "why": "w"})
+            (b / "manifest.json").write_text(json.dumps(mf))
+        if break_manifest:
+            (b / "manifest.json").unlink()
+        (b / "CHECK.md").write_text(f"## Found and fixed\nx\n\nVERDICT: {verdict}\nthe one-line reason\n")
+
+    def test_nothing_automatic_until_the_check_finishes(self):
+        self.prefs("test it, apply if it passes")
+        self.staged("p1")
+        self.review.record("p1", "check_pending")
+        self.assertEqual(self.review.to_check(), ["p1"])
+        self.review.auto_actions(lambda m: None)
+        self.assertIsNone(self.review.test_request("p1"))
+        self.review.record("p1", "checked", "fine", verdict="READY")
+        self.assertEqual(self.review.to_check(), [])
+        self.review.auto_actions(lambda m: None)
+        self.assertTrue(self.review.test_request("p1")["auto"])
+
+    def test_restaging_forgets_the_old_check(self):
+        self.staged("p1")
+        self.review.record("p1", "checked", "", verdict="NOT_WORTH_TESTING")
+        self.review.record("p1", "staged")
+        self.assertIsNone(self.review.check_of("p1"))
+        self.assertEqual(self.review.status_of("p1"), "staged", "check events don't change the status")
+
+    def test_a_negative_check_stops_automatic_tests(self):
+        self.prefs("test it, apply if it passes")
+        self.staged("p1")
+        self.review.record("p1", "checked", "would not show in drafts", verdict="NOT_WORTH_TESTING")
+        self.review.auto_actions(lambda m: None)
+        self.review.auto_actions(lambda m: None)
+        self.assertIsNone(self.review.test_request("p1"))
+        notes = [e for e in self.review.events() if e["event"] == "not_automatic"]
+        self.assertEqual(len(notes), 1)
+        self.assertIn("NOT_WORTH_TESTING", notes[0]["note"])
+
+    def test_you_can_still_test_after_a_negative_check(self):
+        self.prefs("ask me")
+        self.staged("p1")
+        self.review.record("p1", "checked", "", verdict="CANNOT_FIX")
+        self.review.ask = lambda q, choices="y/N": ""
+        self.review.cmd_test("p1")
+        self.assertIsNone(self.review.test_request("p1"))
+        self.review.ask = lambda q, choices="y/N": "y"
+        self.review.cmd_test("p1")
+        self.assertIn("although the check said CANNOT_FIX", self.review.test_request("p1")["note"])
+
+    def test_check_run_may_widen_and_everything_is_judged_again(self):
+        self.prefs("apply it", harness=False, other="no")
+        self.staged("p1", target="a.md")
+        self.reviewers("p1", claude=TestWhichChangesAreAutomatic.YES4, chatgpt=TestWhichChangesAreAutomatic.YES4)
+        self.review.record("p1", "check_pending")
+        tw = self.runner()
+        self.fake_scout = lambda mode: (self.write_check("FIXED", widen=True), ("ok", "", ""))[1]
+        tw.check("p1")
+        last = self.review.check_of("p1")
+        self.assertEqual((last["verdict"], last["note"]), ("FIXED", "the one-line reason"))
+        self.assertIn("other.md", self.review.check_diff("p1"))
+        bases = json.loads((self.ws / "techwatch" / "state" / "stage-bases" / "p1.json").read_text())
+        self.assertIn("other.md", bases, "the widened target's starting point is recorded")
+        c = self.load_criteria()
+        self.assertNotEqual(json.loads((self.ws / "techwatch" / "state" / "criteria" / "p1.json").read_text())
+                            ["bundle"], self.review.bundle_hash("p1"))
+        asked = []
+        c.ask_claude = lambda prompt: (asked.append(prompt), ("", 0))[1]
+        c.ask_outside = lambda who, prompt, harness: None
+        c.review_change("p1")
+        self.assertEqual(len(asked), 1, "the earlier answers were about the narrower change")
+        self.assertIn("WHAT A CHECK RUN FOUND AND CHANGED", asked[0])
+        self.assertIn("other.md", asked[0])
+
+    def test_a_check_that_breaks_the_bundle_is_undone(self):
+        self.staged("p1", target="a.md")
+        self.review.record("p1", "check_pending")
+        tw = self.runner()
+        before = self.review.bundle_hash("p1")
+        self.fake_scout = lambda mode: (self.write_check("FIXED", break_manifest=True), ("ok", "", ""))[1]
+        tw.check("p1")
+        self.assertEqual(self.review.bundle_hash("p1"), before)
+        self.assertEqual(self.review.check_of("p1")["verdict"], "UNCHECKED")
+
+    def test_a_check_cut_off_before_spending_is_retried(self):
+        self.staged("p1", target="a.md")
+        self.review.record("p1", "check_pending")
+        tw = self.runner()
+        self.fake_scout = lambda mode: ("retry", "", "network")
+        tw.check("p1")
+        self.assertEqual(self.review.check_of("p1"), "pending")
+        self.assertEqual(self.review.to_check(), ["p1"])
+
+    def test_check_steering_lines_hold_the_change_for_you(self):
+        self.staged("p1", target="a.md")
+        (self.ws / "techwatch" / "staged" / "p1" / "CHECK.md").write_text("Narrow: yes\nVERDICT: READY\nok\n")
+        self.assertTrue(self.load_criteria().steering("p1"))
 
 
 if __name__ == "__main__":

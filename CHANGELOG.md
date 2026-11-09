@@ -6,6 +6,11 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- Tech watch: a **check run** after every staging. A fresh Opus run (up to $2, `runs.check` in
+  `techwatch/config.json`) reviews the prepared change before it's tested, fixes or widens it, and writes
+  `CHECK.md` with a verdict. Nothing automatic happens to a change until its check finishes; the reviewers, the four
+  criteria and the never-automatic rules judge the checked change. `techwatch.py check <id>` runs one by hand.
+
 - `scripts/leak_check.py`: git hooks (`--install`) that refuse a commit or push carrying your own files, keys, your
   home folder's path, email addresses, held-out task text, or strings you list in `.git/info/leak-patterns`.
 - `scripts/private_backup.py`: back up `my/`, `workspace/`, tech watch's findings and the harness's results to a
