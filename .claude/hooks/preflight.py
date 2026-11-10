@@ -64,12 +64,20 @@ FETCH_REPO_RE = re.compile(
     + '"https://' + _URL_CHARS + '{1,490}"'
     + r" [A-Za-z0-9][A-Za-z0-9_-]{0,80}")
 # find_text.py: read-only search for subagents with no Grep/Glob tool. Runs in
-# the sandbox like any command. The pattern and globs go inside double quotes,
-# without the characters bash expands there ($ ` \ " !); paths are bare words
-# of letters, digits and _ . / - only. find_text.py keeps every path inside
-# the workspace itself.
+# the sandbox like any command. The pattern and globs go inside double quotes;
+# paths are bare words of letters, digits and _ . / - only. find_text.py keeps
+# every path inside the workspace itself.
+# Inside double quotes bash expands only $ and `, treats \ as special only
+# before $ ` " \ or a newline, and (interactively) expands !. So a pattern may
+# use the plain regex characters below, plus two forms bash leaves exactly as
+# written: \ followed by one plain character (\b \d \s \. \( ...), and $ just
+# before ) | or the closing quote (an end anchor: "^---$", "(fish|crab)$").
+# Never ` " or !, and never \\ \$ \" or $name / $( ).
+_FT_PLAIN = r"[A-Za-z0-9 ,.?'():;|*+\[\]{}^/_&%#@=<>~-]"
 _FT_GLOB = r'"[A-Za-z0-9_./*?-]{1,200}"'
-_FT_PAT = r"\"[A-Za-z0-9 ,.?'():;|*+\[\]{}^/_&%#@=<>~-]{1,300}\""
+_FT_PAT = rf'"(?:{_FT_PLAIN}|\\{_FT_PLAIN}|\$(?=[)|"])){{1,300}}"'
+FIND_TEXT_QUOTING = ('inside the quotes no ` " or !; \\ only before a letter, digit or regex symbol (\\b \\d \\.); '
+                     '$ only at the end or before ) or |')
 _FT_PATH = r"/?[A-Za-z0-9_.][A-Za-z0-9_./-]{0,300}"
 FIND_TEXT_RE = re.compile(
     "python3 " + R + r"/scripts/find_text\.py "
@@ -202,7 +210,7 @@ def gate(data):
               ", . ? ' ( ) : ; -)")
     if "find_text" in cmd and not FIND_TEXT_RE.fullmatch(cmd):
         block(f"find_text.py must be run as exactly: {FIND_TEXT_USAGE}  (options before the "
-              "pattern, nothing before or after; inside the quotes no $ ` \\ \" or !; paths use only "
+              f"pattern, nothing before or after; {FIND_TEXT_QUOTING}; paths use only "
               "letters, digits and _ . / -)")
     if "fetch_pdf" in cmd and not FETCH_PDF_RE.fullmatch(cmd):
         block(f'fetch_pdf.py must be run as exactly: python3 {ROOT}/scripts/'

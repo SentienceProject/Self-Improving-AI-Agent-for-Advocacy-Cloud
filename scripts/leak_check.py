@@ -24,6 +24,9 @@ Both lists live inside .git/, so they're never committed themselves.
 
 A refusal names the file and line. If something is a false alarm, add it to .git/info/leak-allow, or commit with
 --no-verify after checking it yourself.
+
+Before a commit it also runs scripts/docs_sync.py --hook (generated doc sections, and reminders about docs that
+mention the committed files). That part never blocks.
 """
 import os
 import re
@@ -217,6 +220,19 @@ def main(args):
         sys.exit(1)
     if os.isatty(1):
         print("leak check: nothing private found")
+    if mode == "staged":
+        docs_reminders()
+
+
+def docs_reminders():
+    """Before a commit, also run the docs check (scripts/docs_sync.py --hook): it brings generated doc sections up to
+    date and names docs that mention the files being committed. Separate process, and its result is ignored, so it
+    can never stop a commit or hide a leak-check result."""
+    try:
+        subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "docs_sync.py"), "--hook"], timeout=60,
+                       check=False)
+    except Exception as e:   # noqa: BLE001 - a reminder must not break the commit
+        print(f"docs_sync: skipped ({e!r})", file=sys.stderr)
 
 
 if __name__ == "__main__":

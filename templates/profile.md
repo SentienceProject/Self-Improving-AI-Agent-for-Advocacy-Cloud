@@ -16,6 +16,6 @@ silent or unsure (you can turn that off).
 
 **Budget for a big task:** roughly $5–10 of usage for something like an op-ed or a brief, unless I say otherwise.
 
-**Creativity:** normal (Claude decides how much wild brainstorming a task gets). Or: low / high.
+**Creativity:** normal (Claude decides how much wild brainstorming a task gets; the ideator gives about 20 angles). Or: low (about 12 angles) / high (25+).
 
 **Anything else Claude should always know:**

@@ -90,7 +90,7 @@
   "permissions": {
     "defaultMode": "default",
     "allow": [
-      "Bash(python3 scripts/corpus_search.py *)",
+      "Bash({{HOME}}/.venvs/ai-welfare-search/bin/python {{WORKSPACE}}/scripts/corpus_search.py *)",
       "Bash(python3 {{WORKSPACE}}/scripts/ask_model.py *)"
     ],
     "ask": [

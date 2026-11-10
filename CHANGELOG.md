@@ -6,6 +6,24 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- Ideator: about 20 angles by default, scaled by the profile's Creativity setting (low about 12, high 25+), written
+  in any order with a closing `Strongest:` line rather than best-first. Ideas that work by deception or by clearly
+  breaking major laws may be explored but are marked `[deceitful/illegal]`, with why they'd work and an honest
+  version; `CLAUDE.md` keeps marked angles out of plans, drafts and memory. New examples for "the complex one".
+
+- `scripts/docs_sync.py`: keeps the README from drifting. Facts the code holds (which subagent may write and run
+  what, the agent and skill lists) are generated into it, and `tests/test_docs_sync.py` fails when they're out of
+  date (`--fix` rewrites them). Before each commit, the leak-check hook also brings those parts up to date in your
+  working copy and names docs that mention the files you're committing. Mechanical, no model: it never uses
+  Claude, and never blocks a commit.
+
+- Subagent guard (`agent_guard.py`): the `helper` agent can now write files in `workspace/helper/` and, like the
+  verifier, run `scripts/check_citations.py` on a draft. The read-only search (`find_text.py`) now takes regex
+  escapes such as `\b`, `\d` and `\.`, and `$` as an end anchor (`"^---$"`), which bash leaves untouched inside
+  double quotes. The guard matches commands exactly as given, like the preflight gate. Hardened mode: the allow
+  rule for the semantic search now matches the command the hooks require, so it no longer asks every time
+  (re-run `python3 setup.py --hardened` to pick it up).
+
 - `scripts/check_frontmatter.py` (and `tests/test_frontmatter.py`): finds agent, skill and command files whose
   frontmatter Claude Code can't load, such as an unquoted description containing ": " ("mapping values are not
   allowed in this context"); `--fix` quotes the value. Fixed: the `helper` agent's description.

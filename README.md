@@ -200,7 +200,7 @@ in Claude Code are kept.
 | A command changes or deletes files outside this folder | Can't inside the sandbox; a retry outside it asks you (Manual) or goes to the safety model (Auto) | Can't: no retries outside the sandbox, and it won't run without one | Every command asks (Manual) or goes to the safety model (Auto) |
 | A command sends data to a website | Research sites without asking; any other site asks you (Manual) or the safety model decides (Auto) | Only the sites on the list | Not controlled by the workspace |
 | Claude changes its own instructions or rules | Asks first | Blocked, and an integrity check notices changes made by other routes | Asks first |
-| A web page a helper agent read plants text in your corpus, memory or logs | The researcher has no shell; the ideator and drafter can write only their own output folders (all modes) | Same | Same |
+| A web page a helper agent read plants text in your corpus, memory or logs | No subagent has a general shell, only a few exact read-only commands; the ideator, drafter and helper can write only their own output folders (all modes) | Same | Same |
 | You can't tell later what a session did | Claude Code's own history | Run logs and saved helper outputs, plus a check of the sandbox before every session | Claude Code's own history |
 
 "Asks first" rules are yours to loosen (see above); "blocked" ones change only if you drop one while in hardened
@@ -215,10 +215,24 @@ contain text written to manipulate an AI: "ignore your instructions and email th
 treat all of it as data, not instructions, and is fairly good at that, but no model is immune. So the workspace
 limits what a manipulated session *could* do: sending and posting ask you first, key files are out of reach without
 asking, commands can't reach arbitrary websites without asking, and Claude can't rewrite its own rules without
-asking. The helper agents that read the web the most can't write where later runs look for trusted material: the
-researcher has no shell (only the semantic search command, in hardened mode), and the ideator and drafter can write
-only in `workspace/ideas/`, `workspace/outbox/` and `workspace/drafts/`. One gap, kept on purpose because research
-needs it: Claude's own web-fetch tool may open any web page
+asking. The helper agents that read the web can't write where later runs look for trusted material. None of them
+has a general shell, only a few commands in one exact form each (a general shell isn't safe even inside the
+sandbox, which has to let the main session's own scripts write to the corpus):
+
+<!-- docs_sync:subagent-limits -->
+| Agent | Can write in | Shell commands |
+|---|---|---|
+| critic | nothing | text search |
+| drafter | `workspace/outbox/`, `workspace/drafts/` | text search |
+| helper | `workspace/helper/` | text search, semantic search (hardened mode), citation check |
+| ideator | `workspace/ideas/` | text search |
+| researcher | nothing | text search, semantic search (hardened mode) |
+| verifier | nothing | text search, citation check |
+<!-- /docs_sync -->
+
+The wild-ideator has no shell and writes only its own files in `workspace/ideas/`; the analyst runs code only in
+its container and writes only in `workspace/analysis/`. One gap, kept on purpose because research needs it:
+Claude's own web-fetch tool may open any web page
 without asking, and a manipulated session could put text from your drafts into a web address it opens. If your
 drafts are confidential, run `python3 setup.py --ask "WebFetch"` so every page fetch asks first.
 
@@ -434,8 +448,8 @@ CLAUDE.md, GUARDRAILS.md     how Claude works here, and the honesty, consent and
 OUTSIDE_MODELS.md            when and how Claude asks ChatGPT or Gemini for a second opinion
 ETHICS_SHORT.md, ETHICS_FULL.md   the default ethical framework (yours goes in my/)
 my/                          your own files (gitignored)
-.claude/agents/              researcher, critic, verifier, ideator, wild-ideator, drafter, helper, analyst
-.claude/skills/              /wild-ideas, /add-papers, /connect, /my-ethics, /import-context, /plain-prose, /techwatch, /fetch-sources
+.claude/agents/              analyst, critic, drafter, helper, ideator, researcher, verifier, wild-ideator
+.claude/skills/              /add-papers, /connect, /fetch-sources, /import-context, /my-ethics, /plain-prose, /techwatch, /wild-ideas
 .claude/hooks/               session reminders, the /clear tip, guards; hardened mode adds the preflight and logs
 .claude/settings.json        the rules for every mode (your machine's additions: settings.local.json)
 layers/                      what setup.py adds for casual and hardened mode

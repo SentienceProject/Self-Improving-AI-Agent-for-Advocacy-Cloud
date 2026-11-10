@@ -94,10 +94,43 @@ class AgentGuardTest(unittest.TestCase):
                 self.assertEqual(self.run_guard(role, "Bash", {"command": good}), 2)
 
     def test_read_only_roles_write_nothing(self):
-        for role in ("helper", "critic", "verifier"):
+        for role in ("researcher", "critic", "verifier"):
             with self.subTest(role=role):
                 self.assertEqual(self.write(role, "workspace/ideas/a.md"), 2)
                 self.assertEqual(self.write(role, "workspace/outbox/a.md", "Edit"), 2)
+                self.assertEqual(self.write(role, "workspace/helper/a.md"), 2)
+
+    def test_helper_writes_only_its_folder(self):
+        self.assertEqual(self.write("helper", "workspace/helper/outline.md"), 0)
+        self.assertEqual(self.write("helper", "workspace/helper/panel/notes.md", "Edit"), 0)
+        for rel in ("workspace/ideas/a.md", "workspace/outbox/a.md", "workspace/corpus/planted.txt",
+                    "workspace/memory.md", "workspace/helper/../corpus/x.txt", "workspace/helper"):
+            with self.subTest(rel=rel):
+                self.assertEqual(self.write("helper", rel), 2)
+        (self.root / "workspace" / "helper").mkdir()
+        os.symlink(self.root / "workspace" / "corpus", self.root / "workspace" / "helper" / "link")
+        self.assertEqual(self.write("helper", "workspace/helper/link/x.txt"), 2)
+
+    def test_citation_check_for_helper_and_verifier_only(self):
+        good = f"python3 {self.root}/scripts/check_citations.py workspace/outbox/2026-01-01-brief.md"
+        for role in ("helper", "verifier"):
+            with self.subTest(role=role):
+                self.assertEqual(self.run_guard(role, "Bash", {"command": good}), 0)
+                self.assertEqual(self.run_guard(role, "Bash", {"command": good + " --offline --json"}), 0)
+                for bad in (good + "; id", good + " > workspace/corpus/x", good + " $(id)",
+                            "python3 scripts/check_citations.py workspace/outbox/a.md",   # relative script
+                            f"python3 {self.root}/scripts/check_citations.py 'a b.md'"):
+                    self.assertEqual(self.run_guard(role, "Bash", {"command": bad}), 2, bad)
+        for role in ("researcher", "critic", "ideator", "drafter"):
+            with self.subTest(role=role):
+                self.assertEqual(self.run_guard(role, "Bash", {"command": good}), 2)
+
+    def test_commands_matched_as_given(self):
+        """The guard doesn't strip: the preflight gate matches the raw command, so the two agree."""
+        good = f'python3 {self.root}/scripts/find_text.py "fish"'
+        self.assertEqual(self.run_guard("critic", "Bash", {"command": good}), 0)
+        self.assertEqual(self.run_guard("critic", "Bash", {"command": " " + good}), 2)
+        self.assertEqual(self.run_guard("critic", "Bash", {"command": good + "\n"}), 2)
 
     def test_read_tools_pass(self):
         self.assertEqual(self.run_guard("researcher", "Read", {"file_path": "/etc/hostname"}), 0)

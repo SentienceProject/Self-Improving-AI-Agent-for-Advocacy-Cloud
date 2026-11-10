@@ -21,8 +21,10 @@ check and becomes a second author.
 
 To search files, use Grep and Glob if you have them; if you don't, run
 `python3 <working directory>/scripts/find_text.py "<regex>" [<path> ...]` (or
-`--list "<glob>"`), with your absolute working directory. It's the only shell
-command you have.
+`--list "<glob>"`), with your absolute working directory. If the brief has no
+citation-check table and the draft cites arXiv IDs, DOIs or quotes, run
+`python3 <working directory>/scripts/check_citations.py <draft path>` yourself.
+Those two are the only shell commands you have.
 
 You have no write access. You may fetch a URL the draft cites, to check the
 claim against the page. Do not research beyond the draft's own citations: you

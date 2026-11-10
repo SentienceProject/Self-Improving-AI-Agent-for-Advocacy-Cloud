@@ -104,12 +104,22 @@ class FindTextCommandFormTest(unittest.TestCase):
     def test_allowed_forms(self):
         for rest in ['"fish pain"', '-i -w "fish|crab" workspace/corpus/normalized',
                      '-l -C 2 --glob "workspace/corpus/**/*.txt" "sentien(ce|t)"', '--list "workspace/**/*.md"',
-                     f'"x" {self.pf.ROOT}/workspace/memory.md']:
+                     f'"x" {self.pf.ROOT}/workspace/memory.md',
+                     # regex escapes and end anchors that bash leaves as written inside double quotes
+                     '"^---$"', '"(fish|crab)$"', '"a$|b"', '"\\bfish\\b"', '"\\d{4}\\.\\d+"', '"\\(x\\)"']:
             with self.subTest(rest=rest):
                 self.assertTrue(self.ok(rest))
 
+    def test_escapes_reach_find_text_unchanged(self):
+        """What bash hands find_text.py is exactly what the pattern says, for every newly allowed form."""
+        for pat in ["^---$", "(fish|crab)$", "a$|b", "\\bfish\\b", "\\d{4}\\.\\d+", "\\(x\\)"]:
+            with self.subTest(pat=pat):
+                out = subprocess.run(["bash", "-c", f'printf %s "{pat}"'], capture_output=True, text=True).stdout
+                self.assertEqual(out, pat)
+
     def test_shell_syntax_refused(self):
         for rest in ['"fish"; rm -rf workspace', '"fish" | tee x', '"$(id)"', '"`id`"', '"a\\"; id; \\""',
+                     '"$HOME"', '"a$b"', '"$$"', '"a\\$(id)"', '"a\\\\"', '"\\`id\\`"', '"a$" ; id',
                      '"fish" > workspace/corpus/x', '"fish" && id', "'fish'", '"fish" ~/.ssh', '"fish" *',
                      '"fish"\nid', '--list "x" "y"', '"x" -C 2']:
             with self.subTest(rest=rest):
