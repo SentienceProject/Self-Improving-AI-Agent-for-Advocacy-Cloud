@@ -6,6 +6,37 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- Tech watch catches new model generations faster. The daily scout runs on Opus (up to $1.50; the monthly cap
+  goes from $30 to $45), and both scouts are told to read a new top model's launch post and model page before
+  judging it, and that a lesson or rejection about an earlier version doesn't settle a new one. Before this, a
+  daily scout saw a new model generation launch, didn't read the launch post, and filed nothing.
+- Major changes can be applied before their test (`Major changes before their test: yes` in
+  `my/techwatch-auto.md`, the default). The scout marks a major change `apply_first` when strong evidence shows
+  gains across many kinds of tasks. If every reviewer agrees (a new sixth question, STRONG_EVIDENCE), the change is
+  applied at once, without waiting for the 7-day spacing. The eval harness then tests it against a baseline with
+  the change undone. The change is kept if the test finds no clear harm and rolled back if the test shows it does
+  worse. This only works with "test it, apply if it passes" or "apply it" and the harness set up, and runs one
+  change at a time. The session-start note says when such a change is rolled back. Existing installs: add the line
+  to `my/techwatch-auto.md` to see it (it's on by default without it).
+- `review.py apply-first <id>`: you can ask for any waiting change to be applied first. Tech watch applies it as
+  soon as it's prepared and checked, then tests it, and rolls it back if the test shows it does worse. The
+  never-automatic rules still apply.
+- A phone notification when a scout files a major change, with that command
+  (`Tell me about major changes: yes` in `my/techwatch-auto.md`; needs notifications on).
+- Proposals say who they're for (`audience`): "everyone", or "me" when only your `my/` settings make the change
+  worth doing. This matters only if you publish your copy. A "me" change is applied to your copy and is never
+  committed. `techwatch/scripts/personal.py add <file>` stages a file without your personal changes and keeps
+  every other change in it. The leak check refuses a commit or push that still holds one.
+- The eval harness tests major changes first. While a major test is unfinished, other tests run no agents; their
+  judging and reports still go ahead.
+
+- `/add-papers` can now search the scholarly indexes: `scripts/search_papers.py` (OpenAlex by title and abstract,
+  Semantic Scholar, arXiv, Europe PMC) prints a short list instead of the APIs' huge raw responses, and is on the
+  allow list. Before, the skill asked for API calls that the hardened mode's curl ban blocked.
+  `scripts/compat_check.py` and the new script are executable.
+- Fix: tech watch's tests no longer send real phone notifications (one test reached your real `scripts/notify.py`
+  and sent three "a major change" notes per run).
+
 - Weekly docs sync (`scripts/docs_sync.py run`, called by tech watch's hourly run, every 7 days; off by default,
   since it edits tracked files and would clash with updates: turn it on in `my/docs_sync.json` if you keep your own
   fork. README.md, "Keeping the docs in step", lists the settings). Free checks

@@ -16,6 +16,25 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 
 
+_NO_PHONE = None
+
+
+def setUpModule():
+    """Never a real phone notification from a test: review.py's `import notify` would otherwise find the real
+    scripts/notify.py (already imported by an earlier test) and send to your topic. Tests that check what's sent
+    put their own fake on top of this one."""
+    global _NO_PHONE
+    import types
+    from unittest import mock
+    off = types.SimpleNamespace(ready=lambda cfg=None: False, load=lambda: {}, send=lambda *a, **k: False)
+    _NO_PHONE = mock.patch.dict(sys.modules, {"notify": off})
+    _NO_PHONE.start()
+
+
+def tearDownModule():
+    _NO_PHONE.stop()
+
+
 def load(path, name):
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
@@ -333,13 +352,14 @@ class TestOpenDecisions(TestAutomatic):
         self.assertEqual(self.review.status_of("p1"), "trial")
 
     def test_without_a_terminal_apply_says_how_instead_of_writing(self):
-        self.tty.stop()
         self.staged()
-        self.review.cmd_apply("p1")
-        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "instructions\n")
-        self.review.cmd_apply("p1", yes=True)
-        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "new\n")
-        self.tty.start()
+        from unittest import mock
+        # Fake "no terminal" explicitly: the real check says yes when the tests run from a terminal.
+        with mock.patch.object(self.review, "tty", lambda: False):
+            self.review.cmd_apply("p1")
+            self.assertEqual((self.ws / "CLAUDE.md").read_text(), "instructions\n")
+            self.review.cmd_apply("p1", yes=True)
+            self.assertEqual((self.ws / "CLAUDE.md").read_text(), "new\n")
 
     def test_reject_says_what_kind(self):
         self.proposal("p1")
@@ -538,6 +558,188 @@ class TestWhichChangesAreAutomatic(TestAutomatic):
         self.verdict("p2", "met")
         self.assertEqual(self.review.auto_actions(lambda m: None), ["p2"])
 
+
+class TestApplyFirst(TestAutomatic):
+    """A major change with strong evidence across many tasks: applied before its test, rolled back if it does worse."""
+    YES = {"MAJOR": True, "APPROVE": True, "STRONG_EVIDENCE": True}
+
+    def major(self, pid="m1", **meta):
+        self.proposal(pid, significance="major", apply_first=True, reversible=True, **meta)
+        self.bundle(pid, [{"action": "write", "target": "CLAUDE.md", "source": "files/c.md"}], {"c.md": "new\n"})
+
+    def test_applied_before_its_test_even_inside_the_spacing(self):
+        self.prefs("test it, apply if it passes", other="no", space=7)
+        self.staged("p0", target="other.md")
+        self.review.cmd_apply("p0", auto="earlier", by_settings=True)
+        self.major()
+        self.reviewers("m1", claude=self.YES, chatgpt=self.YES)
+        self.assertEqual(self.review.auto_actions(lambda m: None), ["m1"])
+        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "new\n")
+        self.assertEqual(self.review.status_of("m1"), "applied")
+        self.assertTrue(self.review.test_request("m1").get("applied_first"))
+
+    def test_without_strong_evidence_it_waits_for_its_test(self):
+        self.prefs("test it, apply if it passes", other="no")
+        self.major()
+        self.reviewers("m1", claude=self.YES, chatgpt={**self.YES, "STRONG_EVIDENCE": False})
+        self.review.auto_actions(lambda m: None)
+        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "instructions\n")
+        self.assertFalse(self.review.test_request("m1").get("applied_first"), "tested first, the usual way")
+
+    def test_not_without_the_scouts_mark_the_setting_or_a_harness(self):
+        self.prefs("test it, apply if it passes", other="no")
+        self.proposal("m2", significance="major")
+        self.bundle("m2", [{"action": "write", "target": "a.md", "source": "files/c.md"}], {"c.md": "x\n"})
+        self.reviewers("m2", claude=self.YES, chatgpt=self.YES)
+        self.major()
+        self.reviewers("m1", claude=self.YES, chatgpt=self.YES)
+        with open(self.ws / "my" / "techwatch-auto.md", "a") as f:
+            f.write("**Major changes before their test:** no\n")
+        self.review.auto_actions(lambda m: None)
+        self.assertEqual(self.review.status_of("m1"), "staged")
+        self.assertEqual(self.review.status_of("m2"), "staged")
+        self.prefs("ask me", other="no")
+        self.review.auto_actions(lambda m: None)
+        self.assertEqual(self.review.status_of("m1"), "staged", "'ask me' applies nothing")
+
+    def applied(self):
+        self.prefs("test it, apply if it passes", other="no")
+        self.major()
+        self.reviewers("m1", claude=self.YES, chatgpt=self.YES)
+        self.review.auto_actions(lambda m: None)
+        self.assertEqual(self.review.status_of("m1"), "applied")
+
+    def test_rolled_back_if_the_test_shows_it_does_worse(self):
+        self.applied()
+        self.review.auto_actions(lambda m: None)
+        self.assertEqual(self.review.status_of("m1"), "applied", "no result yet")
+        self.verdict("m1", "not met")
+        self.review.auto_actions(lambda m: None)
+        self.assertEqual(self.review.status_of("m1"), "rolled_back")
+        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "instructions\n")
+
+    def test_kept_if_the_test_finds_no_clear_harm(self):
+        self.applied()
+        self.verdict("m1", "met")
+        self.review.auto_actions(lambda m: None)
+        self.assertEqual(self.review.status_of("m1"), "kept")
+        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "new\n")
+
+    def test_edited_since_or_unsettled_waits_for_you_still_applied(self):
+        self.applied()
+        (self.ws / "CLAUDE.md").write_text("new\nmy edit\n")
+        self.verdict("m1", "not met")
+        self.review.auto_actions(lambda m: None)
+        self.review.auto_actions(lambda m: None)
+        self.assertEqual(self.review.status_of("m1"), "applied")
+        self.assertEqual(sum(e.get("event") == "test_result_seen" for e in self.review.events()), 1)
+
+    def test_one_at_a_time(self):
+        self.applied()
+        self.major("m2")
+        (self.ws / "techwatch" / "staged" / "m2" / "manifest.json").write_text(json.dumps(
+            {"proposal": "m2", "changes": [{"action": "write", "target": "b.md", "source": "files/c.md"}]}))
+        self.reviewers("m2", claude=self.YES, chatgpt=self.YES)
+        self.review.auto_actions(lambda m: None)
+        self.assertNotEqual(self.review.status_of("m2"), "applied")
+
+class TestMajorNoticeAndYourApplyFirst(TestAutomatic):
+    def fake_notify(self):
+        import types
+        sent = []
+        mod = types.SimpleNamespace(ready=lambda: True, send=lambda title, body, **kw: sent.append(body) or True)
+        from unittest import mock
+        patcher = mock.patch.dict(sys.modules, {"notify": mod})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return sent
+
+    def test_a_new_major_proposal_is_announced_once_with_the_apply_first_command(self):
+        sent = self.fake_notify()
+        self.prefs("ask me", other="no")
+        self.proposal("m1", significance="major", created=date.today().isoformat())
+        self.proposal("n1", created=date.today().isoformat())
+        self.review.announce_major(lambda m: None)
+        self.review.announce_major(lambda m: None)
+        self.assertEqual(len(sent), 1)
+        self.assertIn("review.py apply-first m1", sent[0])
+
+    def test_the_notice_can_be_turned_off(self):
+        sent = self.fake_notify()
+        self.prefs("ask me", other="no")
+        with open(self.ws / "my" / "techwatch-auto.md", "a") as f:
+            f.write("**Tell me about major changes:** no\n")
+        self.proposal("m1", significance="major", created=date.today().isoformat())
+        self.review.announce_major(lambda m: None)
+        self.assertEqual(sent, [])
+
+    def test_your_apply_first_needs_no_reviewers_but_respects_never_automatic(self):
+        self.prefs("ask me", other="no")
+        self.staged("p1")
+        self.staged("p2", target=".claude/hooks/h.py")
+        self.review.cmd_apply_first("p1")
+        self.review.cmd_apply_first("p2")
+        self.assertEqual(self.review.auto_actions(lambda m: None), ["p1"])
+        self.assertTrue(self.review.test_request("p1").get("applied_first"))
+        self.assertEqual(self.review.status_of("p2"), "staged")
+        self.verdict("p1", "not met")
+        self.review.auto_actions(lambda m: None)
+        self.assertEqual(self.review.status_of("p1"), "rolled_back")
+
+class TestPersonalChanges(Workspace):
+    """Changes for the operator only ("audience": "me") stay in the working copy and out of every commit."""
+
+    def setUp(self):
+        super().setUp()
+        self.git("init", "-q")
+        self.git("config", "user.email", "t@example.com")
+        self.git("config", "user.name", "t")
+        (self.ws / "agent.md").write_text("name: critic\nmodel: opus\n\nRead the draft.\nBe fair.\n")
+        self.git("add", "-A")
+        self.git("commit", "-qm", "start")
+        self.personal = load(self.ws / "techwatch" / "scripts" / "personal.py", f"personal_{id(self)}")
+        self.personal.review = self.review
+
+    def git(self, *a):
+        return subprocess.run(["git", *a], cwd=self.ws, capture_output=True, text=True, check=True).stdout
+
+    def change(self, pid, audience, text, target="agent.md"):
+        self.proposal(pid, audience=audience)
+        self.bundle(pid, [{"action": "write", "target": target, "source": "files/c.md"}], {"c.md": text})
+        self.review.cmd_apply(pid, yes=True)
+
+    def test_a_commit_keeps_public_changes_and_leaves_out_yours(self):
+        self.change("me1", "me", "name: critic\nmodel: fable\n\nRead the draft.\nBe fair.\n")
+        self.change("all1", "everyone", "name: critic\nmodel: fable\n\nRead the draft.\nBe fair.\nCite sources.\n")
+        self.assertIn("model: fable", (self.ws / "agent.md").read_text())
+        self.assertEqual(len(self.personal.problems()), 0, "nothing staged yet")
+        self.git("add", "agent.md")
+        self.assertEqual(len(self.personal.problems()), 1, "a plain git add would publish the personal line")
+        self.personal.add(["agent.md"])
+        staged = self.git("show", ":agent.md")
+        self.assertIn("Cite sources.", staged)
+        self.assertIn("model: opus", staged)
+        self.assertEqual(self.personal.problems(), [])
+        self.assertIn("model: fable", (self.ws / "agent.md").read_text(), "your copy keeps it")
+
+    def test_same_lines_cant_be_separated(self):
+        self.change("me1", "me", "name: critic\nmodel: fable\n\nRead the draft.\nBe fair.\n")
+        (self.ws / "agent.md").write_text("name: critic\nmodel: sonnet\n\nRead the draft.\nBe fair.\n")
+        with self.assertRaises(self.personal.Tangled):
+            self.personal.add(["agent.md"])
+
+    def test_a_file_made_for_you_is_left_out(self):
+        self.change("me1", "me", "mine\n", target="mine.md")
+        self.personal.add(["mine.md"])
+        self.assertNotIn("mine.md", self.git("diff", "--cached", "--name-only"))
+
+    def test_rolled_back_or_public_changes_arent_personal(self):
+        self.change("me1", "me", "name: critic\nmodel: fable\n\nRead the draft.\nBe fair.\n")
+        self.review.cmd_rollback("me1", yes=True)
+        self.change("all1", "everyone", "name: critic\nmodel: haiku\n\nRead the draft.\nBe fair.\n")
+        self.assertEqual(self.personal.personal(), [])
+        self.git("add", "agent.md")
+        self.assertEqual(self.personal.problems(), [])
 
 class TestSafeguards(TestAutomatic):
     def test_a_passed_test_still_respects_never_automatic(self):
@@ -810,6 +1012,56 @@ class TestCheckRun(TestAutomatic):
         self.staged("p1", target="a.md")
         (self.ws / "techwatch" / "staged" / "p1" / "CHECK.md").write_text("Narrow: yes\nVERDICT: READY\nok\n")
         self.assertTrue(self.load_criteria().steering("p1"))
+
+
+class TestStaleMerge(Workspace):
+    """A change prepared as a whole-file write, then the file edited: the change is merged into today's file
+    (three-way, from the saved staging-time copy) instead of undoing the edit, unless the edits overlap."""
+
+    def stage_on(self, base, staged, now):
+        import hashlib
+        self.proposal("p1")
+        (self.ws / "a.md").write_text(now)
+        self.bundle("p1", [{"action": "write", "target": "a.md", "source": "files/a.md"}], {"a.md": staged})
+        d = self.ws / "techwatch" / "state" / "stage-bases"
+        (d / "p1" / "files").mkdir(parents=True)
+        (d / "p1" / "files" / "a.md").write_text(base)
+        (d / "p1.json").write_text(json.dumps({"a.md": hashlib.sha256(base.encode()).hexdigest()}))
+
+    def test_separate_edits_merge(self):
+        self.stage_on("one\ntwo\nthree\n", "one\ntwo\nthree\nadded by the change\n", "one EDITED\ntwo\nthree\n")
+        self.assertEqual(self.review.merged_write("p1", "a.md", "one\ntwo\nthree\nadded by the change\n"),
+                         "one EDITED\ntwo\nthree\nadded by the change\n")
+        never, reviewed = self.review.classify("p1")
+        self.assertFalse([x for x in never if "changed since" in x])
+        self.assertIn("a.md (merged with edits made since it was prepared)", reviewed)
+        self.review.cmd_apply("p1", yes=True)
+        self.assertEqual((self.ws / "a.md").read_text(), "one EDITED\ntwo\nthree\nadded by the change\n")
+
+    def test_overlapping_edits_still_wait(self):
+        self.stage_on("one\n", "one by the change\n", "one by you\n")
+        self.assertIsNone(self.review.merged_write("p1", "a.md", "one by the change\n"))
+        self.assertIn("a.md (changed since the change was prepared)", self.review.classify("p1")[0])
+
+
+class TestRunsInTest(Workspace):
+    def test_inert_setting_and_by_hand_wording_dont_count_as_running_code(self):
+        self.proposal("p1")
+        (self.ws / ".claude").mkdir()
+        (self.ws / ".claude" / "settings.json").write_text('{"permissions": {"allow": []}}')
+        self.bundle("p1", [{"action": "write", "target": ".claude/settings.json", "source": "files/s.json"},
+                           {"action": "manual", "why": "the project settings file outranks a saved level"}],
+                    {"s.json": '{"effortLevel": "high", "permissions": {"allow": []}}'})
+        self.assertEqual(self.review.runs_in_test("p1"), [])
+        self.assertTrue(any("effortLevel" in x for x in self.review.classify("p1")[0]), "still waits for you")
+
+    def test_a_hook_setting_counts(self):
+        self.proposal("p1")
+        (self.ws / ".claude").mkdir()
+        (self.ws / ".claude" / "settings.json").write_text('{}')
+        self.bundle("p1", [{"action": "write", "target": ".claude/settings.json", "source": "files/s.json"}],
+                    {"s.json": '{"hooks": {"Stop": []}}'})
+        self.assertTrue(self.review.runs_in_test("p1"))
 
 
 if __name__ == "__main__":

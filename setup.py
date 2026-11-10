@@ -288,8 +288,8 @@ def setup_techwatch():
         text = (HERE / "templates" / "techwatch.md").read_text(encoding="utf-8")
         print(S.head("Tech watch"))
         print("Tech watch looks for new tools and AI features that could help your work, and prepares each change as "
-              "an exact edit\n  to the workspace. A daily and a weekly scan use roughly $15-35 of usage a month, "
-              "capped at $30.")
+              "an exact edit\n  to the workspace. A daily and a weekly scan use roughly $25-45 of usage a month, "
+              "capped at $45.")
         a = ask("  Run it automatically (Enter), only when you start it (m), or not at all (o)? [A/m/o]\n"
                 "  (Automatic doesn't start the schedule by itself: setup shows you the one command that does, at "
                 "the end.)", "a").lower()

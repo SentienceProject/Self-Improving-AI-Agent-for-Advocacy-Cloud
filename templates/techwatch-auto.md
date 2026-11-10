@@ -19,6 +19,19 @@ The citation checker this workspace added is the model case. -->
 **Other changes:** no
 <!-- "yes" lets every change through (what "test it, apply if it passes" and "apply it" meant before this file). -->
 
+**Major changes before their test:** yes
+<!-- A few major changes shouldn't wait days for a test: a new model generation that clearly beats the current one
+on many kinds of tasks, for example. With "yes", a major change that the scout marks "apply first", and that every
+reviewer agrees is major, worth adopting and backed by strong evidence across many tasks, is applied straight away
+(without waiting for the spacing below), then tested, and rolled back if the test shows it does worse; with no
+clear harm it's kept. Only with "test it, apply if it passes" or "apply it", only with the eval harness set up,
+only for changes that can be undone, and one at a time. The never-automatic list below still applies. -->
+
+**Tell me about major changes:** yes
+<!-- A phone notification (scripts/notify.py, if you've turned notifications on) when a scout files a major change,
+saying whether it'll be tested first and how to apply it before its test instead:
+`python3 techwatch/scripts/review.py apply-first <id>`. That command works whatever this line says. -->
+
 **Trials:** yes
 <!-- A test of a few tasks can't tell small gains from noise, so a change whose test showed no clear difference may
 still help. With "yes", such a change can go on trial automatically, if it qualifies above, can be undone, doesn't

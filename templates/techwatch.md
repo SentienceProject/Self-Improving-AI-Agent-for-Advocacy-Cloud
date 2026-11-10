@@ -12,9 +12,9 @@ have no limit there. -->
 `python3 scripts/update.py`. -->
 
 **Scans:** daily and weekly
-<!-- "daily and weekly": a quick daily scan (Sonnet, up to $1) plus a deeper weekly one (Opus, up to $4); roughly
-$15-35 of usage a month. "weekly only": roughly $5-15 a month. Preparing a change costs up to $3 more. Everything
-stops at the monthly cap in techwatch/config.json ($30). On a subscription these are estimates against your usage
+<!-- "daily and weekly": a quick daily scan (Opus, up to $1.50) plus a deeper weekly one (Opus, up to $4); roughly
+$25-45 of usage a month. "weekly only": roughly $5-15 a month. Preparing a change costs up to $3 more. Everything
+stops at the monthly cap in techwatch/config.json ($45). On a subscription these are estimates against your usage
 limits, not charges. -->
 
 **When a change is ready:** test it, apply if it passes

@@ -10,7 +10,7 @@ nothing changes in the workspace until you say yes.
 | Setting | Choices |
 |---|---|
 | `Tech watch runs:` | `automatically` (default; `techwatch.py schedule on`, which setup.py runs for you) · `when I start it` (Claude reminds you when a weekly scan is due) · `off` |
-| `Scans:` | `daily and weekly` (default; roughly $15-35 of usage a month) · `weekly only` (roughly $5-15) |
+| `Scans:` | `daily and weekly` (default; roughly $25-45 of usage a month) · `weekly only` (roughly $5-15) |
 | `When a change is ready:` | `ask me` (default) · `test it, then ask me` · `test it, apply if it passes` · `apply it` |
 | `Eval harness folder:` | where `ai-welfare-eval-harness` is, for testing changes (setup.py fills it in if it finds one beside the workspace in the repository, or in `~/ai-welfare-evals/`) |
 
@@ -21,6 +21,8 @@ nothing changes in the workspace until you say yes.
 | `Major changes:` | yes: breakthrough-level changes, if every reviewer agrees they're major |
 | `Changes that meet all four criteria:` | yes: every reviewer finds it specific, narrow, worth adopting, and good under virtually every ethical framework |
 | `Other changes:` | no (yes = every change) |
+| `Major changes before their test:` | yes: a major change the scout marks "apply first", with every reviewer agreeing it's major, worth adopting and backed by strong evidence across many tasks, is applied at once, then tested, and rolled back if it does worse |
+| `Tell me about major changes:` | yes: a phone notification (if notifications are on) when a major change is filed, with `review.py apply-first <id>` to apply it before its test |
 | `At most one automatic change every:` | 7 days |
 
 The reviewers are a fresh Claude session (no tools, a few cents) plus ChatGPT and Gemini when the eval harness has
@@ -67,7 +69,7 @@ run and waits until you say you've read it, and the eval harness refuses to buil
 that kind. A test can't apply anything; a change that passes is applied only if it's still byte for byte the bundle
 that was tested.
 
-Scans and preparation stop for the month at `monthly_cap_usd` in `config.json` ($30).
+Scans and preparation stop for the month at `monthly_cap_usd` in `config.json` ($45).
 
 Improvements also come from the maintainer: whoever maintains the workspace you downloaded runs tech watch, tests
 what it finds and publishes the good changes. If you cloned it with git, Claude tells you at the start of a
@@ -165,7 +167,7 @@ of the folder and run both.
    ├─ sensor.py ─ no AI ─ fetches the watched pages, keeps only new lines → inbox/sensor-DATE.md
    │
    ├─ weekly scout (Opus, ≤$4) ─ every 7 days: landscape, creative and subtraction passes, follow-ups
-   │     (daily scout, Sonnet ≤$1, on other days unless my/techwatch.md says "weekly only")
+   │     (daily scout, Opus ≤$1.50, on other days unless my/techwatch.md says "weekly only")
    │     → inbox/DATE-weekly.md and up to 3 proposals in proposals/<id>/
    │
    └─ stage run (Opus, ≤$3) ─ for each notable or major proposal (and any you approve): the exact change
@@ -229,11 +231,21 @@ file generated for each run allows writes only where the table says, and a guard
 blocks any other write even if a rule were wrong. A proposal's status comes **only** from `state/ledger.jsonl`,
 which only `review.py` writes, so a proposal, or a web page quoted into one, can't approve itself.
 
+## Changes for you only
+
+Each proposal says who it's for (`audience` in its meta.json): "everyone", or "me" when only your own settings in
+`my/` make it worth doing (your budget, platform, privacy, interests). Both kinds are applied to your copy the same
+way. The difference matters only if you publish your copy of the workspace: a "me" change is never committed.
+`python3 techwatch/scripts/personal.py add <file>` stages a file without your personal changes, so other changes to
+the same file still go in. Tech watch's before/after copies make that a three-way merge. `scripts/leak_check.py`
+refuses a commit or push that still holds one. If a later edit touched the same lines as your change, the two can't
+be told apart: commit that file by hand (`git add -p`). `personal.py list` shows what's yours only.
+
 ## Cost
 
-Per-run caps are in `config.json`: weekly $4, daily $1, staging $3. With the default daily and weekly scans,
-expect roughly $15–35 a month; `weekly only` (in `my/techwatch.md`) runs $5–15. Nothing starts once this month's
-runs would pass `monthly_cap_usd` ($30), so a busy month ends early. Tests in the eval harness are separate
+Per-run caps are in `config.json`: weekly $4, daily $1.50, staging $3. With the default daily and weekly scans,
+expect roughly $25–45 a month; `weekly only` (in `my/techwatch.md`) runs $5–15. Nothing starts once this month's
+runs would pass `monthly_cap_usd` ($45), so a busy month ends early. Tests in the eval harness are separate
 (roughly $10–40 each) and stop at the harness's own usage limits. On a subscription these are estimates
 against your usage limits, not charges, and they compete with your own work for the same limits.
 

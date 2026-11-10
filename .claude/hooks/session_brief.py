@@ -14,7 +14,7 @@ import os
 import subprocess
 import sys
 import time
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +42,14 @@ def applied_lines():
         out.append(f"Tech watch applied {pid} ({note.split('; ', 1)[-1]}): {title[:120]}. "
                    f"Undo: ! python3 techwatch/scripts/review.py rollback {pid} --yes")
         NEWLY_SEEN.add(pid)
+    # a change applied before its test, then rolled back because the test showed it did worse
+    since = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+    for e in review.events()[-400:]:
+        key = f"{e.get('id')}:rolled_back:{e.get('ts', '')}"
+        if (e.get("event") == "rolled_back" and str(e.get("note", "")).startswith("applied before its test")
+                and e.get("ts", "") >= since and key not in seen):
+            out.append(f"Tech watch rolled back {e['id']}: {e['note'][:200]}")
+            NEWLY_SEEN.add(key)
     return out
 
 

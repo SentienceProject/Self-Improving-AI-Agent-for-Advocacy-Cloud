@@ -16,6 +16,8 @@
                                      with real differences, or build on it. --kind: not this kind of change at all
     review.py shelve  <id> [note]    not now: kept for later, and scouts may bring it back or build on it
     review.py trial   <id> [--yes]   apply it on trial: checked at the next checkup, then kept or rolled back
+    review.py apply-first <id>       apply it as soon as it's prepared and checked, then test it; rolled back if the
+                                     test shows it does worse (for a change you trust before its test)
     review.py test <id> --deeper     test again with every task run several times (about 3x the cost), for a
                                      result too small for the first test to settle
     review.py defer   <id> [YYYY-MM-DD] [note]
@@ -39,7 +41,7 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 TW = Path(__file__).resolve().parent.parent
@@ -239,8 +241,12 @@ def classify(pid):
         src = (STAGED / pid / str(ch.get("source", ""))).resolve()
         old = p.read_text(encoding="utf-8") if p.exists() else ""
         new = src.read_text(encoding="utf-8") if src.is_file() else ""
+        merged = None
         if ch.get("action") == "append":
             new = old + ("" if old.endswith("\n") or not old else "\n") + new
+        elif p.exists() and base_changed(pid, rel):
+            merged = merged_write(pid, rel, new)   # edited since it was prepared: the change merged into today's file
+            new = merged if merged is not None else new
         if REVIEWED.search(rel):
             if rel.endswith("settings.json"):
                 why = settings_change(old, new)
@@ -255,7 +261,9 @@ def classify(pid):
                 never.append(f"{rel} (its hooks, MCP servers or permission mode)")
             else:
                 reviewed.append(f"{rel} (its tools or settings)")
-        if p.exists() and base_changed(pid, rel):
+        if merged is not None:
+            reviewed.append(f"{rel} (merged with edits made since it was prepared)")
+        elif p.exists() and base_changed(pid, rel):
             never.append(f"{rel} (changed since the change was prepared)")
         elif rel == "CLAUDE.md" and hard_constraints(old) != hard_constraints(new):
             never.append("CLAUDE.md's hard constraints")
@@ -356,6 +364,12 @@ def needs_review(pid):
     return classify(pid)[1]
 
 
+# Settings that only choose how Claude works (model, effort, display) and can't run a command, a hook or a server,
+# or loosen the sandbox: a change to them still waits for you, but a test of it doesn't need you to read it first.
+INERT_SETTINGS = {"effortLevel", "model", "alwaysThinkingEnabled", "cleanupPeriodDays", "outputStyle",
+                  "includeCoAuthoredBy", "spinnerTipsEnabled"}
+
+
 def settings_change(old, new):
     """'' if .claude/settings.json changes only by permission rules, without dropping an ask or deny rule;
     otherwise what else it changes."""
@@ -368,6 +382,10 @@ def settings_change(old, new):
     rest = lambda d, p: {**{k: v for k, v in d.items() if k != "permissions"},
                          "permissions": {k: v for k, v in p.items() if k not in rules}}
     if rest(o, po) != rest(n, pn):
+        ro, rn = rest(o, po), rest(n, pn)
+        keys = sorted(k for k in set(ro) | set(rn) if ro.get(k) != rn.get(k))
+        if not set(keys) - INERT_SETTINGS:   # still yours to approve, but nothing in it runs code
+            return f"changes {', '.join(keys)} (a setting that runs nothing)"
         return "changes settings other than permission rules"
     dropped = [r for k in ("ask", "deny") for r in po.get(k, []) if r not in pn.get(k, [])]
     return f"removes {', '.join(dropped[:3])}" if dropped else ""
@@ -404,6 +422,54 @@ def base_changed(pid, rel):
     p = WS / rel
     now = hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
     return now != bases[rel]
+
+
+def staging_version(pid, rel):
+    """The text of rel as it was when the change was prepared, or None: techwatch.py's saved copy
+    (state/stage-bases/<id>/files/), else the matching version in the workspace's git history."""
+    import hashlib
+    try:
+        sha = json.loads((TW / "state" / "stage-bases" / f"{pid}.json").read_text(encoding="utf-8"))[rel]
+    except (OSError, ValueError, KeyError):
+        return None
+    if sha is None:
+        return None
+    saved = TW / "state" / "stage-bases" / pid / "files" / rel
+    if saved.is_file() and hashlib.sha256(saved.read_bytes()).hexdigest() == sha:
+        return saved.read_text(encoding="utf-8")
+    try:
+        top = subprocess.run(["git", "-C", str(WS), "rev-parse", "--show-toplevel"], capture_output=True,
+                             text=True, check=True).stdout.strip()
+        path = (WS / rel).resolve().relative_to(Path(top).resolve()).as_posix()
+        commits = subprocess.run(["git", "-C", top, "log", "--format=%H", "-n", "60", "--", path],
+                                 capture_output=True, text=True, check=True).stdout.split()
+    except (OSError, ValueError, subprocess.CalledProcessError):
+        return None
+    for c in commits:
+        r = subprocess.run(["git", "-C", top, "show", f"{c}:{path}"], capture_output=True)
+        if r.returncode == 0 and hashlib.sha256(r.stdout).hexdigest() == sha:
+            return r.stdout.decode("utf-8")
+    return None
+
+
+def merged_write(pid, rel, staged):
+    """A staged whole-file write merged (three-way, git merge-file) into rel as it is now, for a file edited since
+    the change was prepared, so applying it doesn't undo those edits; None if the version it was prepared on can't
+    be found or the edits overlap. The eval harness's techtest.py builds its test arm the same way."""
+    import tempfile
+    base, p = staging_version(pid, rel), WS / rel
+    if base is None or not p.is_file():
+        return None
+    with tempfile.TemporaryDirectory() as d:
+        paths = []
+        for name, text in (("current", p.read_text(encoding="utf-8")), ("base", base), ("staged", staged)):
+            (Path(d) / name).write_text(text, encoding="utf-8")
+            paths.append(str(Path(d) / name))
+        try:
+            r = subprocess.run(["git", "merge-file", "-p", *paths], capture_output=True)
+        except OSError:
+            return None
+    return r.stdout.decode("utf-8") if r.returncode == 0 else None
 
 
 def hard_constraints(text):
@@ -742,7 +808,12 @@ def cmd_apply(pid, each=False, auto=None, by_settings=False, yes=False):
         new = src.read_text(encoding="utf-8")
         old = target.read_text(encoding="utf-8") if target.exists() else ""
         final = (old + ("" if old.endswith("\n") or not old else "\n") + new) if action == "append" else new
-        writes.append({"n": i, "target": target, "rel": target.relative_to(WS).as_posix(), "old": old,
+        rel, merged = target.relative_to(WS).as_posix(), False
+        if action == "write" and target.exists() and base_changed(pid, rel):
+            m = merged_write(pid, rel, new)   # edited since it was prepared: keep those edits, add the change
+            if m is not None:
+                final, merged = m, True
+        writes.append({"n": i, "target": target, "rel": rel, "old": old, "merged": merged,
                        "new": final, "why": ch.get("why", ""), "exists": target.exists()})
 
     if not writes and not manual:
@@ -769,7 +840,10 @@ def cmd_apply(pid, each=False, auto=None, by_settings=False, yes=False):
             print(f"  - {ch.get('run') or ch.get('instructions')}  {DIM}({ch.get('why', '')}){OFF}")
         print()
 
-    stale = [w["rel"] for w in writes if w["exists"] and base_changed(pid, w["rel"])]
+    if merged := [w["rel"] for w in writes if w["merged"]]:
+        print(f"{YEL}Changed since this was prepared, so the change was merged into today's version (your later "
+              f"edits are kept; the diff above is against today's file): {', '.join(merged)}{OFF}")
+    stale = [w["rel"] for w in writes if w["exists"] and not w["merged"] and base_changed(pid, w["rel"])]
     if stale:
         print(f"{RED}{BOLD}Changed since this was prepared:{OFF}{RED} {', '.join(stale)}. Applying would undo those "
               f"edits (the red lines above). Consider re-preparing it: review.py approve {pid}{OFF}")
@@ -1078,7 +1152,10 @@ def cmd_test(pid, then_apply=True, note="", depth="standard"):
           f"Results: review.py show {pid}")
 
 
-RUNS_CODE = re.compile(r"/hooks/|\.mcp\.json|settings|hooks, MCP servers")
+# Matched against classify()'s "never" entries. Not the bare word "settings": that also matched a by-hand step's
+# wording and a settings.json that only changes an inert setting (INERT_SETTINGS), neither of which runs anything.
+RUNS_CODE = re.compile(r"/hooks/|\.mcp\.json|settings\.local\.json|settings other than permission rules|"
+                       r"settings\.json \((removes|not valid)|hooks, MCP servers")
 
 
 def runs_in_test(pid):
@@ -1168,10 +1245,16 @@ def auto_actions(log=print):
     harness = techtest_script(pr)
     scope = criteria.settings()
     end_trials(log, automatic=pr["ready"] in ("test", "apply"))
+    announce_major(log)
+    settle_applied_first(log)
     evs = events()
     for d in proposals():
         pid = d.name
         if status_of(pid, evs) != "staged":
+            continue
+        if asked_first(pid, evs) and apply_first(pid, criteria, scope, [], evs, harness, log, asked=True):
+            done.append(pid)
+            evs = events()
             continue
         req = test_request(pid, evs)
         if req:
@@ -1225,6 +1308,10 @@ def auto_actions(log=print):
                 record(pid, "not_automatic", blocked)
                 log(f"{pid} waits for you: {blocked}")
             continue
+        if pr["ready"] in ("test", "apply") and apply_first(pid, criteria, scope, reviewed, evs, harness, log):
+            done.append(pid)
+            evs = events()
+            continue
         if pr["ready"] in ("test", "test-only") and not harness:
             continue
         if pr["ready"] == "apply" and not spaced(scope["space_days"], evs):
@@ -1246,6 +1333,134 @@ def auto_actions(log=print):
     if harness:
         start_tests(harness, log)   # quick when there's nothing to do; also runs the harness's periodic checkup
     return done
+
+
+# ---------------------------------------------------------------- major changes applied before their test
+def applied_first_waiting(evs=None):
+    """The id of a change applied before its test whose result hasn't settled it yet, or None."""
+    evs = events() if evs is None else evs
+    return next((d.name for d in proposals() if status_of(d.name, evs) == "applied"
+                 and (test_request(d.name, evs) or {}).get("applied_first")), None)
+
+
+def asked_first(pid, evs=None):
+    """True if you asked for pid to be applied before its test (review.py apply-first)."""
+    return any(e.get("id") == pid and e.get("event") == "apply_first_requested" for e in (evs or events()))
+
+
+def apply_first(pid, criteria, scope, reviewed, evs, harness, log=print, asked=False):
+    """A major change with strong evidence across many tasks (the scout's apply_first, and every reviewer agreeing;
+    my/techwatch-auto.md: "Major changes before their test"), or one you asked for (asked: review.py apply-first),
+    is applied now, without waiting for the spacing rule, and then tested; settle_applied_first rolls it back if
+    the test shows it does worse. True if it was applied."""
+    m = meta(PROPOSALS / pid)
+    if not harness or (not asked and (m.get("apply_first") is not True or m.get("significance") != "major")):
+        return False
+    if m.get("reversible") is False or m.get("options") == "closes":
+        return False
+    if applied_first_waiting(evs):
+        return False   # one at a time, so a bad result points at one change
+    if asked:   # your request stands in for the reviewers, but not for the never-automatic rules or the check run
+        never, _ = classify(pid)
+        blocked = check_blocks(pid, evs)
+        if never or blocked:
+            if not any(e.get("id") == pid and e.get("event") == "not_applied_first" for e in evs):
+                why = f"never automatic: {', '.join(never)}" if never else blocked
+                record(pid, "not_applied_first", why)
+                log(f"{pid} isn't applied before its test: {why}; review.py apply {pid} applies it by hand")
+            return False
+        ok, why = True, "you asked for it (review.py apply-first)"
+    else:
+        ok, why = criteria.applies_first(pid, scope, strict=bool(reviewed))
+    if not ok:
+        if not any(e.get("id") == pid and e.get("event") == "not_applied_first" for e in evs):
+            record(pid, "not_applied_first", why)
+            log(f"{pid} isn't applied before its test: {why}")
+        return False
+    if not cmd_apply(pid, auto=f"applied before its test; {why}", by_settings=True):
+        return False
+    record(pid, "test_requested", "applied before its test; rolled back if the test shows it does worse",
+           apply_if_passes=False, auto=True, applied_first=True)
+    log(f"applied {pid} before its test ({why}); it's tested now, and rolled back if it does worse")
+    return True
+
+
+def cmd_apply_first(pid):
+    """You want pid applied before its test: recorded now, done by the next tech-watch run once it's prepared and
+    checked."""
+    require(pid)
+    st = status_of(pid)
+    if st not in ("pending", "approved", "staged"):
+        sys.exit(f"{pid} is {st}: only a proposal still waiting can be applied first.")
+    if not techtest_script():
+        sys.exit("Applying first means testing afterwards, and no eval harness is set up (my/techwatch.md, "
+                 f"'Eval harness folder'). review.py apply {pid} applies it without a test.")
+    if meta(PROPOSALS / pid).get("reversible") is False:
+        sys.exit(f"{pid} can't be undone, so it isn't applied before its test.")
+    record(pid, "apply_first_requested", "you asked")
+    print(f"{pid}: the next tech-watch run applies it once it's prepared and checked, then tests it; it's rolled back "
+          f"if the test shows it does worse. Changes that are never automatic (hooks, settings, ethics...) still "
+          f"wait for review.py apply {pid}.")
+
+
+def announce_major(log=print):
+    """A phone notification (scripts/notify.py, if it's on) for each new major proposal, saying how to apply it
+    before its test. my/techwatch-auto.md: "Tell me about major changes"."""
+    if not load_criteria().settings().get("tell_major", True):
+        return
+    sys.path.insert(0, str(WS / "scripts"))
+    try:
+        import notify
+    except ImportError:
+        return
+    if not notify.ready():
+        return
+    evs, since = events(), (datetime.now(timezone.utc) - timedelta(days=7)).date().isoformat()
+    for d in proposals():
+        m, pid = meta(d), d.name
+        if (m.get("significance") != "major" or str(m.get("created", pid[:10])) < since
+                or status_of(pid, evs) not in ("pending", "approved", "staged")
+                or any(e.get("id") == pid and e.get("event") == "major_announced" for e in evs)):
+            continue
+        if m.get("apply_first") is True:
+            how = ("The scout marked it to apply before its test, which happens if every reviewer agrees. "
+                   f"To stop it: python3 techwatch/scripts/review.py shelve {pid}")
+        else:
+            how = ("It's tested before it's applied. To apply it first instead (then tested, and rolled back if it "
+                   f"does worse): python3 techwatch/scripts/review.py apply-first {pid}")
+        if notify.send("Tech watch: a major change", f"{m.get('title', pid)}\n\n{how}", priority="high",
+                       tags="rocket"):
+            record(pid, "major_announced", "phone notification sent")
+            log(f"{pid}: told you about it by phone notification")
+
+
+def settle_applied_first(log=print):
+    """Once a change applied before its test has a result: no clear harm, it's kept; worse, it's rolled back (if
+    nobody has edited its files since); anything else waits for you, still applied."""
+    evs = events()
+    for d in proposals():
+        pid, req = d.name, test_request(d.name, evs)
+        if not req or not req.get("applied_first") or status_of(pid, evs) != "applied":
+            continue
+        outcome, verdict = evaluation(pid, req.get("ts", ""))
+        if not outcome:
+            continue
+        ev = evidence_of(pid)
+        found = (ev or {}).get("plain") or f"{outcome}: {verdict or 'no verdict'}"
+        if verdict == "met":
+            record(pid, "kept", f"applied before its test; the test found no clear harm: {found}")
+            log(f"{pid}: kept (applied before its test, which found no clear harm)")
+        elif verdict == "not met" and safe_to_undo(pid):
+            undo_quietly(pid, f"applied before its test, which showed it did worse: {found}")
+            log(f"{pid}: rolled back (applied before its test, which showed it did worse: {found})")
+        elif not any(e.get("id") == pid and e.get("event") == "test_result_seen"
+                     and e.get("ts", "") >= req.get("ts", "") for e in evs):
+            why = ("its files were edited since, so undoing it waits for you" if verdict == "not met"
+                   else "the test couldn't settle it")
+            record(pid, "test_result_seen", f"applied before its test; {found}; {why}")
+            log(f"{pid} is still applied and waits for you ({why}): review.py evaluated {pid} keep, or "
+                f"review.py rollback {pid}")
+        evs = events()
 
 
 def spaced(days, evs=None):
@@ -1429,7 +1644,8 @@ def main(a):
         return cmd_checkpoints()
     if c == "restore" and rest:
         return cmd_restore(rest[0])
-    if c in ("show", "apply", "rollback", "approve", "reject", "defer", "shelve", "trial", "evaluated", "test") \
+    if c in ("show", "apply", "rollback", "approve", "reject", "defer", "shelve", "trial", "evaluated", "test",
+             "apply-first") \
             and not rest:
         sys.exit(f"usage: review.py {c} <id>")
     if c == "show":
@@ -1439,6 +1655,8 @@ def main(a):
                                     "shelve": "shelved"}[c], rest[1:])
     if c == "trial":
         return cmd_trial(rest[0], yes="--yes" in rest)
+    if c == "apply-first":
+        return cmd_apply_first(rest[0])
     if c == "apply":
         return cmd_apply(rest[0], "--each" in rest, yes="--yes" in rest)
     if c == "test":

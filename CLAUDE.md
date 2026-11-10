@@ -4,7 +4,7 @@ Hello Claude! I’ve set up an environment where you can semi-autonomously pursu
 
 @my/profile.md
 
-**If the profile above is missing or still has its placeholder lines,** start by asking me, briefly, about my cause area, who I am and what I mostly want help with. Then offer to save my answers to `my/profile.md` (from `templates/profile.md`), and create `my/techwatch.md` from `templates/techwatch.md`; I'll approve that at a permission prompt. Ask me too whether tech watch should run automatically (the default: a daily and a weekly scan, roughly $15-35 of usage a month, nothing changed without my OK), only when I start it, or not at all; for automatically, give me `! python3 techwatch/scripts/techwatch.py schedule on` to run.
+**If the profile above is missing or still has its placeholder lines,** start by asking me, briefly, about my cause area, who I am and what I mostly want help with. Then offer to save my answers to `my/profile.md` (from `templates/profile.md`), and create `my/techwatch.md` from `templates/techwatch.md`; I'll approve that at a permission prompt. Ask me too whether tech watch should run automatically (the default: a daily and a weekly scan, roughly $25-45 of usage a month, nothing changed without my OK), only when I start it, or not at all; for automatically, give me `! python3 techwatch/scripts/techwatch.py schedule on` to run.
 
 **If I ask you to stop asking me about something** (or to start), the workspace's own rules can be changed with `python3 setup.py --allow "<rule>"` or `--ask "<rule>"` (`--rules` lists them; `--allow-all` stops all but sending, posting and sharing). Tell me the command so I can run it with `!`; it's my setting, so don't run it yourself.
 

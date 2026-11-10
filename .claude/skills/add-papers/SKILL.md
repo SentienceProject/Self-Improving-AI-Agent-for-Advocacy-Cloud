@@ -8,10 +8,16 @@ description: Find good open-access papers on a topic and add the ones the operat
 The corpus is what researchers and the verifier can quote exactly, so what goes in should be worth relying on, and
 the operator decides what goes in.
 
-1. **Find candidates** (skip if the operator named the papers). Search the literature, not the news: scholarly
-   search and APIs (`api.openalex.org/works?search=...`, `api.semanticscholar.org/graph/v1/paper/search?query=...`,
-   arXiv, PubMed Central, Europe PMC, PhilPapers). Prefer reviews, much-cited primary work, and recent papers that
-   change the picture. Include at least one strong paper that cuts against the operator's likely view.
+1. **Find candidates** (skip if the operator named the papers). Search the literature, not the news:
+
+       python3 scripts/search_papers.py "<key terms>" [--source openalex|s2|arxiv|europepmc|all] [--sort cited]
+
+   It prints a short entry per hit (authors, year, citations, DOI, free link, start of the abstract). OpenAlex, the
+   default, matches title and abstract, so use the topic's own terms; try two or three phrasings, `--sort cited`
+   for the much-cited work, and `--source all` for a wider net. Don't call the APIs with curl (it's blocked). Also
+   use WebSearch: it finds things the indexes miss, such as PhilPapers entries, books and critiques. Prefer reviews,
+   much-cited primary work, and recent papers that change the picture. Include at least one strong paper that cuts
+   against the operator's likely view.
 2. **Check each is free to read legally:** an open-access version from the publisher, arXiv/bioRxiv/PsyArXiv and
    similar preprint servers, PubMed Central, a university repository, or the author's own page. **Never** use shadow
    libraries or paywall workarounds. If only a paywalled copy exists, list it as "paywalled" and move on.

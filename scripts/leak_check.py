@@ -18,6 +18,8 @@ What it refuses:
   - secrets: API keys and tokens in the usual formats, private keys;
   - your home folder's path, and email addresses (other than no-reply and example addresses);
   - text from the eval harness's held-out tasks (any line of 60 characters or more copied from one);
+  - changes tech watch made for you only ("audience": "me"; techwatch/scripts/personal.py add stages a file
+    without them);
   - anything in your own list, .git/info/leak-patterns: one string per line (or "re:<regex>"), e.g. your name, your
     email address, a notification topic. Lines in .git/info/leak-allow are allowed even if they match.
 Both lists live inside .git/, so they're never committed themselves.
@@ -178,7 +180,27 @@ def run(mode):
     for f in new:
         if any(rx.search(f) for rx in private):
             problems.append(f"{f}: a private file (your own files, results or unlocked tasks)")
+    if mode != "all":
+        problems += personal_changes(mode)
     return problems
+
+
+def personal_changes(mode):
+    """Changes tech watch made for you only (techwatch/scripts/personal.py) that are still in the staged or pushed
+    files."""
+    script = HERE.parent / "techwatch" / "scripts" / "personal.py"
+    if not script.exists():
+        return []
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("tw_personal", script)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.problems(mode)
+    except Exception as e:   # noqa: BLE001
+        print(f"leak check: couldn't check for your personal tech-watch changes ({e!r}); check `git diff --cached` "
+              "yourself", file=sys.stderr)
+        return []
 
 
 def install():

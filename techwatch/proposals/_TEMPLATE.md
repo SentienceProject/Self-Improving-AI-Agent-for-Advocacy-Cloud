@@ -15,6 +15,8 @@ Each proposal is a folder `techwatch/proposals/<YYYY-MM-DD>-<slug>/` with two fi
   "significance": "minor | notable | major",
   "risk": "low | medium | high",
   "reversible": true,
+  "apply_first": false,
+  "audience": "everyone | me",
   "pain_points": [3],
   "est_cost": "one-time $, ongoing $/month, operator minutes",
   "review_after": "YYYY-MM-DD",
@@ -28,6 +30,12 @@ Each proposal is a folder `techwatch/proposals/<YYYY-MM-DD>-<slug>/` with two fi
 - `options`: whether this opens up later changes (a small, general extension point; a new capability others can use),
   is neutral, or closes some off (removes a capability, locks the workspace into one service). A change that closes
   options can't go on trial automatically.
+- `apply_first`: true only for a major change with strong evidence of gains across many kinds of tasks, undone by one
+  rollback. With the operator's settings (`Major changes before their test` in `my/techwatch-auto.md`) and every
+  reviewer agreeing, it's applied before its test, then tested, and rolled back if it does worse.
+- `audience`: "everyone" if it suits someone with the default `my/` files; "me" if it's worth doing only because of
+  this operator's own settings in `my/`. "me" changes are applied to the operator's copy, and
+  `techwatch/scripts/personal.py` keeps them out of anything they publish.
 - `builds_on`: ids of earlier proposals this continues, varies or brings back (rejected "as it is", shelved, or tested
   without a clear result). `differs_from`: for each, what's really different and why that answers the earlier note
   or the test's weak spot. Leave both empty for a new idea.

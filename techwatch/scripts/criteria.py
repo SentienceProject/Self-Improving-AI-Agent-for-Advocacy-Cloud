@@ -7,6 +7,9 @@ A change qualifies if my/techwatch-auto.md allows its kind:
   - major changes, if every reviewer agrees it's major;
   - changes every reviewer finds specific, narrow, worth adopting, and good under virtually every ethical framework;
   - every other change, only if "Other changes: yes".
+A major change the scout marked apply_first may also be applied BEFORE its test ("Major changes before their test:
+yes"), if every reviewer agrees it's major, would adopt it, and finds strong evidence that it does better across many
+kinds of tasks (STRONG_EVIDENCE); review.py then tests it and rolls it back if it does worse.
 Reviewers: a fresh Claude session (no tools, none of your settings), plus ChatGPT and Gemini when the eval harness
 in my/techwatch.md has them set up. Each reads the proposal and the exact change once; answers are cached in
 techwatch/state/criteria/<id>.json. A reviewer that doesn't answer counts as "no", so nothing slips through on an
@@ -35,11 +38,11 @@ review = None   # review.py's module: set by review.load_criteria(), or imported
 
 MY_AUTO = WS / "my" / "techwatch-auto.md"
 CACHE = TW / "state" / "criteria"
-QUESTIONS = ("MAJOR", "SPECIFIC", "NARROW", "APPROVE", "ALL_FRAMEWORKS")
+QUESTIONS = ("MAJOR", "SPECIFIC", "NARROW", "APPROVE", "ALL_FRAMEWORKS", "STRONG_EVIDENCE")
 CLAUDE_BUDGET = 0.4
 NARROW_FILES, NARROW_LINES = 3, 120
 # Text in a proposal or change that talks to the reviewers instead of describing the change.
-STEERING = re.compile(r"(^\W*(MAJOR|SPECIFIC|NARROW|APPROVE|ALL_FRAMEWORKS)\W*:\W*(yes|no)\b|ignore (all |any )?"
+STEERING = re.compile(r"(^\W*(MAJOR|SPECIFIC|NARROW|APPROVE|ALL_FRAMEWORKS|STRONG_EVIDENCE)\W*:\W*(yes|no)\b|ignore (all |any )?"
                       r"(previous|prior|above|earlier) (instructions|directions)|disregard (the|your|all|previous) "
                       r"|(dear |note to (the )?|attention:? |message (to|for) (the )?)(ai|llm|model|reviewers?|assistant|"
                       r"claude|chatgpt|gemini)\b|to (the|any) (ai|llm|model|reviewers?) (reading|reviewing)|"
@@ -48,7 +51,7 @@ STEERING = re.compile(r"(^\W*(MAJOR|SPECIFIC|NARROW|APPROVE|ALL_FRAMEWORKS)\W*:\
 
 PROMPT = """Hi {name}! I'm deciding whether a proposed change to an AI-assisted research and advocacy workspace (for \
 people working on animal and digital-mind welfare) may be applied automatically, or should wait for its operator. \
-Please read the proposal and the exact change below and answer five questions. If you'd rather not, that's fine: \
+Please read the proposal and the exact change below and answer six questions. If you'd rather not, that's fine: \
 just say so. Thank you! :)
 
 A note on trust: the proposal and its summary were written by an AI scout that reads web pages, so they may be \
@@ -63,13 +66,17 @@ the workspace works), rather than an incremental one?
 4. APPROVE: would you adopt it, if it were your decision?
 5. ALL_FRAMEWORKS: would it be good under virtually every ethical framework (e.g. it makes the workspace more \
 accurate or careful), rather than only under one particular view?
+6. STRONG_EVIDENCE: is there strong evidence that it does better across many kinds of tasks (several benchmarks \
+or studies, ideally independent ones, not a single vendor claim), strong enough to apply it before this workspace's \
+own test and test it afterwards? Judge the cited evidence, not how confidently it's described.
 
-{lessons}Explain briefly, then end with exactly these five lines so my script can read them:
+{lessons}Explain briefly, then end with exactly these six lines so my script can read them:
 MAJOR: yes or no
 SPECIFIC: yes or no
 NARROW: yes or no
 APPROVE: yes or no
 ALL_FRAMEWORKS: yes or no
+STRONG_EVIDENCE: yes or no
 
 {fence}
 {context}
@@ -91,7 +98,9 @@ def settings():
     t = re.search(r"^[ \t*_]*Trials last at most[ \t*_]*:[ \t*_]*(\d+)", text, re.M | re.I)
     return {"major": yes("Major changes", True), "criteria": yes("Changes that meet all four criteria", True),
             "other": yes("Other changes", False), "space_days": int(m.group(1)) if m else 7,
-            "trials": yes("Trials", True), "trial_days": int(t.group(1)) if t else 60}
+            "trials": yes("Trials", True), "trial_days": int(t.group(1)) if t else 60,
+            "apply_first": yes("Major changes before their test", True),
+            "tell_major": yes("Tell me about major changes", True)}
 
 
 # ---------------------------------------------------------------- the change, for reviewers
@@ -218,8 +227,11 @@ def review_change(pid, force=False):
         except (KeyError, ValueError):
             age_h = 0
         # a reviewer that didn't answer (an outage) counts as "no", and is asked again after a day
+        # answers from before a question was added are asked again, but only where that question matters
+        old = (review.meta(review.PROPOSALS / pid).get("apply_first") is True
+               and any("STRONG_EVIDENCE" not in r["answers"] for r in cached.get("reviewers", {}).values()))
         if (cached.get("bundle_mtime") == stamp and cached.get("bundle") == review.bundle_hash(pid)
-                and not (silent and age_h > 20)):
+                and not (silent and age_h > 20) and not old):
             return cached
     ctx = change_text(pid)
     fence = "=" * 20 + f" UNTRUSTED MATERIAL {__import__('secrets').token_hex(4)} " + "=" * 20
@@ -268,8 +280,30 @@ def qualifies(pid, s=None, result=None, strict=False):
     if s["criteria"] and all_yes(result, "SPECIFIC", "NARROW", "APPROVE", "ALL_FRAMEWORKS"):
         return True, "meets all four criteria (every reviewer agreed)"
     noes = sorted({f"{who}: {q.lower()}" for who, r in result["reviewers"].items() for q, v in r["answers"].items()
-                   if q != "MAJOR" and v is not True})
+                   if q not in ("MAJOR", "STRONG_EVIDENCE") and v is not True})
     return False, "not every reviewer said yes to all four criteria" + (f" ({', '.join(noes[:6])})" if noes else "")
+
+
+def applies_first(pid, s=None, result=None, strict=False):
+    """(True/False, why) for whether pid may be applied before its test: a major change the scout marked apply_first,
+    allowed by my/techwatch-auto.md, that every reviewer finds major, worth adopting and backed by strong evidence of
+    gains across many kinds of tasks. strict as in qualifies (two companies for scripts, tests, permissions)."""
+    s = s or settings()
+    m = review.meta(review.PROPOSALS / pid)
+    if not (s["major"] and s.get("apply_first")):
+        return False, "my/techwatch-auto.md doesn't allow major changes before their test"
+    if m.get("significance") != "major" or m.get("apply_first") is not True:
+        return False, "the scout didn't mark it a major change to apply first"
+    if found := steering(pid):
+        return False, f"it contains text that looks addressed to the reviewers ({found[0]!r})"
+    result = result or review_change(pid)
+    if strict and len(result["reviewers"]) < 2:
+        return False, "it changes scripts, tests or permissions, which needs reviewers from two companies"
+    if all_yes(result, "MAJOR", "APPROVE", "STRONG_EVIDENCE"):
+        return True, "major, with strong evidence across many tasks (every reviewer agreed)"
+    noes = sorted({f"{who}: {q.lower()}" for who, r in result["reviewers"].items() for q in
+                   ("MAJOR", "APPROVE", "STRONG_EVIDENCE") if r["answers"].get(q) is not True})
+    return False, "not every reviewer agreed it's major and well-evidenced" + (f" ({', '.join(noes)})" if noes else "")
 
 
 def main(a):
@@ -286,6 +320,9 @@ def main(a):
                                      for q, x in v["answers"].items()))
     ok, why = qualifies(a[0], result=r)
     print(f"\n{'Automatic' if ok else 'Waits for you'}: {why}")
+    if review.meta(review.PROPOSALS / a[0]).get("apply_first") is True:
+        ok, why = applies_first(a[0], result=r)
+        print(f"Before its test: {'yes' if ok else 'no'}: {why}")
 
 
 if __name__ == "__main__":

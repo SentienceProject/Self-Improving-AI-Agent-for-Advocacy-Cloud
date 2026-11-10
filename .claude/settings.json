@@ -18,6 +18,7 @@
       "Agent(helper)",
       "Agent(analyst)",
       "Bash(python3 scripts/draw_card.py *)",
+      "Bash(python3 scripts/search_papers.py *)",
       "Bash(python3 scripts/add_paper.py *)",
       "Bash(python3 scripts/check_citations.py *)",
       "Bash(python3 scripts/feedback.py *)",

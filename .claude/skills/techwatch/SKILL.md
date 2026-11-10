@@ -36,6 +36,9 @@ decision easy.
      test <id> --deeper` (every task three times, roughly $30-100 of usage) or `! python3
      techwatch/scripts/review.py trial <id>` (applied now, kept or rolled back after the next checkup). Explain that
      "no clear difference" from a small test means the test couldn't tell, not that the change failed;
+   - `! python3 techwatch/scripts/review.py apply-first <id>`: apply it as soon as it's prepared and checked, then
+     test it, rolled back if the test shows it does worse (for a change they trust before its test, such as a
+     clearly better new model);
    - `! python3 techwatch/scripts/review.py approve <id> "note"`: for an idea not prepared yet;
    - `! python3 techwatch/scripts/techwatch.py stage <id>`: prepare it now (Opus, up to $3 of usage).
 
@@ -44,13 +47,14 @@ decision easy.
 - **Their settings** are in `my/techwatch.md` (offer to edit it; they'll approve the write):
   - `Tech watch runs:` `automatically` (the default; needs `! python3 techwatch/scripts/techwatch.py schedule on`,
     which setup.py runs; the session-start note says if it's missing), `when I start it`, or `off`;
-  - `Scans:` `daily and weekly` (roughly $15-35 of usage a month) or `weekly only` ($5-15);
+  - `Scans:` `daily and weekly` (roughly $25-45 of usage a month) or `weekly only` ($5-15);
   - `When a change is ready:` `ask me`, `test it, apply if it passes`, `test it, then ask me`, or `apply it`. With the automatic choices,
     changes to settings, hooks, the guardrails and ethics files, tech watch's rules and `my/` still wait for them;
   - `Eval harness folder:` for testing changes.
   Which changes the automatic choices cover is in `my/techwatch-auto.md`: by default major changes and changes every
   reviewer finds specific, narrow, worth adopting and good under virtually every ethical framework, at most one a
-  week. `! python3 techwatch/scripts/criteria.py <id>` shows the reviewers' answers for a change. Earlier versions
+  week. A major change with strong evidence across many tasks can be applied before its test and rolled back if
+  the test shows it does worse (`Major changes before their test`). `! python3 techwatch/scripts/criteria.py <id>` shows the reviewers' answers for a change. Earlier versions
   are kept by the harness's checkups: `! python3 techwatch/scripts/review.py checkpoints` lists them and
   `review.py restore <date>` goes back to one.
   Updates also come from the workspace's maintainer: `! python3 scripts/update.py` brings them (it keeps their own and tech watch's changes), and the session-start note says when
@@ -58,7 +62,7 @@ decision easy.
 - **Their limits** go in `my/techwatch.md`: money, computer, accounts, privacy, time, never-propose. Offer to fill it
   in with them. Scouts apply those limits and no others beyond the guardrails.
 - **Running a scan now:** `! python3 techwatch/scripts/techwatch.py run` does what's due, then prepares notable and
-  major proposals (up to $3 each). Scans and preparation stop at `monthly_cap_usd` in `techwatch/config.json` ($30); eval-harness tests and the reviewers' checks are counted separately.
+  major proposals (up to $3 each). Scans and preparation stop at `monthly_cap_usd` in `techwatch/config.json` ($45); eval-harness tests and the reviewers' checks are counted separately.
 - **Stopping the schedule:** `! python3 techwatch/scripts/techwatch.py schedule off`.
 - **Settings they may want to change** in `techwatch/config.json` (they edit it themselves): models and budgets per run, `monthly_cap_usd`, `autonomy_level`
   (`techwatch/AUTONOMY.md` explains the levels).

@@ -5,7 +5,7 @@
                                                         (daily and weekly by default), staging (see AUTONOMY.md),
                                                         and what my/techwatch.md says to do with ready changes
     python3 techwatch/scripts/techwatch.py weekly       a weekly scan now (Opus, up to $4 of usage)
-    python3 techwatch/scripts/techwatch.py daily        a daily scan now (Sonnet, up to $1)
+    python3 techwatch/scripts/techwatch.py daily        a daily scan now (Opus, up to $1.50)
     python3 techwatch/scripts/techwatch.py stage <id>   prepare the exact change for one proposal (Opus, up to $3),
                                                         then check it (below)
     python3 techwatch/scripts/techwatch.py check <id>   a second, fresh run reviews a prepared change and fixes or
@@ -386,6 +386,10 @@ def record_bases(pid, keep=()):
             rel = p.relative_to(WS).as_posix()
             bases[rel] = old[rel] if rel in keep and rel in old else (
                 hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None)
+            if p.is_file() and not (rel in keep and rel in old):
+                # the file itself too, so a test can merge the change into a later version of it (techtest.py)
+                (d / pid / "files" / rel).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(p, d / pid / "files" / rel)
     d.mkdir(parents=True, exist_ok=True)
     (d / f"{pid}.json").write_text(json.dumps(bases, indent=1), encoding="utf-8")
 
@@ -401,6 +405,11 @@ def weekly_due():
 
 def scan(mode):
     kind, retry_at, reason = scout(mode, f"{mode}.md")
+    if kind == "ok":
+        try:
+            review.announce_major(log)   # a phone notification for a new major proposal, straight away
+        except Exception as e:   # noqa: BLE001  (a notification never stops a scan)
+            problem(f"major-change notification: {e!r}")
     if mode == "weekly" and kind != "retry":
         mark("last_weekly", TODAY)
     return kind, retry_at

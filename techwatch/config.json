@@ -2,9 +2,10 @@
   "_comment": "Tech-watch settings. You edit this file; scouts can read it but never write it. Your personal limits (money, platforms, privacy, what never to propose) go in my/techwatch.md instead.",
   "runs": {
     "daily": {
-      "model": "sonnet",
+      "_comment": "Opus, not Sonnet: on 2026-11-10 a Sonnet daily scout saw a new model generation launch and filed nothing, without reading the launch post.",
+      "model": "opus",
       "effort": "medium",
-      "max_budget_usd": 1.0
+      "max_budget_usd": 1.5
     },
     "weekly": {
       "model": "opus",
@@ -38,7 +39,7 @@
     "max_budget_usd": 0.5,
     "ask_in_sessions": true
   },
-  "monthly_cap_usd": 30,
+  "monthly_cap_usd": 45,
   "autonomy_level": 1,
   "retry": {
     "max_attempts_per_day": 12

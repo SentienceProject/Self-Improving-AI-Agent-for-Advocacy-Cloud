@@ -13,8 +13,6 @@ itself, writes the draft, has it critiqued and fact-checked, and saves it in `wo
 you decide what leaves your computer. [PRIVACY.md](PRIVACY.md) lists what is sent where (Anthropic, websites, and the
 optional outside judges) and how to turn each part off.
 
-**Please use caution when using this workspace for social media.** Obviously AI-generated advocacy content can damage the credibility of the animal- and digital-minds-advocacy fields.
-
 ## See what it produces
 
 [`examples/`](examples/) has real, unedited outputs, with what was asked, what it cost and how long it took, so
@@ -91,7 +89,8 @@ research memory, since some of it came from working on the eval tasks' topics.
 Other things worth knowing:
 - **Papers.** `workspace/corpus/` holds papers Claude can quote exactly. Ask *"find good open-access papers on
   octopus sentience and add the best ones"* (`/add-papers`): Claude proposes a list, you pick, it downloads and
-  converts them. Only legally free copies; the corpus stays on your computer.
+  converts them (`scripts/search_papers.py` searches OpenAlex, Semantic Scholar, arXiv and Europe PMC). Only
+  legally free copies; the corpus stays on your computer.
 - **From Zotero.** Export a collection as BibTeX with "Export Files" ticked, then ask Claude to import it (or
   run `python3 scripts/import_zotero.py <folder>`). Each paper with a PDF goes into the corpus with its title,
   authors, year and DOI.
@@ -260,15 +259,17 @@ your work. Tech watch finds them and prepares each one as an exact change to the
 **It runs automatically.** `setup.py` asks you about it. Saying "automatically" doesn't start the schedule by
 itself: setup ends by showing the command that does, `python3 techwatch/scripts/techwatch.py schedule on` (cron on
 Linux and WSL2, launchd on macOS, Task Scheduler on Windows). Each day it checks a list of news pages and runs a short
-scan (Sonnet, up to $1 of usage). Once a week it runs a deeper scan (Opus, up to $4). Then it prepares the
-changes worth making (up to $3 each). That's roughly $15-35 of usage a month, and scans stop for the month at $30 (tests in the eval harness are counted separately).
+scan (Opus, up to $1.50 of usage). Once a week it runs a deeper scan (Opus, up to $4). Then it prepares the
+changes worth making (up to $3 each). That's roughly $25-45 of usage a month, and scans stop for the month at $45 (tests in the eval harness are counted separately).
 On a subscription these are estimates against your usage limits, not charges. It runs only while your computer
 is on. Scouts can't run commands, use your connected apps or change the workspace; they only write notes and
 proposals.
 
 **What happens to a prepared change.** Setup asks. By default, a change is tested with the eval harness and applied
 if it passes, as long as it's within `my/techwatch-auto.md`'s limits (below); everything else waits for you, and
-Claude tells you at the start of a session what was applied (`review.py rollback <id> --yes` undoes it). If you
+Claude tells you at the start of a session what was applied (`review.py rollback <id> --yes` undoes it). A major
+change with strong evidence across many tasks, such as a clearly better new model, can be applied before its test
+and is rolled back if the test shows it does worse (`Major changes before their test` in `my/techwatch-auto.md`). If you
 chose "ask me", or for changes outside those limits, type `! python3 techwatch/scripts/review.py` and, for each one,
 choose:
 - **test it only**, to decide with the result in front of you (`review.py show <id>` has it);
