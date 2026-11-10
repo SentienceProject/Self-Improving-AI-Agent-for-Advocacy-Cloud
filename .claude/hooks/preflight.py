@@ -5,10 +5,11 @@
                           Claude its first Bash command must be the probe.
     preflight.py gate     PreToolUse (Bash): block every Bash command except
                           the probe until the probe has PASSED this session.
-                          Also enforces the exact form of the four commands
-                          that are excluded from the sandbox: run_analysis.py,
-                          corpus_search.py, fetch_pdf.py and fetch_repo.py,
-                          and of find_text.py (sandboxed; the subagents' search).
+                          Also enforces the exact form of the commands that
+                          are excluded from the sandbox: run_analysis.py,
+                          corpus_search.py, fetch_pdf.py, fetch_repo.py and
+                          docs_sync.py apply/reject, and of find_text.py
+                          (sandboxed; the subagents' search).
     preflight.py record   PostToolUse (Bash): when the probe ran, record PASS
                           or FAIL, write workspace/logs/preflight-*.json, and
                           warn loudly on FAIL.
@@ -87,6 +88,12 @@ FIND_TEXT_USAGE = (f'python3 {ROOT}/scripts/find_text.py [-i] [-w] [-l] [-C <0-9
 RUN_ANALYSIS_RE = re.compile(
     rf"python3? {R}/scripts/run_analysis\.py ({RUN_ID}) "
     rf"workspace/analysis/\1/[A-Za-z0-9_][A-Za-z0-9_./-]*\.py")
+# docs_sync.py apply/reject: applies or drops a docs change the person said yes
+# or no to. Runs outside the sandbox (it writes CLAUDE.md and agent files, which
+# the sandbox protects), so an ask rule makes Claude Code ask the person too.
+# The change itself was written by the weekly sync into techwatch/state/, which
+# sessions can't write; the command only names it by number.
+DOCS_DECIDE_RE = re.compile(rf"python3 {R}/scripts/docs_sync\.py (apply|reject) [1-9][0-9]{{0,5}}")
 
 
 def now():
@@ -220,11 +227,14 @@ def gate(data):
         block(f'fetch_repo.py must be run as exactly: python3 {ROOT}/scripts/'
               'fetch_repo.py "<https-url>" <name>  (nothing before or after it; '
               "name = letters, digits, - or _).")
+    if re.search(r"docs_sync\.py\s+(apply|reject)", cmd) and not DOCS_DECIDE_RE.fullmatch(cmd):
+        block(f"docs_sync.py apply/reject must be run as exactly: python3 {ROOT}/scripts/docs_sync.py "
+              "apply <id>  (or reject <id>; nothing before or after it).")
     # The excluded commands don't run in the Bash sandbox (their boundary
     # is Docker / a frozen script), so a stale Layer A pass doesn't affect
     # them. Everything else runs sandboxed and needs a fresh pass.
     excluded = (RUN_ANALYSIS_RE.fullmatch(cmd) or CORPUS_SEARCH_RE.fullmatch(cmd)
-                or FETCH_PDF_RE.fullmatch(cmd) or FETCH_REPO_RE.fullmatch(cmd))
+                or FETCH_PDF_RE.fullmatch(cmd) or FETCH_REPO_RE.fullmatch(cmd) or DOCS_DECIDE_RE.fullmatch(cmd))
     if not excluded:
         age = None if ts is None else time.time() - ts
         if age is None or age < -60 or age > PASS_TTL_S:

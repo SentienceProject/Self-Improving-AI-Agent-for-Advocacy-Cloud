@@ -320,6 +320,44 @@ afterwards (or prepared again if the update changed the same files), your own ed
 with the update, a copy of yours is saved. Your `my/` and `workspace/` files are never touched. (A plain `git pull`
 also works, but can stop with a merge conflict.)
 
+### Keeping the docs in step
+
+Docs drift as the code changes: a script gets a new option, a new script appears, and the README or an agent's
+instructions still describe the old state. Three things keep them in step, from free to cheap:
+
+- **Generated parts (free).** Facts the code holds, such as which subagent may write and run what and the agent
+  and skill lists, are written into this README by `scripts/docs_sync.py`, and a test fails when they're stale.
+- **Commit reminders (free).** If you installed the leak check's git hooks (`python3 scripts/leak_check.py
+  --install`), each commit also updates those parts and names docs that mention the files you're committing.
+- **The weekly sync (usually free; off unless you turn it on, see below).** Tech watch's hourly run does it once a
+  week, if tech watch runs automatically.
+  Free checks look for committed changes that a doc mentions, and for scripts no doc mentions yet. Only if they find
+  something does one small model call (Sonnet, no tools, up to $0.50, counted in tech watch's monthly cap) suggest
+  exact edits, which are checked before anything changes. Most weeks it costs nothing; the first real run cost
+  $0.04. Small edits are made in your working copy for you to commit. `CLAUDE.md` edits, and bigger ones, wait:
+  with your next message in a workspace session, Claude shows them and asks, and Claude Code asks you once more
+  before one is applied. GUARDRAILS.md, the ethics files, the changelog and agents' tool and hook settings are never
+  edited.
+
+**The weekly sync is off unless you turn it on.** It edits tracked files, so in a copy that takes updates from this
+repository, its edits would clash with the maintainer's own doc changes (the docs here are kept in step for you).
+Turn it on if you maintain your own fork. For the same reason, keep your own notes in `my/` rather than in the
+README or agent files: `scripts/update.py` keeps edits you make to tracked files, but where one clashes with an
+update you get a saved copy to sort out by hand.
+
+You choose how automatic it is in `my/docs_sync.json` (not committed; the same keys override the defaults under
+`docs_sync` in `techwatch/config.json`), for example `{"enabled": true, "automatic": ["docs"]}`:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `enabled` | `false` | `true` turns the weekly sync on (the free parts always run) |
+| `automatic` | `["agents", "skills", "docs"]` | which kinds of edit are made without asking: agent files, skill files, the README and other docs. Remove one to have it wait for you; `[]` makes every edit wait |
+| `max_words_per_change` | `20` | an edit changing more words than this waits for you |
+| `ask_in_sessions` | `true` | `false`: sessions don't ask about waiting edits; see them with `python3 scripts/docs_sync.py show` and decide with `apply <id>` or `reject <id>` |
+| `every_days`, `model`, `effort`, `max_budget_usd` | `7`, `sonnet`, `low`, `0.5` | how often it runs, and its model and spending cap |
+
+`CLAUDE.md` edits always wait for you: it's loaded into every session and steers how Claude works.
+
 Ask Claude about `/techwatch` for the details, or read `techwatch/README.md`.
 
 ## A backlog for leftover usage (optional)
@@ -454,7 +492,7 @@ my/                          your own files (gitignored)
 .claude/settings.json        the rules for every mode (your machine's additions: settings.local.json)
 layers/                      what setup.py adds for casual and hardened mode
 techwatch/                   tech watch (README inside)
-scripts/, sandbox/, tests/   downloads, the analysis container, the proposal system, notifications, and tests
+scripts/, sandbox/, tests/   downloads, the analysis container, the proposal system, notifications, frontmatter check (`python3 scripts/check_frontmatter.py`), and tests
 templates/                   starting points for your files
 creator-notes/               lessons from the creator's earlier workspaces, and AI-welfare research memory (deletable)
 workspace/                   outbox (finished drafts), corpus, memory, notes, logs (gitignored)

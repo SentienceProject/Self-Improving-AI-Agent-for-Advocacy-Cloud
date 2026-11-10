@@ -27,6 +27,17 @@
     "_comment": "Which scans run is set in my/techwatch.md (\"Scans: daily and weekly\" or \"weekly only\"). This sets how often the weekly scan comes round.",
     "weekly_every_days": 7
   },
+  "docs_sync": {
+    "_comment": "The weekly docs sync (scripts/docs_sync.py); README.md, 'Keeping the docs in step', explains each setting. Your own choices go in my/docs_sync.json (same keys), which overrides these. enabled: off by default, since it edits tracked files and would clash with updates; turn it on if you maintain your own fork. automatic: which kinds of edit are made without asking, if each changes at most max_words_per_change words: agents, skills, docs (README and the other docs); [] makes every edit wait. CLAUDE.md always waits. ask_in_sessions: false stops sessions from asking about waiting edits (then: python3 scripts/docs_sync.py show).",
+    "enabled": false,
+    "every_days": 7,
+    "max_words_per_change": 20,
+    "automatic": ["agents", "skills", "docs"],
+    "model": "sonnet",
+    "effort": "low",
+    "max_budget_usd": 0.5,
+    "ask_in_sessions": true
+  },
   "monthly_cap_usd": 30,
   "autonomy_level": 1,
   "retry": {

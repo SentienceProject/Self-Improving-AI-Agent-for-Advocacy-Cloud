@@ -48,6 +48,9 @@ EXCLUDED = {
     f"python3 {REPO.as_posix()}/scripts/fetch_pdf.py *",
     f"python3 {REPO.as_posix()}/scripts/fetch_repo.py *",
     f"python3 {REPO.as_posix()}/scripts/ask_model.py *",   # outside models: their logins live outside the sandbox
+    # a docs change the person said yes or no to (it writes CLAUDE.md and agent files); always asks the person too
+    f"python3 {REPO.as_posix()}/scripts/docs_sync.py apply *",
+    f"python3 {REPO.as_posix()}/scripts/docs_sync.py reject *",
 }
 
 _spec = importlib.util.spec_from_file_location("setup_mod", REPO / "setup.py")

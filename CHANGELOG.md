@@ -6,6 +6,19 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- Weekly docs sync (`scripts/docs_sync.py run`, called by tech watch's hourly run, every 7 days; off by default,
+  since it edits tracked files and would clash with updates: turn it on in `my/docs_sync.json` if you keep your own
+  fork. README.md, "Keeping the docs in step", lists the settings). Free checks
+  first: committed files that a doc mentions, and scripts or hooks no doc mentions (`scripts/docs_internal.txt`
+  lists the ones that need none). Only if something turns up, one Sonnet call with no tools (cap $0.50, counted in
+  tech watch's monthly cap) suggests exact edits, which the script checks. Edits of up to 20 words each to the
+  docs and to agent and skill files are applied to your working copy; CLAUDE.md edits, and bigger ones, wait for
+  your OK: a new hook
+  (`.claude/hooks/docs_pending.py`) has your next workspace session show them and ask, and
+  `docs_sync.py apply <id>` (which Claude Code also asks you about) applies one. GUARDRAILS.md, the ethics files and
+  frontmatter are never edited. Settings: `docs_sync` in `techwatch/config.json`. Commit reminders now also look
+  in agent and skill files (outside their frontmatter).
+
 - Ideator: about 20 angles by default, scaled by the profile's Creativity setting (low about 12, high 25+), written
   in any order with a closing `Strongest:` line rather than best-first. Ideas that work by deception or by clearly
   breaking major laws may be explored but are marked `[deceitful/illegal]`, with why they'd work and an honest

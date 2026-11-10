@@ -69,7 +69,9 @@
       "Read({{HARNESS_RULE}}/evals/tasks/**)",
       "Read({{HARNESS_RULE}}/evals/tasks-animals/**)",
       "Read({{HARNESS_RULE}}/evals/legacy-rubric-eval/improver_tasks/**)",
-      "Read(~/ai-welfare-evals/**)"
+      "Read(~/ai-welfare-evals/**)",
+      "Bash(python3 {{WORKSPACE}}/scripts/docs_sync.py apply *)",
+      "Bash(python3 {{WORKSPACE}}/scripts/docs_sync.py reject *)"
     ],
     "allow": [
       "Bash(python3 scripts/ask_model.py *)",
@@ -194,7 +196,9 @@
     },
     "excludedCommands": [
       "python3 scripts/ask_model.py *",
-      "python3 {{WORKSPACE}}/scripts/ask_model.py *"
+      "python3 {{WORKSPACE}}/scripts/ask_model.py *",
+      "python3 {{WORKSPACE}}/scripts/docs_sync.py apply *",
+      "python3 {{WORKSPACE}}/scripts/docs_sync.py reject *"
     ]
   }
 }

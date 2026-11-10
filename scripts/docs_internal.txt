@@ -1,0 +1,18 @@
+# Scripts and hooks that need no doc of their own (read by scripts/docs_sync.py). A tracked script or hook that no
+# doc mentions and that isn't listed here is picked up by the weekly docs sync. One path per line; # starts a note.
+.claude/hooks/agent_guard.py   # README's subagent table is generated from it
+.claude/hooks/analyst_guard.py   # described with the analyst in README; wired from analyst.md
+.claude/hooks/auto_approve_web.py   # plumbing; README's folder map covers .claude/hooks/
+.claude/hooks/context_nudge.py   # "the /clear tip" in README's folder map
+.claude/hooks/guard_paths.py   # helper module for the guards
+.claude/hooks/preflight.py   # "the preflight" in README's folder map and hardened-mode section
+.claude/hooks/run_log.py   # "logs" in README's folder map
+.claude/hooks/save_returns.py   # "saved helper outputs" in README's safety table
+.claude/hooks/session_brief.py   # "session reminders" in README's folder map
+.claude/hooks/wild_write_guard.py   # wired from wild-ideator.md; described with it
+scripts/fix_index_paths.py   # one-off repair for old search indexes
+scripts/fix_index_pdf_sources.py   # one-off repair for old search indexes
+scripts/rule_paths.py   # helper module (permission-rule paths)
+scripts/style.py   # helper module (terminal colours)
+techwatch/scripts/outcome.py   # helper module for techwatch.py
+.claude/hooks/docs_pending.py   # described in docs_sync.py and README (Tech watch)

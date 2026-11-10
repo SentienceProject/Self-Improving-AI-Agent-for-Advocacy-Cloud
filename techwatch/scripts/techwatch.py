@@ -414,6 +414,20 @@ def cmd_run(scheduled):
                    "(`techwatch.py schedule off` stops these calls)")
     scans_and_staging(scheduled)
     review.auto_actions(log)
+    docs_sync_if_due()
+
+
+def docs_sync_if_due():
+    """The weekly docs sync (scripts/docs_sync.py): free unless its checks find something; then one small model call,
+    counted in this month's spend. Its failures are logged, never raised."""
+    try:
+        sys.path.insert(0, str(WS / "scripts"))
+        import docs_sync
+        result = docs_sync.run()
+        if result != "docs sync: not due":
+            log(result)
+    except Exception as e:   # noqa: BLE001
+        problem(f"docs sync: {e!r}")
 
 
 def scans_and_staging(scheduled):
