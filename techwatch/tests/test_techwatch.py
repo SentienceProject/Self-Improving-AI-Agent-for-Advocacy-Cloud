@@ -104,6 +104,16 @@ class TestStatus(Workspace):
         self.assertEqual(self.review.to_stage(0), ["d-approved-minor"])
         self.assertEqual(self.review.to_stage(1), ["b-notable", "d-approved-minor"])
 
+    def test_only_changes_for_me_are_staged_by_default(self):
+        self.proposal("a-everyone", audience="everyone")
+        self.proposal("b-me", audience="me")
+        self.proposal("c-urgent", audience="everyone", urgent=True)
+        self.proposal("d-approved", audience="everyone")
+        self.review.record("d-approved", "approved")
+        self.assertEqual(self.review.to_stage(1), ["b-me", "c-urgent", "d-approved"])
+        (self.ws / "my" / "techwatch.md").write_text("**Proposals:** all\n")
+        self.assertEqual(self.review.to_stage(1), ["a-everyone", "b-me", "c-urgent", "d-approved"])
+
 
 class TestApply(Workspace):
     def test_targets_outside_the_workspace_are_refused(self):
@@ -209,8 +219,8 @@ class TestAutomatic(Workspace):
 
     def test_prefs_defaults_and_old_setting(self):
         p = self.review.prefs()
-        self.assertEqual((p["runs"], p["scans"], p["ready"], p["harness"]),
-                         ("automatically", "daily and weekly", "ask", None))
+        self.assertEqual((p["runs"], p["scans"], p["ready"], p["harness"], p["proposals"]),
+                         ("off", "weekly only", "ask", None, "mine"))
         (self.ws / "my" / "techwatch.md").write_text("**Run my own tech watch:** no\n")
         self.assertEqual(self.review.prefs()["runs"], "off")
 
@@ -740,6 +750,31 @@ class TestPersonalChanges(Workspace):
         self.assertEqual(self.personal.personal(), [])
         self.git("add", "agent.md")
         self.assertEqual(self.personal.problems(), [])
+
+class TestByHandSteps(TestAutomatic):
+    def handwork(self, pid="h1", target="a.md"):
+        self.proposal(pid)
+        self.bundle(pid, [{"action": "manual", "instructions": "check your plan", "why": "spending is yours"},
+                          {"action": "write", "target": target, "source": "files/c.md"}], {"c.md": "x\n"})
+
+    def test_by_hand_steps_are_tested_then_wait_for_you(self):
+        self.prefs("test it, apply if it passes")
+        self.handwork()
+        self.review.auto_actions(lambda m: None)
+        req = self.review.test_request("h1")
+        self.assertTrue(req and not req.get("apply_if_passes"))
+        self.verdict("h1", "met")
+        self.assertEqual(self.review.auto_actions(lambda m: None), [])
+        self.assertEqual(self.review.status_of("h1"), "staged")
+
+    def test_other_never_automatic_changes_say_why_once(self):
+        self.prefs("test it, apply if it passes")
+        self.staged("p1", target=".claude/hooks/h.py")
+        self.review.auto_actions(lambda m: None)
+        self.review.auto_actions(lambda m: None)
+        notes = [e for e in self.review.events() if e.get("event") == "not_automatic"]
+        self.assertEqual(len(notes), 1)
+        self.assertIsNone(self.review.test_request("p1"))
 
 class TestSafeguards(TestAutomatic):
     def test_a_passed_test_still_respects_never_automatic(self):

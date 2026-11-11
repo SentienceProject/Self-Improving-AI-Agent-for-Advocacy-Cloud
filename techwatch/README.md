@@ -2,15 +2,18 @@
 
 Watches for new technology of any kind that could help your work (AI models and Claude Code features, research
 tools, data sources, apps, services, ways of working) and prepares the exact change for you to accept or turn down.
-It runs automatically by default; what happens to a prepared change is up to you (`my/techwatch.md`). By default
-nothing changes in the workspace until you say yes.
+It's off by default, and we recommend leaving it off: the maintainer runs it, tests what it finds, and ships the
+changes that suit everyone (`scripts/update.py`), so running it yourself mostly spends your usage on the same work.
+Turned on, it proposes only changes your own `my/` settings call for, plus urgent ones (`Proposals:` below). By
+default nothing changes in the workspace until you say yes.
 
 ## Your settings (`my/techwatch.md`)
 
 | Setting | Choices |
 |---|---|
-| `Tech watch runs:` | `automatically` (default; `techwatch.py schedule on`, which setup.py runs for you) · `when I start it` (Claude reminds you when a weekly scan is due) · `off` |
-| `Scans:` | `daily and weekly` (default; roughly $25-45 of usage a month) · `weekly only` (roughly $5-15) |
+| `Tech watch runs:` | `off` (default; recommended) · `when I start it` (Claude reminds you when a weekly scan is due) · `automatically` (then `techwatch.py schedule on`; setup.py shows the command) |
+| `Proposals:` | `only ones for me` (default; recommended): only `"audience": "me"` proposals, plus ones for everyone marked `"urgent"` · `all` (not recommended unless you maintain your own version of the workspace) |
+| `Scans:` | `weekly only` (default; roughly $5-15 of usage a month) · `daily and weekly` (roughly $25-45) |
 | `When a change is ready:` | `ask me` (default) · `test it, then ask me` · `test it, apply if it passes` · `apply it` |
 | `Eval harness folder:` | where `ai-welfare-eval-harness` is, for testing changes (setup.py fills it in if it finds one beside the workspace in the repository, or in `~/ai-welfare-evals/`) |
 
@@ -234,8 +237,10 @@ which only `review.py` writes, so a proposal, or a web page quoted into one, can
 ## Changes for you only
 
 Each proposal says who it's for (`audience` in its meta.json): "everyone", or "me" when only your own settings in
-`my/` make it worth doing (your budget, platform, privacy, interests). Both kinds are applied to your copy the same
-way. The difference matters only if you publish your copy of the workspace: a "me" change is never committed.
+`my/` make it worth doing (your budget, platform, privacy, interests). With `Proposals: only ones for me` (the
+default), scouts file "everyone" proposals only when they're urgent, and one that's filed anyway isn't prepared
+until you approve it (`review.py`); the rest are listed in the scan's note for the maintainer to ship. Both kinds are
+applied to your copy the same way. The difference matters only if you publish your copy of the workspace: a "me" change is never committed.
 `python3 techwatch/scripts/personal.py add <file>` stages a file without your personal changes, so other changes to
 the same file still go in. Tech watch's before/after copies make that a three-way merge. `scripts/leak_check.py`
 refuses a commit or push that still holds one. If a later edit touched the same lines as your change, the two can't
@@ -243,8 +248,8 @@ be told apart: commit that file by hand (`git add -p`). `personal.py list` shows
 
 ## Cost
 
-Per-run caps are in `config.json`: weekly $4, daily $1.50, staging $3. With the default daily and weekly scans,
-expect roughly $25–45 a month; `weekly only` (in `my/techwatch.md`) runs $5–15. Nothing starts once this month's
+Per-run caps are in `config.json`: weekly $4, daily $1.50, staging $3. With the default weekly scans, expect
+roughly $5–15 a month; `daily and weekly` (in `my/techwatch.md`) runs $25–45. Nothing starts once this month's
 runs would pass `monthly_cap_usd` ($45), so a busy month ends early. Tests in the eval harness are separate
 (roughly $10–40 each) and stop at the harness's own usage limits. On a subscription these are estimates
 against your usage limits, not charges, and they compete with your own work for the same limits.

@@ -34,8 +34,8 @@ claude
 
 **What setup asks** (about five minutes; Enter takes the default everywhere):
 - your cause, who you are and what you want help with (for `my/profile.md`);
-- whether tech watch runs automatically, and whether a change it prepares is tested and applied automatically when
-  it passes (the default) or waits for you ([Tech watch](#tech-watch-keeping-the-workspace-up-to-date));
+- whether to run tech watch yourself (off by default, and we recommend leaving it off: the maintainer runs it and
+  ships what suits everyone; see [Tech watch](#tech-watch-keeping-the-workspace-up-to-date));
 - setting up the eval harness's outside judges, ChatGPT and Gemini (free tiers are enough), and keeping eval
   runs' saved sessions past Claude Code's 30 days so they can serve as extra judges (a line in your user settings);
 - phone notifications for follow-ups ([Phone notifications](#phone-notifications-ntfy));
@@ -256,18 +256,28 @@ your drafts are confidential. Scouts quote anything suspicious they find under "
 New AI models, Claude Code features and tools appear every week, and some could make this workspace much better at
 your work. Tech watch finds them and prepares each one as an exact change to the workspace.
 
-**It runs automatically.** `setup.py` asks you about it. Saying "automatically" doesn't start the schedule by
+**It's off by default, and we recommend leaving it off.** The maintainer runs tech watch, tests what it finds on
+advocacy tasks, and ships the changes that suit everyone (see "Updates from the maintainer" below). Running it
+yourself mostly repeats that work with your own usage, and the tests are the expensive part: each is roughly $10-40.
+If you turn it on, it proposes only changes your own settings in `my/` call for (your budget, platform, privacy,
+interests, ethics), which the maintainer can't find for you, plus anything urgent for everyone that can't wait for
+an update. `Proposals: all` in `my/techwatch.md` makes it propose everything; that's only worth it if you maintain
+your own version of the workspace.
+
+**If you turn it on.** `setup.py` asks you about it. Saying "automatically" doesn't start the schedule by
 itself: setup ends by showing the command that does, `python3 techwatch/scripts/techwatch.py schedule on` (cron on
-Linux and WSL2, launchd on macOS, Task Scheduler on Windows). Each day it checks a list of news pages and runs a short
-scan (Opus, up to $1.50 of usage). Once a week it runs a deeper scan (Opus, up to $4). Then it prepares the
-changes worth making (up to $3 each). That's roughly $25-45 of usage a month, and scans stop for the month at $45 (tests in the eval harness are counted separately).
+Linux and WSL2, launchd on macOS, Task Scheduler on Windows). Once a week it checks a list of news pages and runs a
+scan (Opus, up to $4 of usage); `Scans: daily and weekly` adds a short daily scan (Opus, up to $1.50). Then it
+prepares the changes worth making (up to $3 each). That's roughly $5-15 of usage a month for weekly scans or $25-45
+with daily ones, and scans stop for the month at $45 (tests in the eval harness are counted separately).
 On a subscription these are estimates against your usage limits, not charges. It runs only while your computer
 is on. Scouts can't run commands, use your connected apps or change the workspace; they only write notes and
 proposals.
 
-**What happens to a prepared change.** Setup asks. By default, a change is tested with the eval harness and applied
-if it passes, as long as it's within `my/techwatch-auto.md`'s limits (below); everything else waits for you, and
-Claude tells you at the start of a session what was applied (`review.py rollback <id> --yes` undoes it). A major
+**What happens to a prepared change.** Setup asks. By default, it waits for you. If you choose "test it, apply if
+it passes", a change is tested with the eval harness and applied if it passes, as long as it's within
+`my/techwatch-auto.md`'s limits (below); everything else waits for you, and Claude tells you at the start of a
+session what was applied (`review.py rollback <id> --yes` undoes it). A major
 change with strong evidence across many tasks, such as a clearly better new model, can be applied before its test
 and is rolled back if the test shows it does worse (`Major changes before their test` in `my/techwatch-auto.md`). If you
 chose "ask me", or for changes outside those limits, type `! python3 techwatch/scripts/review.py` and, for each one,
@@ -284,9 +294,10 @@ choose:
 
 | Setting | Choices |
 |---|---|
-| `Tech watch runs:` | `automatically` (default) · `when I start it` (Claude reminds you when a weekly scan is due; you run `! python3 techwatch/scripts/techwatch.py run`) · `off` |
-| `Scans:` | `daily and weekly` (default) · `weekly only` (roughly $5-15 a month) |
-| `When a change is ready:` | `test it, apply if it passes` (default) · `ask me` · `test it, then ask me` · `apply it` |
+| `Tech watch runs:` | `off` (default; recommended) · `when I start it` (Claude reminds you when a weekly scan is due; you run `! python3 techwatch/scripts/techwatch.py run`) · `automatically` |
+| `Proposals:` | `only ones for me` (default; recommended) · `all` (not recommended unless you maintain your own version) |
+| `Scans:` | `weekly only` (default; roughly $5-15 a month) · `daily and weekly` (roughly $25-45) |
+| `When a change is ready:` | `ask me` (default) · `test it, then ask me` · `test it, apply if it passes` · `apply it` |
 
 **Which changes those automatic choices cover** is set in a second file, `my/techwatch-auto.md`. By default:
 major changes (a new model generation, a capability that changes how the workspace works), and changes of any size
@@ -307,16 +318,16 @@ entirely: `! python3 techwatch/scripts/techwatch.py schedule off`.
 better, so tech watch combines several imperfect signals: the eval harness's test (with a noise check that runs a
 task twice and reruns everything if the scores wobble); reviewers from other model families; your own "was this
 useful?" answers after each draft, compared before and after each change; a checkup every two months that runs the
-current workspace against a saved earlier version on tasks no change was ever tested on; and a removal proposal
-every four weeks, so the workspace finds out what it can do without. Earlier versions are kept, and
+current workspace against a saved earlier version on tasks no change was ever tested on; and (with `Proposals:
+all`) a removal proposal every four weeks, so the workspace finds out what it can do without. Earlier versions are kept, and
 `review.py restore <date>` goes back to one. `techwatch/README.md` explains why.
 
 The same file holds your limits for what tech watch may suggest: money, computer, accounts, privacy, time, and
 anything it should never propose.
 
-**Updates from the maintainer.** Whoever maintains this workspace runs tech watch too, tests what it finds, and
-publishes the good changes. If you cloned with git, Claude tells you at the start of a session when updates are
-available; `! python3 scripts/update.py` gets them. It keeps your changes: anything tech watch applied is put back
+**Updates from the maintainer.** Whoever maintains this workspace runs tech watch, tests what it finds, and
+publishes the good changes. This is how most people get tech watch's results. If you cloned with git, Claude tells
+you at the start of a session when updates are available, and if there have been none for 60 days; `! python3 scripts/update.py` gets them. It keeps your changes: anything tech watch applied is put back
 afterwards (or prepared again if the update changed the same files), your own edits are kept, and where one clashes
 with the update, a copy of yours is saved. Your `my/` and `workspace/` files are never touched. (A plain `git pull`
 also works, but can stop with a merge conflict.)

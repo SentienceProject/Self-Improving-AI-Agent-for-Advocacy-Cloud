@@ -6,7 +6,7 @@ description: Explain what tech watch has found and help the operator decide on i
 # Tech watch, for the operator
 
 Tech watch scans for new technology of any kind that could help this work, writes proposals, and prepares each
-change as an exact diff. It runs on a schedule by default. What happens to a prepared change is the operator's
+change as an exact diff. It's off by default (the maintainer runs it and ships what suits everyone through `scripts/update.py`), and we recommend that most people leave it off. What happens to a prepared change is the operator's
 choice, set in `my/techwatch.md` ("When a change is ready": ask me / test it, then ask me / test it, apply if it passes / apply it), and
 otherwise made by running `techwatch/scripts/review.py` in their own shell. You can't run it, and shouldn't try: its state is outside what you may write. Your part is to make the
 decision easy.
@@ -45,9 +45,12 @@ decision easy.
 ## When they want to set it up or change it
 
 - **Their settings** are in `my/techwatch.md` (offer to edit it; they'll approve the write):
-  - `Tech watch runs:` `automatically` (the default; needs `! python3 techwatch/scripts/techwatch.py schedule on`,
-    which setup.py runs; the session-start note says if it's missing), `when I start it`, or `off`;
-  - `Scans:` `daily and weekly` (roughly $25-45 of usage a month) or `weekly only` ($5-15);
+  - `Tech watch runs:` `off` (the default, and recommended: running it mostly repeats the maintainer's work with
+    their own usage), `when I start it`, or `automatically` (needs `! python3 techwatch/scripts/techwatch.py
+    schedule on`; the session-start note says if it's missing);
+  - `Proposals:` `only ones for me` (the default, recommended: only changes their own `my/` settings call for, plus
+    urgent ones) or `all` (not recommended unless they maintain their own version);
+  - `Scans:` `weekly only` (the default; roughly $5-15 of usage a month) or `daily and weekly` ($25-45);
   - `When a change is ready:` `ask me`, `test it, apply if it passes`, `test it, then ask me`, or `apply it`. With the automatic choices,
     changes to settings, hooks, the guardrails and ethics files, tech watch's rules and `my/` still wait for them;
   - `Eval harness folder:` for testing changes.

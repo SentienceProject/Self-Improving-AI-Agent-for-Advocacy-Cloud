@@ -5,7 +5,7 @@
 - Tech watch: changes ready to decide or being tested, changes it applied for you (with how to undo them), a
   missing schedule (or, if you start scans yourself, a scan that's due), and any problem with the last run.
 - Updates: whether the workspace's upstream has new commits (checked at most once a day, 5 s timeout; only for a
-  git clone with an upstream branch).
+  git clone with an upstream branch), or, at most once a week, that it hasn't had any in 60 days.
 
 Never blocks, never fails a session: any error just means fewer lines.
 """
@@ -85,6 +85,7 @@ def techwatch_lines():
         out.append(f"Tech watch: {', '.join(parts)}{' (includes a MAJOR one)' if s['major'] else ''}. "
                    "Decide (test, apply or skip): ! python3 techwatch/scripts/review.py")
     out += review.health()
+    out += new_defaults_notice(pr)
     if pr["runs"] == "automatically":
         import techwatch
         if not techwatch.is_scheduled():
@@ -104,6 +105,52 @@ def techwatch_lines():
                        f" up to ${cfg['runs']['weekly']['max_budget_usd']:g} of usage). "
                        "Run it: ! python3 techwatch/scripts/techwatch.py run")
     return out
+
+
+def new_defaults_notice(pr):
+    """Once, for someone whose tech watch runs and whose my/techwatch.md predates the "Proposals" setting (2026-11):
+    updates never touch my/, so they'd otherwise not hear that the defaults changed."""
+    key = "notice:techwatch-defaults-2026-11"
+    try:
+        seen = set(json.loads(SEEN.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        seen = set()
+    try:
+        text = (ROOT / "my" / "techwatch.md").read_text(encoding="utf-8")
+    except OSError:
+        return []
+    import re
+    if key in seen or pr["runs"] == "off" or re.search(r"^[ \t*_]*Proposals[ \t*_]*:", text, re.M | re.I):
+        return []
+    NEWLY_SEEN.add(key)
+    return ["Tech watch is now off by default for new users: the maintainer runs it and ships what suits everyone "
+            "(scripts/update.py), so running it yourself mostly spends your usage on the same work. Yours still "
+            "runs, and from now on proposes only changes your own my/ settings call for (add \"**Proposals:** "
+            "all\" to my/techwatch.md for everything; not recommended). To turn it off: set \"Tech watch runs: "
+            "off\" there and run  ! python3 techwatch/scripts/techwatch.py schedule off"]
+
+
+def stale_lines():
+    """If the maintainer's version hasn't changed in 60 days, say so (at most once a week): Claude Code moves fast,
+    and nobody may be keeping this workspace up to date."""
+    try:
+        last = json.loads(CHECK.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        last = {}
+    if time.time() - last.get("stale_shown", 0) < 7 * 86400:
+        return []
+    r = subprocess.run(["git", "-C", str(ROOT), "log", "-1", "--format=%ct", "@{u}"], capture_output=True, text=True,
+                       timeout=5)
+    if r.returncode or not r.stdout.strip():
+        return []
+    days = (time.time() - int(r.stdout.strip())) // 86400
+    if days < 60:
+        return []
+    CHECK.parent.mkdir(parents=True, exist_ok=True)
+    CHECK.write_text(json.dumps({**last, "stale_shown": time.time()}), encoding="utf-8")
+    return [f"The maintainer hasn't updated this workspace in {int(days)} days. If Claude Code updates have broken "
+            "something here, or it's less useful than it was, plain Claude Code (in any other folder) may serve you "
+            "better than waiting for an update."]
 
 
 def update_lines():
@@ -127,9 +174,12 @@ def update_lines():
                        stdin=subprocess.DEVNULL)
         r = subprocess.run(["git", "-C", str(ROOT), "rev-list", "--count", "HEAD..@{u}"], capture_output=True,
                            text=True, timeout=5)
-        last = {"at": time.time(), "behind": int(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else 0}
+        last = {**last, "at": time.time(),
+                "behind": int(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else 0}
         CHECK.write_text(json.dumps(last), encoding="utf-8")
     n = last.get("behind", 0)
+    if not n:
+        return stale_lines()
     return [f"Updates to this workspace are available ({n} new commit(s)). Get them: ! python3 scripts/update.py   "
             "(your files in my/ and workspace/ aren't touched)"] if n else []
 

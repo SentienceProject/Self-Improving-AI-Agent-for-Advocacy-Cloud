@@ -288,21 +288,26 @@ def setup_techwatch():
         text = (HERE / "templates" / "techwatch.md").read_text(encoding="utf-8")
         print(S.head("Tech watch"))
         print("Tech watch looks for new tools and AI features that could help your work, and prepares each change as "
-              "an exact edit\n  to the workspace. A daily and a weekly scan use roughly $25-45 of usage a month, "
-              "capped at $45.")
-        a = ask("  Run it automatically (Enter), only when you start it (m), or not at all (o)? [A/m/o]\n"
+              "an exact edit\n  to the workspace. The maintainer already runs it, tests what it finds, and ships the "
+              "changes that suit\n  everyone (python3 scripts/update.py; Claude tells you when there are some). "
+              "Running it yourself mostly\n  repeats that work with your own usage: roughly $5-15 a month for "
+              "weekly scans, plus $10-40 for each\n  change you test. So we recommend leaving it off. If you turn "
+              "it on, it proposes only changes your own\n  settings in my/ call for (\"Proposals: all\" in "
+              "my/techwatch.md for everything; not recommended).")
+        a = ask("  Leave it off (Enter), run it only when you start it (m), or automatically (a)? [O/m/a]\n"
                 "  (Automatic doesn't start the schedule by itself: setup shows you the one command that does, at "
-                "the end.)", "a").lower()
-        runs = "when I start it" if a.startswith("m") else "off" if a.startswith("o") else "automatically"
-        ready = "test it, apply if it passes" if find_harness() else "apply it"
+                "the end.)", "o").lower()
+        runs = "when I start it" if a.startswith("m") else "automatically" if a.startswith("a") else "off"
+        ready = "ask me"
         if runs != "off":
-            b = ask("  When a change is ready: test it and apply it if it passes (Enter), or ask you first (a)? [T/a]\n"
-                    "  (Automatic changes stay within my/techwatch-auto.md: by default, major changes and ones every "
-                    "reviewer finds\n  narrow and safe. Hooks, safety rules, the ethics files and your my/ files "
-                    "always wait for you. Claude tells you\n  what was applied, and any change can be undone.)",
-                    "t").lower()
-            ready = "ask me" if b.startswith("a") else ready
-        text = text.replace("**Tech watch runs:** automatically", f"**Tech watch runs:** {runs}")
+            b = ask("  When a change is ready: ask you first (Enter), or test it and apply it if it passes (t)? "
+                    "[A/t]\n  (Each test is roughly $10-40 of usage. Automatic changes stay within "
+                    "my/techwatch-auto.md: by default, major\n  changes and ones every reviewer finds narrow and "
+                    "safe. Hooks, safety rules, the ethics files and your my/\n  files always wait for you. Claude "
+                    "tells you what was applied, and any change can be undone.)", "a").lower()
+            if b.startswith("t"):
+                ready = "test it, apply if it passes" if find_harness() else "apply it"
+        text = re.sub(r"^(\*\*Tech watch runs:\*\*).*$", lambda m: f"{m.group(1)} {runs}", text, count=1, flags=re.M)
         text = re.sub(r"^(\*\*When a change is ready:\*\*).*$", lambda m: f"{m.group(1)} {ready}", text, count=1,
                       flags=re.M)
         f.write_text(text, encoding="utf-8")

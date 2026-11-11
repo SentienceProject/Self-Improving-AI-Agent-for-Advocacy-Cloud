@@ -125,18 +125,21 @@ def prefs():
 
     runs = field("Tech watch runs").lower()
     old = field("Run my own tech watch").lower()   # the earlier yes/no setting
-    if not runs:
-        runs = "off" if old.startswith("no") else ("when I start it" if old.startswith("yes") else "automatically")
+    if not runs:   # off unless they said otherwise: tech watch's usage mostly repeats what the maintainer runs
+        runs = "when I start it" if old.startswith("yes") else "off"
     # a value tech watch doesn't recognise means the cautious choice, not the automatic one
     runs = ("automatically" if runs.startswith("auto") else "off" if runs.startswith(("off", "no", "never", "stop"))
             else "when I start it")
-    scans = "weekly only" if field("Scans").lower().startswith("weekly") else "daily and weekly"
+    scans = "daily and weekly" if field("Scans").lower().startswith("daily") else "weekly only"
+    # "only ones for me" (the default): scouts file only changes that this operator's my/ settings call for, since
+    # the maintainer finds, tests and ships the ones for everyone (scripts/update.py). "all": every kind.
+    proposals = "all" if field("Proposals").lower().startswith(("all", "every")) else "mine"
     ready = field("When a change is ready").lower()
     ready = (("test-only" if "ask" in ready or "tell" in ready else "test") if ready.startswith("test")
              else "apply" if ready.startswith("apply") else "ask")
     harness = field("Eval harness folder")
     harness = Path(harness).expanduser() if harness and not harness.startswith(("(", "<")) else None
-    return {"runs": runs, "scans": scans, "ready": ready, "harness": harness}
+    return {"runs": runs, "scans": scans, "ready": ready, "harness": harness, "proposals": proposals}
 
 
 def techtest_script(p=None):
@@ -506,14 +509,21 @@ def require(pid):
 def auto_stage_ok(d, evs, level):
     m = meta(d)
     return (level >= 1 and status_of(d.name, evs) == "pending" and not stage_attempted(d.name, evs)
-            and m.get("significance") in ("notable", "major") and m.get("kind") != "outside")
+            and m.get("significance") in ("notable", "major") and m.get("kind") != "outside" and for_this_operator(m))
+
+
+def for_this_operator(m):
+    """False for a change for everyone (not marked urgent) when my/techwatch.md says "Proposals: only ones for me":
+    the maintainer ships those, so preparing and testing it here would spend usage twice. You can still approve
+    it by hand (review.py), and then it's prepared."""
+    return m.get("audience") != "everyone" or bool(m.get("urgent")) or prefs()["proposals"] == "all"
 
 
 def to_stage(level):
-    """Proposals the runner should stage now, oldest first: approved ones, plus (at autonomy level 1+) notable and
-    major ones nobody has decided on yet."""
+    """Proposals the runner should stage now, major ones first, then oldest first: approved ones, plus (at autonomy
+    level 1+) notable and major ones nobody has decided on yet."""
     evs = events()
-    return [d.name for d in sorted(proposals(), key=lambda d: d.name)
+    return [d.name for d in sorted(proposals(), key=lambda d: (meta(d).get("significance") != "major", d.name))
             if status_of(d.name, evs) == "approved" or auto_stage_ok(d, evs, level)]
 
 
@@ -1270,7 +1280,8 @@ def auto_actions(log=print):
                     if tested_bundle(pid) != bundle_hash(pid):
                         never.append("the prepared change isn't the exact one that was tested")
                     if never:
-                        if not any(e.get("id") == pid and e.get("event") == "test_result_seen" for e in evs):
+                        if not any(e.get("id") == pid and e.get("event") == "test_result_seen"
+                                   and e.get("ts", "") >= req.get("ts", "") for e in evs):
                             record(pid, "test_result_seen", f"passed; waits for you: {', '.join(never)}")
                             log(f"{pid} passed its test but waits for you ({', '.join(never)})")
                         continue
@@ -1290,7 +1301,8 @@ def auto_actions(log=print):
                             done.append(pid)
                             evs = events()
                             continue
-                    if not any(e.get("id") == pid and e.get("event") == "test_result_seen" for e in evs):
+                    if not any(e.get("id") == pid and e.get("event") == "test_result_seen"
+                                   and e.get("ts", "") >= req.get("ts", "") for e in evs):
                         ev = evidence_of(pid)
                         record(pid, "test_result_seen", f"{outcome}: {verdict or 'no verdict'}; not applied"
                                + (f"; {ev['result']}" if ev else ""))
@@ -1300,6 +1312,23 @@ def auto_actions(log=print):
             continue
         never, reviewed = classify(pid)
         if never:
+            # Steps to do by hand stop it being APPLIED automatically, not tested: the test leaves them out, so
+            # it's tested now and then waits for you (do the steps, then review.py apply). Anything else never
+            # automatic just waits, and says so once, instead of sitting silently.
+            by_hand = all(n.startswith("a by-hand step") for n in never)
+            why = f"never automatic: {'; '.join(never)}"
+            if (by_hand and pr["ready"] in ("test", "test-only") and harness and not check_blocks(pid, evs)
+                    and not runs_in_test(pid)):
+                ok, why_q = criteria.qualifies(pid, scope, strict=bool(reviewed))
+                if ok:
+                    record(pid, "test_requested", f"tested now; it has steps for you to do by hand, so applying it "
+                           f"waits for you; {why_q}", apply_if_passes=False, auto=True)
+                    log(f"test requested for {pid} ({why_q}); it has steps for you, so it won't be applied by itself")
+                    continue
+                why = f"{why}; and for a test: {why_q}"
+            if not any(e.get("id") == pid and e.get("event") == "not_automatic" for e in evs):
+                record(pid, "not_automatic", why)
+                log(f"{pid} waits for you: {why}")
             continue
         if blocked := check_blocks(pid, evs):
             if "said" in blocked and not any(e.get("id") == pid and e.get("event") == "not_automatic"

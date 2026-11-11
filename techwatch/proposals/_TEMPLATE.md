@@ -17,6 +17,7 @@ Each proposal is a folder `techwatch/proposals/<YYYY-MM-DD>-<slug>/` with two fi
   "reversible": true,
   "apply_first": false,
   "audience": "everyone | me",
+  "urgent": false,
   "pain_points": [3],
   "est_cost": "one-time $, ongoing $/month, operator minutes",
   "review_after": "YYYY-MM-DD",
@@ -36,6 +37,9 @@ Each proposal is a folder `techwatch/proposals/<YYYY-MM-DD>-<slug>/` with two fi
 - `audience`: "everyone" if it suits someone with the default `my/` files; "me" if it's worth doing only because of
   this operator's own settings in `my/`. "me" changes are applied to the operator's copy, and
   `techwatch/scripts/personal.py` keeps them out of anything they publish.
+- `urgent`: true only for a change for everyone that can't wait for the maintainer's next update (something already
+  broken or about to break). With `Proposals: only ones for me` in `my/techwatch.md`, that's the only kind of
+  "everyone" proposal a scout files, and the only kind prepared without the operator approving it first.
 - `builds_on`: ids of earlier proposals this continues, varies or brings back (rejected "as it is", shelved, or tested
   without a clear result). `differs_from`: for each, what's really different and why that answers the earlier note
   or the test's weak spot. Leave both empty for a new idea.

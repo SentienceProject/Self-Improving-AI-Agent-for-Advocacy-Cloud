@@ -6,6 +6,15 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- **Tech watch is off by default, and we recommend leaving it off.** The maintainer runs it, tests what it finds,
+  and ships what suits everyone through `scripts/update.py`; running it yourself mostly repeated that work with
+  your own usage, and the tests (roughly $10-40 each) were the expensive part. New setting `Proposals:` in
+  `my/techwatch.md`: `only ones for me` (the default) files only changes your own `my/` settings call for, plus
+  urgent ones for everyone (`"urgent": true`); `all` files everything. New defaults for a new `my/techwatch.md`:
+  `Scans: weekly only`, `When a change is ready: ask me`. **If your tech watch already runs**, your settings are
+  kept, but it now proposes only changes for you unless you add `**Proposals:** all`; Claude tells you once at the
+  start of a session. To turn it off: `Tech watch runs: off`, then `python3 techwatch/scripts/techwatch.py schedule
+  off`. Claude also says (at most weekly) when the maintainer hasn't updated the workspace in 60 days.
 - Tech watch catches new model generations faster. The daily scout runs on Opus (up to $1.50; the monthly cap
   goes from $30 to $45), and both scouts are told to read a new top model's launch post and model page before
   judging it, and that a lesson or rejection about an earlier version doesn't settle a new one. Before this, a

@@ -207,7 +207,9 @@ def scout(mode, prompt_file, extra="", writable=("inbox", "proposals")):
     run = CONFIG["runs"][mode]
     stamp = datetime.now().strftime("%Y-%m-%d-%H%M")
     if mode in SCANS:
-        extra = f"Sensor reports to triage (today's, plus any a failed run never read): {pending_reports()}\n{extra}"
+        extra = (f"Sensor reports to triage (today's, plus any a failed run never read): {pending_reports()}\n"
+                 f"Proposals: {'all' if review.prefs()['proposals'] == 'all' else 'only ones for me'} "
+                 f"(my/techwatch.md; see \"Which proposals to file\")\n{extra}")
     prompt = (f"Run ID: techwatch-{stamp}-{mode}\nToday: {TODAY}\nMode: {mode}\n"
               f"Budget cap for this run: ${run['max_budget_usd']} (hard; the run is cut off at the cap, so write "
               f"your files early and refine after)\n{extra}\n\n"
@@ -440,13 +442,16 @@ def docs_sync_if_due():
 
 
 def scans_and_staging(scheduled):
-    """Scheduled runs (hourly) act at most once a day and retry failures that cost nothing."""
+    """Scheduled runs (hourly) scan at most once a day and retry failures that cost nothing. Checks and staging run
+    every hour, so a proposal filed later in the day (by a scan you started, say) isn't left until tomorrow; each
+    proposal is staged and checked once, so that adds no runs."""
+    scanned = False
     if scheduled:
-        if st("last_auto") == TODAY:
-            return
         ra = st("retry_after")
         if ra and time.time() < float(ra):
             return
+        scanned = st("last_auto") == TODAY
+    if scheduled and not scanned:
         adate, _, n = st("attempts").partition(" ")
         n = (int(n) if adate == TODAY and n.isdigit() else 0) + 1
         mark("attempts", f"{TODAY} {n}")
@@ -457,10 +462,10 @@ def scans_and_staging(scheduled):
         if st("sensor_ok") != TODAY and not run_sensor() and n < 3:
             problem("every sensor source failed (network down?); will retry next hour")
             return
-    else:
+    elif not scheduled:
         run_sensor()
     cadence = "weekly_only" if review.prefs()["scans"] == "weekly only" else "daily_and_weekly"
-    if st("scout_ok") != TODAY or not scheduled:
+    if not scanned and (st("scout_ok") != TODAY or not scheduled):
         mode = "weekly" if weekly_due() else ("daily" if cadence == "daily_and_weekly" and st("scout_ok") != TODAY
                                               else None)
         if mode:
@@ -483,7 +488,7 @@ def scans_and_staging(scheduled):
             if scheduled:
                 mark("retry_after", retry_at or time.time() + 3600)
             return
-    if scheduled:
+    if scheduled and not scanned:
         mark("last_auto", TODAY)
         (STATE / "retry_after").unlink(missing_ok=True)
 

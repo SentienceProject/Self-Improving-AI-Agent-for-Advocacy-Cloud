@@ -5,19 +5,31 @@ services, data sources, hardware, ways of working. First, how it runs; then your
 it applies beyond the workspace's guardrails, so write down whatever matters to you. Leave a line blank if you
 have no limit there. -->
 
-**Tech watch runs:** automatically
-<!-- "automatically": scans run on a schedule, while your computer is on. Start the schedule once with
-`python3 techwatch/scripts/techwatch.py schedule on` (setup.py shows this command; it doesn't run it for you). "when I start it": Claude reminds you when a scan is due and you run
-`! python3 techwatch/scripts/techwatch.py run`. "off": no scans; you still get the maintainer's improvements with
-`python3 scripts/update.py`. -->
+**Tech watch runs:** off
+<!-- Off by default, and that's what we recommend for most people. The maintainer already runs tech watch, tests
+what it finds on advocacy tasks, and ships the changes that suit everyone: `python3 scripts/update.py` gets them, and
+Claude tells you at the start of a session when there are some. Running it yourself mostly repeats that work with
+your own usage: the scans alone are roughly $5-15 a month (weekly only) or $25-45 (daily and weekly), and each test
+of a change in the eval harness is roughly $10-40 more. On a subscription these come out of the same usage limits as
+your own work.
+"automatically": scans run on a schedule, while your computer is on. Start the schedule once with
+`python3 techwatch/scripts/techwatch.py schedule on` (setup.py shows this command; it doesn't run it for you). "when I
+start it": Claude reminds you when a scan is due and you run `! python3 techwatch/scripts/techwatch.py run`. "off": no
+scans. -->
 
-**Scans:** daily and weekly
-<!-- "daily and weekly": a quick daily scan (Opus, up to $1.50) plus a deeper weekly one (Opus, up to $4); roughly
-$25-45 of usage a month. "weekly only": roughly $5-15 a month. Preparing a change costs up to $3 more. Everything
-stops at the monthly cap in techwatch/config.json ($45). On a subscription these are estimates against your usage
-limits, not charges. -->
+**Proposals:** only ones for me
+<!-- Used when tech watch runs. "only ones for me" (recommended): tech watch proposes only changes that your own
+settings in my/ call for (your budget, platform, privacy, interests, ethics), which the maintainer can't find for you,
+plus anything urgent that can't wait for the maintainer's next update. "all": every change it finds, including the
+ones the maintainer will ship anyway; not recommended unless you maintain your own version of the workspace. -->
 
-**When a change is ready:** test it, apply if it passes
+**Scans:** weekly only
+<!-- "weekly only": one deeper weekly scan (Opus, up to $4); roughly $5-15 of usage a month. "daily and weekly": a
+quick daily scan (Opus, up to $1.50) as well; roughly $25-45 a month. Preparing a change costs up to $3 more.
+Everything stops at the monthly cap in techwatch/config.json ($45). On a subscription these are estimates against
+your usage limits, not charges. -->
+
+**When a change is ready:** ask me
 <!-- "ask me": Claude tells you at the start of a session; `! python3 techwatch/scripts/review.py` asks, change by
 change, whether to test it (and apply it if it passes), apply it now, or skip it.
 "test it, then ask me": changes are tested with the eval harness (see "Eval harness folder"), and you decide with
