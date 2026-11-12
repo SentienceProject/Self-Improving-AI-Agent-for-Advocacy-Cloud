@@ -6,6 +6,10 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- **Optional action table.** With `**Action table:** on` in `my/profile.md` (setup asks; off if the line is
+  missing), Claude ends its final reply with a short table of what was researched, drafted or decided and what's
+  left: ✅ done, ❌ failed, ❗️ needs you, ⏳ still running, 🔵 deliberately not done. It's left out when there's too
+  little to list or the reply doesn't break down into rows, and never goes into drafts or files.
 - **Tech watch is off by default, and we recommend leaving it off.** The maintainer runs it, tests what it finds,
   and ships what suits everyone through `scripts/update.py`; running it yourself mostly repeated that work with
   your own usage, and the tests (roughly $10-40 each) were the expensive part. New setting `Proposals:` in

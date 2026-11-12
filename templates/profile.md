@@ -18,4 +18,6 @@ silent or unsure (you can turn that off).
 
 **Creativity:** normal (Claude decides how much wild brainstorming a task gets; the ideator gives about 20 angles). Or: low (about 12 angles) / high (25+).
 
+**Action table:** off (on = Claude ends its final reply with a short ✅/❌/❗️/⏳/🔵 table of what was done and what's left)
+
 **Anything else Claude should always know:**

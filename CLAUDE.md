@@ -57,6 +57,8 @@ Save drafts as `workspace/outbox/<run-id>-<slug>.md` in hardened mode, or `works
 
 After delivering a draft, end your reply with one line: "Was this useful? (y/n, and a word on why if you like)". When I answer, record it with `python3 scripts/feedback.py y|n <draft path> "<my reason>"`. If I don't answer, don't ask again. These answers are how changes to the workspace get judged by real use, not only by tests.
 
+**Action table** (only if my profile says `Action table: on`). When you've finished working and send me your final reply, or a wrap-up while something long is still running, end it with a short table of what matters to me: what was researched, drafted or decided, and what's still left. Routine steps like critic calls or saving logs and drafts get no row. Status goes first, one per row: ✅ done and checked, ❌ tried and failed, ❗️ needs me, ⏳ still running, 🔵 deliberately not done (skipped, deferred, out of scope). Add a few words on any row that isn't ✅. Anything ❌ or ❗️ must also be in your reply above the table. Leave the table out if it would have fewer than three rows or the reply doesn't break down into rows. It goes only in your reply to me, above the "Was this useful?" line, never in drafts or files. If you're a subagent (your task came from another Claude session, not from me), this paragraph isn't for you: leave the table out of your report.
+
 ## Working style
 
 - Ask before starting if the task is ambiguous, if my answer to a question could help you work better or more efficiently, etc. Mid-run questions for the same purpose are also encouraged.

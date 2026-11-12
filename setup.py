@@ -141,6 +141,8 @@ def make_profile():
         "**Who I am:**": ask("  Who you are, in a line (e.g. independent volunteer, nonprofit staff)?"),
         "**What I mostly want help with:**": ask("  What you mostly want help with (e.g. research briefs, letters)?"),
     }
+    if ask("  End Claude's final replies with a short ✅/❌/❗️ table of what was done? (y/N)").lower().startswith("y"):
+        answers["**Action table:**"] = "on"
     lines = text.splitlines()
     for i, line in enumerate(lines):
         for key, value in answers.items():
