@@ -7,7 +7,7 @@
     python3 setup.py --search      also set up semantic corpus search (hardened mode; needs Ollama)
     python3 setup.py --status      show the current mode and what's set up; change nothing
     python3 setup.py --more        the optional extras: safety mode, your paper corpus, using sessions from your phone
-    python3 setup.py --ask-outside-models     ask before each call Claude makes to ChatGPT or Gemini (off by default;
+    python3 setup.py --ask-outside-models     ask before each call Claude makes to an outside model (off by default;
                                               --no-ask-outside-models turns it off again)
 
 Fewer (or more) permission prompts. The workspace's rules are asks, not blocks: Claude can do each thing after you
@@ -710,8 +710,8 @@ def rule_command(args):
         for r in outside_rules():
             set_override(r, "ask" if ask_first else None)
         apply_layer(current_mode() or "casual")
-        print("Claude now asks you before each call to ChatGPT or Gemini (scripts/ask_model.py)." if ask_first else
-              "Claude may call ChatGPT and Gemini without asking again (the default). Every call is still logged "
+        print("Claude now asks you before each call to an outside model (scripts/ask_model.py)." if ask_first else
+              "Claude may call outside models without asking again (the default). Every call is still logged "
               "in workspace/logs/outside-models.md.")
         return True
     if "--rules" in args:

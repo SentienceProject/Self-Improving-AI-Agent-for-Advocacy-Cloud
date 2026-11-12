@@ -99,7 +99,8 @@ Other things worth knowing:
 - **Connecting your tools.** Ask Claude to `/connect` a reference manager, cloud drive or notes app. It explains the
   options and risks, and you do the installing. Sending through a connected app always asks you first.
 - **Second opinions from other AI models.** Once ChatGPT or Gemini is set up (setup offers it, for the eval
-  harness), Claude can ask them for critiques and cross-checks during your tasks (`scripts/ask_model.py`;
+  harness), or OpenRouter or Groq (a key in this workspace's `.env`; OpenRouter is paid from your credits, Groq has a
+  free tier), Claude can ask them for critiques and cross-checks during your tasks (`scripts/ask_model.py`;
   `OUTSIDE_MODELS.md` has its rules). A model from another company catches things Claude critics miss. It doesn't
   ask you first, even when it sends files from `workspace/`; every call is logged in
   `workspace/logs/outside-models.md`. To be asked before each call: `python3 setup.py --ask-outside-models`.
@@ -495,7 +496,7 @@ PRIVACY.md                   where your data goes
 VERSION, CHANGELOG.md        the version and what changed
 examples/                    real outputs, unedited
 CLAUDE.md, GUARDRAILS.md     how Claude works here, and the honesty, consent and outreach rules
-OUTSIDE_MODELS.md            when and how Claude asks ChatGPT or Gemini for a second opinion
+OUTSIDE_MODELS.md            when and how Claude asks ChatGPT, Gemini, OpenRouter or Groq models for a second opinion
 ETHICS_SHORT.md, ETHICS_FULL.md   the default ethical framework (yours goes in my/)
 my/                          your own files (gitignored)
 .claude/agents/              analyst, critic, drafter, helper, ideator, researcher, verifier, wild-ideator
