@@ -2,7 +2,7 @@
 name: verifier
 description: Checks a draft against its cited sources and reports unsupported claims. Read-only, reports only, never edits. Use before any draft with contestable factual claims is done.
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch
-model: sonnet
+model: inherit
 effort: high
 omitClaudeMd: true
 permissionMode: default
