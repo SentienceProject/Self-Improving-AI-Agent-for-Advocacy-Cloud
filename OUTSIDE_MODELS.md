@@ -7,7 +7,7 @@ Groq need `OPENROUTER_API_KEY=...` and `GROQ_API_KEY=...` in this workspace's `.
 | Name | Model | Good for |
 |---|---|---|
 | `chatgpt` | ChatGPT, through the Codex CLI and the person's ChatGPT login | reading long documents; a second critique |
-| `gemini` | Gemini Flash, through its free API key | general reasoning; checking a claim against a passage |
+| `gemini` | Gemini 4 Hydrogen, through its free API key | general reasoning; checking a claim against a passage |
 | `openrouter` | any of hundreds of models, paid from the person's prepaid OpenRouter credits | picking the model that suits the job |
 | `groq` | a few very fast open models, free within Groq's rate limits (paid only if billing is added there) | quick, short checks at no cost |
 

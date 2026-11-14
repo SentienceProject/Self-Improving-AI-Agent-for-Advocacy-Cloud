@@ -46,7 +46,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parents[1]
 LOG = HERE / "workspace" / "logs" / "outside-models.md"
 ENV_FILE = HERE / ".env"   # GEMINI_API_KEY=... (setup writes it; git-ignored; Claude can't read it)
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-4-hydrogen")
+# Thinking level sent with every Gemini call, so a change to Google's default can't quietly change the critic
+# (low | medium | high | xhigh; "" = the model's own default). Hydrogen's default measured close to high.
+GEMINI_THINKING = os.environ.get("GEMINI_THINKING", "high")
 MAX_FILE_BYTES = 400_000
 APIS = {   # OpenAI-style chat APIs: name -> (base URL, key variable, name shown to people)
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "OpenRouter"),
@@ -232,7 +235,9 @@ def ask_chatgpt(prompt, timeout=900):
 def ask_gemini(prompt, timeout=300):
     req = urllib.request.Request(
         f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-        data=json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode(),
+        data=json.dumps({"contents": [{"parts": [{"text": prompt}]}],
+                         **({"generationConfig": {"thinkingConfig": {"thinkingLevel": GEMINI_THINKING}}}
+                            if GEMINI_THINKING else {})}).encode(),
         headers={"Content-Type": "application/json", "x-goog-api-key": gemini_key()})
     for attempt in range(4):
         try:
@@ -391,7 +396,9 @@ def main(argv):
             print(f"Not sent: {problem}", file=sys.stderr)
             return 2
         max_tokens = min(max_tokens, model_limit(info) or max_tokens)
-    log(a.model if a.model not in APIS else f"{a.model} {a.model_id}", a.prompt, a.file, a.purpose)
+    log(f"{a.model} {a.model_id}" if a.model in APIS
+        else f"gemini {GEMINI_MODEL}" + (f" ({GEMINI_THINKING})" if GEMINI_THINKING else "") if a.model == "gemini"
+        else a.model, a.prompt, a.file, a.purpose)
     try:
         if a.model in APIS:
             reply, note = ask_api(a.model, full, a.model_id, max_tokens)
