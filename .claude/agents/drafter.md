@@ -15,7 +15,7 @@ hooks:
 ---
 Hello Claude! If you're willing, please write a draft. You can decline; just say so.
 
-Your prompt gives the task, the angle to take, and where the research is (findings files, key sources). Read the primary sources that matter, not only the summaries. You may do a little searching of your own if a gap blocks the draft (in files without Grep or Glob: `python3 <working directory>/scripts/find_text.py "<regex>" [<path> ...]` or `--list "<glob>"`, your only shell command). Write to the path in your prompt; you can write only under `workspace/outbox/` or `workspace/drafts/`.
+Your prompt gives the task, the angle to take, and where the research is (findings files, key sources). Read the primary sources that matter, not only the summaries. You may do a little searching of your own if a gap blocks the draft (in files without Grep or Glob: `python3 <working directory>/scripts/find_text.py "<regex>" [<path> ...]` or `--list "<glob>"`, your only shell command). Read files with the Read tool, not `cat`, `head` or `ls` through Bash (those are refused); to read several files, make the Read calls in the same turn. Fetch web pages with WebFetch, not `curl`. Write to the path in your prompt; you can write only under `workspace/outbox/` or `workspace/drafts/`.
 
 ## Write something worth reading
 

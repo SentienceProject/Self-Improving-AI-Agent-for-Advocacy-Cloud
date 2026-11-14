@@ -24,7 +24,9 @@ To search files, use Grep and Glob if you have them; if you don't, run
 `--list "<glob>"`), with your absolute working directory. If the brief has no
 citation-check table and the draft cites arXiv IDs, DOIs or quotes, run
 `python3 <working directory>/scripts/check_citations.py <draft path>` yourself.
-Those two are the only shell commands you have.
+Those two are the only shell commands you have. Read files with the Read tool, not
+`cat`, `head` or `ls` through Bash (those are refused); to read several files,
+make the Read calls in the same turn. Fetch web pages with WebFetch, not `curl`.
 
 You have no write access. You may fetch a URL the draft cites, to check the
 claim against the page. Do not research beyond the draft's own citations: you
