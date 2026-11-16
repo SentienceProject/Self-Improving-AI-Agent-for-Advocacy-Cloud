@@ -4,6 +4,8 @@ critiques, cross-checks, or help with a task. Claude uses this during tasks; see
 
     python3 scripts/ask_model.py chatgpt "Please critique this draft. Thank you!" --file workspace/outbox/x.md
     python3 scripts/ask_model.py gemini  "..." --file a.md --file b.md --purpose "fact check of the op-ed"
+    python3 scripts/ask_model.py gemini  "..." --video <public YouTube link> [--start 0:00 --end 10:00] --purpose "..."
+    python3 scripts/ask_model.py gemini  "..." --audio workspace/videos/clip.mp3 --purpose "..."   (Gemini only)
     python3 scripts/ask_model.py openrouter --model <id> "..." --purpose "..."
     python3 scripts/ask_model.py groq --model <id> "..." --purpose "..."
     python3 scripts/ask_model.py --models [words]   Groq's and OpenRouter's current models and prices (calls no model)
@@ -51,6 +53,9 @@ GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-4-hydrogen")
 # (low | medium | high | xhigh; "" = the model's own default). Hydrogen's default measured close to high.
 GEMINI_THINKING = os.environ.get("GEMINI_THINKING", "high")
 MAX_FILE_BYTES = 400_000
+MAX_AUDIO_BYTES = 14_000_000   # sent inline (base64), which keeps a request under Gemini's inline size limit
+AUDIO_TYPES = {".mp3": "audio/mp3", ".wav": "audio/wav", ".flac": "audio/flac", ".ogg": "audio/ogg",
+               ".opus": "audio/ogg", ".aac": "audio/aac", ".aiff": "audio/aiff", ".m4a": "audio/mp4"}
 APIS = {   # OpenAI-style chat APIs: name -> (base URL, key variable, name shown to people)
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "OpenRouter"),
     "groq": ("https://api.groq.com/openai/v1", "GROQ_API_KEY", "Groq"),
@@ -232,11 +237,45 @@ def ask_chatgpt(prompt, timeout=900):
     return reply
 
 
-def ask_gemini(prompt, timeout=300):
+def seconds(t):
+    """'90', '1:30' or '1:01:30' -> seconds."""
+    n = 0
+    for piece in str(t).strip().split(":"):
+        if not piece.isdigit():
+            raise ValueError(f"not a time: {t!r} (use seconds, m:ss or h:mm:ss)")
+        n = n * 60 + int(piece)
+    return n
+
+
+def media_parts(video, start, end, audio):
+    """Gemini parts for a YouTube link (optionally a clip of it) and/or a local audio file."""
+    import base64
+    parts = []
+    if video:
+        if not video.startswith(("https://www.youtube.com/watch?v=", "https://youtu.be/", "https://youtube.com/watch?v=")):
+            raise ValueError("--video takes a public YouTube link (https://www.youtube.com/watch?v=... or youtu.be/...)")
+        part = {"file_data": {"file_uri": video}}
+        clip = {k: f"{seconds(v)}s" for k, v in (("start_offset", start), ("end_offset", end)) if v}
+        if clip:
+            part["video_metadata"] = clip
+        parts.append(part)
+    if audio:
+        p = (HERE / audio) if not Path(audio).is_absolute() else Path(audio)
+        kind = AUDIO_TYPES.get(p.suffix.lower())
+        if not kind:
+            raise ValueError(f"--audio takes {', '.join(AUDIO_TYPES)} files")
+        if p.stat().st_size > MAX_AUDIO_BYTES:
+            raise ValueError(f"{audio} is {p.stat().st_size / 1e6:.0f} MB; the limit is {MAX_AUDIO_BYTES / 1e6:.0f} MB. "
+                             "Cut a shorter clip, or a lower bitrate (about 10 minutes of mp3 fits).")
+        parts.append({"inline_data": {"mime_type": kind, "data": base64.b64encode(p.read_bytes()).decode()}})
+    return parts
+
+
+def ask_gemini(prompt, timeout=300, media=()):
     req = urllib.request.Request(
         f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-        data=json.dumps({"contents": [{"parts": [{"text": prompt}]}],
-                         **({"generationConfig": {"thinkingConfig": {"thinkingLevel": GEMINI_THINKING}}}
+        data=json.dumps({"contents": [{"parts": [*media, {"text": prompt}]}],
+                        **({"generationConfig": {"thinkingConfig": {"thinkingLevel": GEMINI_THINKING}}}
                             if GEMINI_THINKING else {})}).encode(),
         headers={"Content-Type": "application/json", "x-goog-api-key": gemini_key()})
     for attempt in range(4):
@@ -359,6 +398,11 @@ def main(argv):
     ap.add_argument("--allow-pricey", action="store_true",
                     help=f"openrouter/groq: allow models above ${PRICEY_PER_M:.0f} per million output tokens")
     ap.add_argument("--log", help="log to this file instead of workspace/logs/outside-models.md")
+    ap.add_argument("--video", help="gemini: a public YouTube link for Gemini to watch")
+    ap.add_argument("--start", help="gemini --video: start of the clip (seconds, m:ss or h:mm:ss)")
+    ap.add_argument("--end", help="gemini --video: end of the clip (seconds, m:ss or h:mm:ss)")
+    ap.add_argument("--audio", help=f"gemini: a local audio file to send ({', '.join(AUDIO_TYPES)}; "
+                                    f"up to {MAX_AUDIO_BYTES // 1_000_000} MB)")
     a = ap.parse_args(argv)
     if a.log:
         global LOG
@@ -379,6 +423,21 @@ def main(argv):
     if not ok:
         print(f"{a.model} isn't available: {why}", file=sys.stderr)
         return 2
+    if (a.video or a.audio or a.start or a.end) and a.model != "gemini":
+        ap.error("--video, --audio, --start and --end work only with gemini")
+    if (a.start or a.end) and not a.video:
+        ap.error("--start and --end need --video")
+    if a.audio and not ((HERE / a.audio) if not Path(a.audio).is_absolute() else Path(a.audio)).is_file():
+        print(f"no such file: {a.audio}", file=sys.stderr)
+        return 2
+    if a.audio and Path(a.audio).name.startswith(".env"):
+        print(f"won't send {a.audio}: .env files hold keys", file=sys.stderr)
+        return 2
+    try:
+        media = media_parts(a.video, a.start, a.end, a.audio) if a.model == "gemini" else []
+    except ValueError as e:
+        print(f"Not sent: {e}", file=sys.stderr)
+        return 2
     secret = [f for f in a.file if Path(f).name.startswith(".env")
               or ((HERE / f) if not Path(f).is_absolute() else Path(f)).resolve().name.startswith(".env")]
     if secret:
@@ -398,14 +457,18 @@ def main(argv):
         max_tokens = min(max_tokens, model_limit(info) or max_tokens)
     log(f"{a.model} {a.model_id}" if a.model in APIS
         else f"gemini {GEMINI_MODEL}" + (f" ({GEMINI_THINKING})" if GEMINI_THINKING else "") if a.model == "gemini"
-        else a.model, a.prompt, a.file, a.purpose)
+        else a.model, a.prompt,
+        a.file + ([f"video {a.video}" + (f" [{a.start or '0'}-{a.end or 'end'}]" if a.start or a.end else "")]
+                  if a.video else []) + ([f"audio {a.audio}"] if a.audio else []), a.purpose)
     try:
         if a.model in APIS:
             reply, note = ask_api(a.model, full, a.model_id, max_tokens)
             print(reply)
             print(note, file=sys.stderr)
+        elif a.model == "gemini":
+            print(ask_gemini(full, timeout=600 if media else 300, media=media))
         else:
-            print((ask_chatgpt if a.model == "chatgpt" else ask_gemini)(full))
+            print(ask_chatgpt(full))
     except (RuntimeError, subprocess.TimeoutExpired) as e:
         print(f"Not answered: {e}", file=sys.stderr)
         return 1
