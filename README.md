@@ -131,8 +131,10 @@ rules you can switch off. Two things decide how often you're asked: the **permis
   want to see each step, or while you get to know the workspace. Expect a lot of questions on a big task; answer
   "Yes, and don't ask again" to the ones you're happy with.
 
-To start in one mode every time, add `"permissions": {"defaultMode": "auto"}` (or `"default"` for Manual) to
-`.claude/settings.local.json`.
+New sessions start in Auto, or in Manual in hardened mode. To always start in Manual, add
+`"permissions": {"defaultMode": "default"}` to `.claude/settings.local.json`. Claude Code ignores `"auto"` there,
+so to start in Auto in hardened mode, delete the `"defaultMode"` line from that file (rerunning
+`setup.py --hardened` puts it back) or start with `claude --permission-mode auto`.
 
 **The workspace's ask rules** (in casual mode; none of them is a block, so Claude can still do each one after you
 say yes):
