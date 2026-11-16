@@ -49,8 +49,8 @@ paid plan would charge). Pick for the job:
 free tier costs nothing. Replies
 aren't cut short in practice: the 32,000-token ceiling (`--max-tokens`) only stops runaways, and if a reply does hit
 it the script says so. Models above $20 per million output tokens are refused unless you add `--allow-pricey`; use
-it only when the task needs that model. Each call prints its token counts and cost. Ask once with everything the
-model needs rather than several thin calls.
+it only when the task needs that model. Each OpenRouter or Groq call prints its token counts and cost. Ask once with
+everything the model needs rather than several thin calls.
 
 Use the full path (e.g. `python3 /home/you/ai-welfare-workspace/scripts/ask_model.py ...`) and write the command on
 one line, with nothing in front of it: no `cd ...;`, no `&&`, no environment variables. Only that exact form is let
