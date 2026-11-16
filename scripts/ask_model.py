@@ -8,7 +8,9 @@ critiques, cross-checks, or help with a task. Claude uses this during tasks; see
     python3 scripts/ask_model.py gemini  "..." --audio workspace/videos/clip.mp3 --purpose "..."   (Gemini only)
     python3 scripts/ask_model.py openrouter --model <id> "..." --purpose "..."
     python3 scripts/ask_model.py groq --model <id> "..." --purpose "..."
-    python3 scripts/ask_model.py --models [words]   Groq's and OpenRouter's current models and prices (calls no model)
+    python3 scripts/ask_model.py groq --model <speech-to-text id> --audio clip.mp3 ["names, spellings"] [--timestamps] --purpose "..."
+    python3 scripts/ask_model.py --models [words]   Groq's and OpenRouter's current chat models and prices (calls no
+                                                    model); add --all-models for speech-to-text and other models
     python3 scripts/ask_model.py --status        which models are set up (calls nothing)
 
 It uses the same logins as the eval harness's judges (python3 setup.py, or the harness's setup_judges.py):
@@ -56,6 +58,8 @@ MAX_FILE_BYTES = 400_000
 MAX_AUDIO_BYTES = 14_000_000   # sent inline (base64), which keeps a request under Gemini's inline size limit
 AUDIO_TYPES = {".mp3": "audio/mp3", ".wav": "audio/wav", ".flac": "audio/flac", ".ogg": "audio/ogg",
                ".opus": "audio/ogg", ".aac": "audio/aac", ".aiff": "audio/aiff", ".m4a": "audio/mp4"}
+MAX_TRANSCRIBE_BYTES = 25_000_000   # Groq's upload limit on its free tier
+TRANSCRIBE_TYPES = (".flac", ".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".ogg", ".wav", ".webm")
 APIS = {   # OpenAI-style chat APIs: name -> (base URL, key variable, name shown to people)
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY", "OpenRouter"),
     "groq": ("https://api.groq.com/openai/v1", "GROQ_API_KEY", "Groq"),
@@ -163,8 +167,24 @@ def available(which):
     return False, f"unknown model {which!r} (chatgpt, gemini, {' or '.join(APIS)})"
 
 
-def api_models(api):
-    """The API's current chat models (listing costs nothing). OpenRouter's list is public; Groq's needs the key."""
+KIND_NAMES = {"chat": "chat", "safety": "safety classifier", "transcription": "speech-to-text",
+              "speech": "text-to-speech"}
+
+
+def model_kind(m):
+    """chat, safety (guard models: called like chat, but they classify), transcription (audio in, text out; use
+    --audio), speech (text to speech), or the model's own output type."""
+    ins, outs = m.get("input_modalities") or ["text"], m.get("output_modalities") or ["text"]
+    if "transcription" in outs or ("audio" in ins and "text" not in ins):
+        return "transcription"
+    if "text" not in outs:
+        return "speech" if "speech" in outs else "/".join(outs)
+    return "safety" if "guard" in m["id"] else "chat"
+
+
+def api_models(api, everything=False):
+    """The API's current models (listing costs nothing): chat models only, unless `everything`. OpenRouter's list
+    is public; Groq's needs the key."""
     headers = {"User-Agent": "ask_model.py"}   # Groq refuses Python's default one
     key = api_key(api)
     if key:
@@ -172,9 +192,9 @@ def api_models(api):
     req = urllib.request.Request(f"{APIS[api][0]}/models", headers=headers)
     with urllib.request.urlopen(req, timeout=60) as resp:
         data = json.load(resp)["data"]
-    if api == "groq":   # Groq also serves speech, transcription and prompt-guard models; keep the chat ones
-        data = [m for m in data if m.get("active", True) and "text" in (m.get("output_modalities") or ["text"])
-                and "text" in (m.get("input_modalities") or ["text"]) and "guard" not in m["id"]]
+    data = [m for m in data if m.get("active", True)]
+    if not everything:   # Groq also serves speech-to-text, text-to-speech and safety models
+        data = [m for m in data if model_kind(m) == "chat"]
     return data
 
 
@@ -185,8 +205,22 @@ def per_million(m, kind):
         return 0.0
 
 
-def list_models(words):
-    """Print each set-up API's current models matching all of `words`, newest first, with prices and context size.
+def model_row(m, show_kind):
+    kind = model_kind(m)
+    if kind == "transcription":
+        detail = "give it an audio file with --audio; priced per hour of audio"
+    elif "completion" not in (m.get("pricing") or {}):
+        detail = "price not listed" + ("" if kind == "speech" else
+                                       f"{'':21}context {m.get('context_length') or m.get('context_window') or '?'}")
+    else:
+        detail = (f"in ${per_million(m, 'prompt'):6.2f}/M  out ${per_million(m, 'completion'):6.2f}/M  "
+                  f"context {m.get('context_length') or m.get('context_window') or '?'}")
+    return f"{m['id']:55} " + (f"{KIND_NAMES.get(kind, kind):17}  " if show_kind else "") + detail
+
+
+def list_models(words, everything=False):
+    """Print each set-up API's current models matching all of `words`, newest first, with prices and context size:
+    chat models only, unless `everything`. If no chat model matches but other models do, those are shown instead.
     Groq comes first: its list is short and its free tier costs nothing."""
     words = [w.lower() for w in words]
     for api in ("groq", "openrouter"):
@@ -195,20 +229,27 @@ def list_models(words):
             print(f"== {name}: not set up (no {APIS[api][1]}), skipped\n")
             continue
         try:
-            models = api_models(api)
+            models = api_models(api, everything=True)
         except (urllib.error.URLError, TimeoutError, KeyError, ValueError) as e:
             print(f"== {name}: couldn't fetch its model list: {e!r}{sandbox_hint()}\n")
             continue
-        rows = [m for m in models if all(w in (m["id"] + " " + (m.get("name") or "")).lower() for w in words)]
-        rows.sort(key=lambda m: -m.get("created", 0))
+        models.sort(key=lambda m: -m.get("created", 0))
+        matching = [m for m in models if all(w in (m["id"] + " " + (m.get("name") or "")).lower() for w in words)]
+        chat = [m for m in matching if model_kind(m) == "chat"]
+        others = sorted({KIND_NAMES.get(model_kind(m), model_kind(m)) for m in models if model_kind(m) != "chat"})
+        rows, fallback = (matching, False) if everything else (chat, False) if chat or not matching else (matching, True)
         print(f"== {name} (use: {api} --model <id>)"
               + ("; free tier: no charge, within daily rate limits, unless billing was added at Groq. Prices are "
                  "what a paid plan would charge." if api == "groq" else "; paid from credits, except :free ids."))
+        if fallback:
+            print("No chat models match those words; these other models do:")
         for m in rows[:60]:
-            print(f"{m['id']:55} in ${per_million(m, 'prompt'):6.2f}/M  out ${per_million(m, 'completion'):6.2f}/M  "
-                  f"context {m.get('context_length') or m.get('context_window') or '?'}")
+            print(model_row(m, everything or fallback))
         more = " (showing the newest 60; add words to narrow it)" if len(rows) > 60 else ""
-        print(f"{len(rows)} models{more}. Prices are USD per million tokens.\n")
+        print(f"{len(rows)} models{more}. Prices are USD per million tokens.")
+        if others and not (everything or fallback):
+            print(f"{name} also has models that aren't for chat ({', '.join(others)}): add --all-models to see them.")
+        print()
 
 
 def log(model, prompt, files, purpose):
@@ -309,18 +350,30 @@ def model_limit(m):
     return lim if isinstance(lim, int) and lim > 0 else None
 
 
-def check_model(api, model_id, allow_pricey):
-    """(problem, model info): problem is None if `model_id` may be used. Checks it exists (ids change fast) and
-    isn't pricey."""
+def check_model(api, model_id, allow_pricey, audio=False):
+    """(problem, model info): problem is None if `model_id` may be used. Checks it exists (ids change fast), suits
+    the request (a chat model, or a speech-to-text one when there's `audio`), and isn't pricey."""
     name = APIS[api][2]
     try:
-        models = {m["id"]: m for m in api_models(api)}
+        models = {m["id"]: m for m in api_models(api, everything=True)}
     except (urllib.error.URLError, TimeoutError, KeyError, ValueError) as e:
         return f"couldn't fetch {name}'s model list to check {model_id!r}: {e!r}", {}
     m = models.get(model_id)
     if not m:
-        return (f"{name} has no chat model {model_id!r} now (models change often). See the current ones with: "
-                f"python3 {HERE / 'scripts' / 'ask_model.py'} --models <words>"), {}
+        return (f"{name} has no model {model_id!r} now (models change often). See the current ones with: "
+                f"python3 {HERE / 'scripts' / 'ask_model.py'} --models <words> (add --all-models for ones that "
+                "aren't for chat)"), {}
+    kind = model_kind(m)
+    if audio:
+        if kind != "transcription":
+            return (f"--audio needs a speech-to-text model, and {model_id} is a {KIND_NAMES.get(kind, kind)} model. "
+                    "See the speech-to-text ones with --models --all-models"), m
+        return None, m
+    if kind == "transcription":
+        return f"{model_id} is a speech-to-text model: give it an audio file with --audio <file>", m
+    if kind not in ("chat", "safety"):
+        return (f"{model_id} is a {KIND_NAMES.get(kind, kind)} model; this script sends chat and speech-to-text "
+                "requests"), m
     out = per_million(m, "completion")
     if out > PRICEY_PER_M and not allow_pricey:   # Groq's free tier charges nothing, but billing may be added there
         return (f"{model_id} costs ${out:.2f} per million output tokens, above the ${PRICEY_PER_M:.0f} line. Pick a "
@@ -328,20 +381,16 @@ def check_model(api, model_id, allow_pricey):
     return None, m
 
 
-def ask_api(api, prompt, model_id, max_tokens, timeout=900):
-    """(reply, note): note says what it cost and whether the reply was cut short."""
+def post(api, path, body, content_type, timeout):
+    """POST to the API, retrying twice if it's busy or rate-limited; the JSON reply."""
     base, _, name = APIS[api]
-    req = urllib.request.Request(
-        f"{base}/chat/completions",
-        data=json.dumps({"model": model_id, "max_tokens": max_tokens,
-                         "messages": [{"role": "user", "content": prompt}]}).encode(),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key(api)}",
-                 "User-Agent": "ask_model.py"})
+    req = urllib.request.Request(f"{base}/{path}", data=body,
+                                 headers={"Content-Type": content_type, "Authorization": f"Bearer {api_key(api)}",
+                                          "User-Agent": "ask_model.py"})
     for attempt in range(3):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                data = json.load(resp)
-            break
+                return json.load(resp)
         except urllib.error.HTTPError as e:
             if e.code in (429, 500, 502, 503, 504) and attempt < 2:
                 time.sleep(10 * 2 ** attempt)
@@ -352,6 +401,59 @@ def ask_api(api, prompt, model_id, max_tokens, timeout=900):
                 time.sleep(10 * 2 ** attempt)
                 continue
             raise RuntimeError(f"{name} failed: {e!r}")
+
+
+def audio_path(audio):
+    return (HERE / audio) if not Path(audio).is_absolute() else Path(audio)
+
+
+def check_transcription_file(audio):
+    """None if `audio` can be sent for speech-to-text, else what's wrong."""
+    p = audio_path(audio)
+    if p.suffix.lower() not in TRANSCRIBE_TYPES:
+        return f"speech-to-text takes {', '.join(TRANSCRIBE_TYPES)} files"
+    if p.stat().st_size > MAX_TRANSCRIBE_BYTES:
+        return (f"{audio} is {p.stat().st_size / 1e6:.0f} MB; the limit is {MAX_TRANSCRIBE_BYTES / 1e6:.0f} MB. Cut "
+                "it into shorter pieces, or lower the bitrate (e.g. ffmpeg -i in.mp3 -ac 1 -b:a 32k out.mp3).")
+    return None
+
+
+def clock(t):
+    """Seconds -> m:ss, or h:mm:ss from an hour on."""
+    t = int(t)
+    return f"{t // 3600}:{t // 60 % 60:02d}:{t % 60:02d}" if t >= 3600 else f"{t // 60}:{t % 60:02d}"
+
+
+def transcribe(api, model_id, audio, hint="", timestamps=False, timeout=900):
+    """(transcript, note). `hint` isn't an instruction: the model reads it as text that came before the audio, so
+    it helps with names and spellings. With `timestamps`, each segment is a line starting [start-end]."""
+    import uuid
+    p = audio_path(audio)
+    boundary = uuid.uuid4().hex
+    fields = {"model": model_id, "response_format": "verbose_json" if timestamps else "json",
+              **({"prompt": hint} if hint else {})}
+    body = b"".join(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode()
+                    for k, v in fields.items())
+    body += (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio{p.suffix.lower()}"\r\n'
+             "Content-Type: application/octet-stream\r\n\r\n").encode() + p.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
+    data = post(api, "audio/transcriptions", body, f"multipart/form-data; boundary={boundary}", timeout)
+    text = (data.get("text") or "").strip()
+    if timestamps and data.get("segments"):
+        text = "\n".join(f"[{clock(g.get('start', 0))}-{clock(g.get('end', 0))}] {(g.get('text') or '').strip()}"
+                         for g in data["segments"] if (g.get("text") or "").strip())
+    note = f"[{api} {model_id}: speech-to-text of {p.name}" + (", free tier]" if api == "groq" else "]")
+    if not text:
+        raise RuntimeError(f"{APIS[api][2]} returned an empty transcript {note}")
+    return text, note
+
+
+def ask_api(api, prompt, model_id, max_tokens, timeout=900):
+    """(reply, note): note says what it cost and whether the reply was cut short."""
+    name = APIS[api][2]
+    data = post(api, "chat/completions",
+                json.dumps({"model": model_id, "max_tokens": max_tokens,
+                            "messages": [{"role": "user", "content": prompt}]}).encode(),
+                "application/json", timeout)
     if data.get("error"):
         raise RuntimeError(f"{name} failed: {json.dumps(data['error'])[:500]}")
     try:
@@ -385,13 +487,20 @@ def main(argv):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     names = ["chatgpt", "gemini", *APIS]
     ap.add_argument("model", nargs="?", choices=names)
-    ap.add_argument("prompt", nargs="?")
+    ap.add_argument("prompt", nargs="?", help="the question; for a speech-to-text model (groq --audio), optional "
+                    "names and spellings to get right (it isn't read as an instruction)")
     ap.add_argument("--file", action="append", default=[], help="a file to include (repeat for several)")
     ap.add_argument("--purpose", default="", help="why, for the log")
     ap.add_argument("--status", action="store_true")
     ap.add_argument("--model", dest="model_id", help="openrouter/groq: the model id (see --models)")
     ap.add_argument("--models", nargs="*", metavar="WORD",
-                    help="list Groq's and OpenRouter's current models matching the words")
+                    help="list Groq's and OpenRouter's current chat models matching the words")
+    ap.add_argument("--timestamps", action="store_true",
+                    help="groq --audio: start each line of the transcript with its time in the recording, "
+                         "[m:ss-m:ss]")
+    ap.add_argument("--all-models", action="store_true",
+                    help="with --models: also list models that aren't for chat (speech-to-text, text-to-speech, "
+                         "safety classifiers)")
     ap.add_argument("--max-tokens", type=int, default=OPENROUTER_MAX_TOKENS,
                     help=f"openrouter/groq: ceiling on the reply, thinking included (default {OPENROUTER_MAX_TOKENS}, "
                          "or the model's own maximum if lower)")
@@ -401,21 +510,26 @@ def main(argv):
     ap.add_argument("--video", help="gemini: a public YouTube link for Gemini to watch")
     ap.add_argument("--start", help="gemini --video: start of the clip (seconds, m:ss or h:mm:ss)")
     ap.add_argument("--end", help="gemini --video: end of the clip (seconds, m:ss or h:mm:ss)")
-    ap.add_argument("--audio", help=f"gemini: a local audio file to send ({', '.join(AUDIO_TYPES)}; "
-                                    f"up to {MAX_AUDIO_BYTES // 1_000_000} MB)")
+    ap.add_argument("--audio", help=f"gemini: a local audio file to send ({', '.join(AUDIO_TYPES)}; up to "
+                                    f"{MAX_AUDIO_BYTES // 1_000_000} MB). groq with a speech-to-text model: a file to "
+                                    f"transcribe ({', '.join(TRANSCRIBE_TYPES)}; up to "
+                                    f"{MAX_TRANSCRIBE_BYTES // 1_000_000} MB)")
     a = ap.parse_args(argv)
     if a.log:
         global LOG
         LOG = Path(a.log).expanduser().resolve()
     if a.models is not None:
-        list_models(a.models)
+        list_models(a.models, a.all_models)
         return 0
     if a.status or not a.model:
         for m in names:
             ok, why = available(m)
             print(f"{m}: {'ready' if ok else 'not set up: ' + why}")
         return 0
-    if not a.prompt:
+    if a.audio and a.model not in ("gemini", "groq"):
+        ap.error("--audio works only with gemini, or groq with a speech-to-text model")
+    speech_to_text = a.model == "groq" and bool(a.audio)
+    if not a.prompt and not speech_to_text:
         ap.error("give a prompt")
     if a.model in APIS and not a.model_id:
         ap.error(f"{a.model} needs --model <id>; see the current models with --models <words>")
@@ -423,15 +537,22 @@ def main(argv):
     if not ok:
         print(f"{a.model} isn't available: {why}", file=sys.stderr)
         return 2
-    if (a.video or a.audio or a.start or a.end) and a.model != "gemini":
-        ap.error("--video, --audio, --start and --end work only with gemini")
+    if (a.video or a.start or a.end) and a.model != "gemini":
+        ap.error("--video, --start and --end work only with gemini")
+    if a.timestamps and not speech_to_text:
+        ap.error("--timestamps goes with groq --audio (speech-to-text)")
+    if speech_to_text and a.file:
+        ap.error("--file can't go with a speech-to-text request (it takes only the audio)")
     if (a.start or a.end) and not a.video:
         ap.error("--start and --end need --video")
-    if a.audio and not ((HERE / a.audio) if not Path(a.audio).is_absolute() else Path(a.audio)).is_file():
+    if a.audio and not audio_path(a.audio).is_file():
         print(f"no such file: {a.audio}", file=sys.stderr)
         return 2
     if a.audio and Path(a.audio).name.startswith(".env"):
         print(f"won't send {a.audio}: .env files hold keys", file=sys.stderr)
+        return 2
+    if speech_to_text and check_transcription_file(a.audio):
+        print(f"Not sent: {check_transcription_file(a.audio)}", file=sys.stderr)
         return 2
     try:
         media = media_parts(a.video, a.start, a.end, a.audio) if a.model == "gemini" else []
@@ -447,21 +568,25 @@ def main(argv):
     if missing:
         print(f"no such file: {', '.join(missing)}", file=sys.stderr)
         return 2
-    full = build_prompt(a.prompt, a.file)
+    full = build_prompt(a.prompt or "", a.file)
     max_tokens = a.max_tokens
     if a.model in APIS:
-        problem, info = check_model(a.model, a.model_id, a.allow_pricey)
+        problem, info = check_model(a.model, a.model_id, a.allow_pricey, audio=speech_to_text)
         if problem:
             print(f"Not sent: {problem}", file=sys.stderr)
             return 2
         max_tokens = min(max_tokens, model_limit(info) or max_tokens)
     log(f"{a.model} {a.model_id}" if a.model in APIS
         else f"gemini {GEMINI_MODEL}" + (f" ({GEMINI_THINKING})" if GEMINI_THINKING else "") if a.model == "gemini"
-        else a.model, a.prompt,
+        else a.model, a.prompt or "",
         a.file + ([f"video {a.video}" + (f" [{a.start or '0'}-{a.end or 'end'}]" if a.start or a.end else "")]
                   if a.video else []) + ([f"audio {a.audio}"] if a.audio else []), a.purpose)
     try:
-        if a.model in APIS:
+        if speech_to_text:
+            reply, note = transcribe(a.model, a.model_id, a.audio, a.prompt or "", a.timestamps)
+            print(reply)
+            print(note, file=sys.stderr)
+        elif a.model in APIS:
             reply, note = ask_api(a.model, full, a.model_id, max_tokens)
             print(reply)
             print(note, file=sys.stderr)

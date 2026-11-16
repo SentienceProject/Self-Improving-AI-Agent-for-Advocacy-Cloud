@@ -14,9 +14,11 @@ Groq need `OPENROUTER_API_KEY=...` and `GROQ_API_KEY=...` in this workspace's `.
 ```
 python3 <this workspace's folder>/scripts/ask_model.py chatgpt "Please critique this draft for overstated claims. Thank you!" --file workspace/outbox/2026-11-05-oped.md --purpose "critique of the op-ed"
 python3 <this workspace's folder>/scripts/ask_model.py gemini "..." --file a.md --file b.md --purpose "..."
+python3 <this workspace's folder>/scripts/ask_model.py gemini "..." --video <public YouTube link> [--start 1:00 --end 5:00] --purpose "..."
 python3 <this workspace's folder>/scripts/ask_model.py --models deepseek
 python3 <this workspace's folder>/scripts/ask_model.py openrouter --model <id from --models> "..." --file a.md --purpose "..."
 python3 <this workspace's folder>/scripts/ask_model.py groq --model <id from --models> "..." --purpose "..."
+python3 <this workspace's folder>/scripts/ask_model.py groq --model <speech-to-text id> --audio workspace/videos/clip.mp3 --purpose "..."
 python3 <this workspace's folder>/scripts/ask_model.py --status
 ```
 
@@ -42,8 +44,19 @@ paid plan would charge). Pick for the job:
 - *Hard reasoning or a critique that matters:* a provider's current top model. A few dollars per million tokens is
   normal; a long critique still costs only cents.
 - On OpenRouter, avoid `:batch` models (made for bulk jobs, not single questions).
+- `--models` lists chat models. Groq also has speech-to-text (Whisper), text-to-speech and safety-classifier models:
+  add `--all-models` to see them (a search that matches no chat model shows them anyway).
 - Paid calls are cheap but not free: a long critique from a top model is a few cents, a cheap model's answer a
   tenth of a cent. Spend where it improves the work.
+
+**Transcribing audio.** Groq's speech-to-text models turn a recording into text for free within the free tier's
+limits: `groq --model <id> --audio <file>` (flac, mp3, mp4, m4a, ogg, wav or webm, up to 25 MB; cut a longer
+recording into pieces). No prompt is needed. One may be given, but it isn't read as an instruction: the model treats it
+as text that came before the audio, so use it only for names and spellings it should get right. The plain
+`whisper-large-v3` is more accurate than the `-turbo` one; prefer it unless speed matters. Add `--timestamps` to
+start each line with its time in the recording (`[1:05-1:12] ...`), e.g. to find where to cut a clip. The transcript
+is the recording's words only. To ask questions about audio instead, send it to `gemini` with `--audio` (up to
+14 MB); for a public YouTube video, `gemini --video <link>`, optionally with `--start`/`--end` for a clip.
 
 **Cost.** OpenRouter is paid from the person's credits, so spend where it helps the task and not otherwise; Groq's
 free tier costs nothing. Replies
