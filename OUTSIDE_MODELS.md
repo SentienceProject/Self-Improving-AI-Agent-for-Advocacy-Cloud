@@ -54,8 +54,10 @@ limits: `groq --model <id> --audio <file>` (flac, mp3, mp4, m4a, ogg, wav or web
 recording into pieces). No prompt is needed. One may be given, but it isn't read as an instruction: the model treats it
 as text that came before the audio, so use it only for names and spellings it should get right. The plain
 `whisper-large-v3` is more accurate than the `-turbo` one; prefer it unless speed matters. Add `--timestamps` to
-start each line with its time in the recording (`[1:05-1:12] ...`), e.g. to find where to cut a clip. The transcript
-is the recording's words only. To ask questions about audio instead, send it to `gemini` with `--audio` (up to
+start each line with its time in the recording (`[1:05-1:12] ...`), e.g. to find where to cut a clip. Give the
+language spoken with `--language en` (or `fr`, `de`...): left to guess, Whisper sometimes picks the wrong one and
+returns a translation. The transcript is the recording's words only. For a whole video, the `/video` skill does
+the cutting and joining. To ask questions about audio instead, send it to `gemini` with `--audio` (up to
 14 MB); for a public YouTube video, `gemini --video <link>`, optionally with `--start`/`--end` for a clip.
 
 **Cost.** OpenRouter is paid from the person's credits, so spend where it helps the task and not otherwise; Groq's

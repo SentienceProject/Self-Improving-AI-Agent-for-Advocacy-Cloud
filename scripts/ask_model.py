@@ -8,7 +8,7 @@ critiques, cross-checks, or help with a task. Claude uses this during tasks; see
     python3 scripts/ask_model.py gemini  "..." --audio workspace/videos/clip.mp3 --purpose "..."   (Gemini only)
     python3 scripts/ask_model.py openrouter --model <id> "..." --purpose "..."
     python3 scripts/ask_model.py groq --model <id> "..." --purpose "..."
-    python3 scripts/ask_model.py groq --model <speech-to-text id> --audio clip.mp3 ["names, spellings"] [--timestamps] --purpose "..."
+    python3 scripts/ask_model.py groq --model <speech-to-text id> --audio clip.mp3 ["names, spellings"] [--timestamps] [--language en] --purpose "..."
     python3 scripts/ask_model.py --models [words]   Groq's and OpenRouter's current chat models and prices (calls no
                                                     model); add --all-models for speech-to-text and other models
     python3 scripts/ask_model.py --status        which models are set up (calls nothing)
@@ -37,6 +37,7 @@ file names). Codex runs in an empty folder, read-only, so ChatGPT sees only what
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -424,14 +425,15 @@ def clock(t):
     return f"{t // 3600}:{t // 60 % 60:02d}:{t % 60:02d}" if t >= 3600 else f"{t // 60}:{t % 60:02d}"
 
 
-def transcribe(api, model_id, audio, hint="", timestamps=False, timeout=900):
+def transcribe(api, model_id, audio, hint="", timestamps=False, language=None, timeout=900):
     """(transcript, note). `hint` isn't an instruction: the model reads it as text that came before the audio, so
-    it helps with names and spellings. With `timestamps`, each segment is a line starting [start-end]."""
+    it helps with names and spellings. With `timestamps`, each segment is a line starting [start-end]. `language`
+    (ISO 639-1, e.g. "en") stops Whisper from guessing it: on a quiet stretch it can guess wrong and translate."""
     import uuid
     p = audio_path(audio)
     boundary = uuid.uuid4().hex
     fields = {"model": model_id, "response_format": "verbose_json" if timestamps else "json",
-              **({"prompt": hint} if hint else {})}
+              **({"prompt": hint} if hint else {}), **({"language": language} if language else {})}
     body = b"".join(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode()
                     for k, v in fields.items())
     body += (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="audio{p.suffix.lower()}"\r\n'
@@ -498,6 +500,8 @@ def main(argv):
     ap.add_argument("--timestamps", action="store_true",
                     help="groq --audio: start each line of the transcript with its time in the recording, "
                          "[m:ss-m:ss]")
+    ap.add_argument("--language", help="groq --audio: the language spoken, as a two-letter code (en, fr, de...). "
+                    "Without it Whisper guesses, and a wrong guess comes back translated")
     ap.add_argument("--all-models", action="store_true",
                     help="with --models: also list models that aren't for chat (speech-to-text, text-to-speech, "
                          "safety classifiers)")
@@ -541,6 +545,10 @@ def main(argv):
         ap.error("--video, --start and --end work only with gemini")
     if a.timestamps and not speech_to_text:
         ap.error("--timestamps goes with groq --audio (speech-to-text)")
+    if a.language and not speech_to_text:
+        ap.error("--language goes with groq --audio (speech-to-text)")
+    if a.language and not re.fullmatch(r"[a-z]{2,3}", a.language):
+        ap.error("--language takes a two-letter code such as en")
     if speech_to_text and a.file:
         ap.error("--file can't go with a speech-to-text request (it takes only the audio)")
     if (a.start or a.end) and not a.video:
@@ -583,7 +591,7 @@ def main(argv):
                   if a.video else []) + ([f"audio {a.audio}"] if a.audio else []), a.purpose)
     try:
         if speech_to_text:
-            reply, note = transcribe(a.model, a.model_id, a.audio, a.prompt or "", a.timestamps)
+            reply, note = transcribe(a.model, a.model_id, a.audio, a.prompt or "", a.timestamps, a.language)
             print(reply)
             print(note, file=sys.stderr)
         elif a.model in APIS:

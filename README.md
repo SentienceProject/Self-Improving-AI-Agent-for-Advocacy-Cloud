@@ -502,7 +502,7 @@ OUTSIDE_MODELS.md            when and how Claude asks ChatGPT, Gemini, OpenRoute
 ETHICS_SHORT.md, ETHICS_FULL.md   the default ethical framework (yours goes in my/)
 my/                          your own files (gitignored)
 .claude/agents/              analyst, critic, drafter, helper, ideator, researcher, verifier, wild-ideator
-.claude/skills/              /add-papers, /connect, /fetch-sources, /import-context, /my-ethics, /plain-prose, /techwatch, /wild-ideas
+.claude/skills/              /add-papers, /connect, /fetch-sources, /import-context, /my-ethics, /plain-prose, /techwatch, /video, /wild-ideas
 .claude/hooks/               session reminders, the /clear tip, guards; hardened mode adds the preflight and logs
 .claude/settings.json        the rules for every mode (your machine's additions: settings.local.json)
 layers/                      what setup.py adds for casual and hardened mode
