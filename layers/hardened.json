@@ -217,6 +217,7 @@
   "sandbox": {
     "failIfUnavailable": true,
     "allowUnsandboxedCommands": false,
+    "autoAllowBashIfSandboxed": true,
     "excludedCommands": [
       "python3 {{WORKSPACE}}/scripts/run_analysis.py *",
       "{{HOME}}/.venvs/ai-welfare-search/bin/python {{WORKSPACE}}/scripts/corpus_search.py *",

@@ -79,6 +79,7 @@
     ]
   },
   "sandbox": {
+    "autoAllowBashIfSandboxed": true,
     "filesystem": {
       "denyWrite": [
         "./CLAUDE.md",

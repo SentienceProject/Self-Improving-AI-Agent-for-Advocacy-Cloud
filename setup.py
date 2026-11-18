@@ -658,8 +658,8 @@ def checks():
         try:
             v = subprocess.run([claude, "--version"], capture_output=True, text=True, timeout=20).stdout
             m = re.search(r"(\d+)\.(\d+)\.(\d+)", v)
-            if m and tuple(map(int, m.groups())) < (2, 1, 300):
-                out.append(f"Claude Code {m.group(0)} is older than this workspace was tested with (2.1.317). "
+            if m and tuple(map(int, m.groups())) < (2, 1, 325):
+                out.append(f"Claude Code {m.group(0)} is older than 2.1.325, which has sandbox and permission fixes this workspace relies on. "
                            "Update it: claude update")
         except (OSError, subprocess.TimeoutExpired):
             pass
