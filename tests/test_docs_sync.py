@@ -86,6 +86,17 @@ class SyncTest(unittest.TestCase):
         ds.use_root(REPO)
         shutil.rmtree(self.tmp)
 
+    def test_ignored_agents_and_skills_stay_out_of_the_docs(self):
+        for rel in (".claude/agents/mine.md", ".claude/skills/mine/SKILL.md", ".claude/agents/new.md"):
+            (self.tmp / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.tmp / rel).write_text("x\n")
+        (self.tmp / ".git" / "info").mkdir(exist_ok=True)
+        (self.tmp / ".git" / "info" / "exclude").write_text(".claude/agents/mine.md\n.claude/skills/mine/\n")
+        self.assertEqual(ds.agent_names(), ["helper", "new"])   # new: not added yet, but not ignored either
+        self.assertEqual(ds.skill_names(), [])
+        shutil.rmtree(self.tmp / ".git")                        # no git: nothing is left out
+        self.assertEqual(ds.agent_names(), ["helper", "mine", "new"])
+
     def git(self, *a):
         return subprocess.run(["git", "-c", "user.email=t@example.com", "-c", "user.name=t", *a], cwd=self.tmp,
                                capture_output=True, text=True, check=True).stdout

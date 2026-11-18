@@ -112,12 +112,29 @@ def log(msg):
 
 
 # ---------------------------------------------------------------- 1. generated sections
+def not_ignored(paths):
+    """paths minus the ones git ignores (your own agents or skills, e.g. via .git/info/exclude), so they never land in
+    the public docs. A new file you haven't added yet still counts. Without git, nothing is left out."""
+    paths = list(paths)
+    if not paths:
+        return paths
+    try:
+        r = subprocess.run(["git", "check-ignore", "--stdin"], cwd=ROOT, capture_output=True, text=True, timeout=30,
+                           input="\n".join(p.relative_to(ROOT).as_posix() for p in paths))
+    except (OSError, subprocess.SubprocessError):
+        return paths
+    if r.returncode not in (0, 1):   # 1: nothing ignored; anything else: not a git repository, or git failed
+        return paths
+    ignored = set(r.stdout.split("\n"))
+    return [p for p in paths if p.relative_to(ROOT).as_posix() not in ignored]
+
+
 def agent_names():
-    return sorted(p.stem for p in (ROOT / ".claude" / "agents").glob("*.md"))
+    return sorted(p.stem for p in not_ignored((ROOT / ".claude" / "agents").glob("*.md")))
 
 
 def skill_names():
-    return sorted(p.parent.name for p in (ROOT / ".claude" / "skills").glob("*/SKILL.md"))
+    return sorted(p.parent.name for p in not_ignored((ROOT / ".claude" / "skills").glob("*/SKILL.md")))
 
 
 def subagent_limits():
