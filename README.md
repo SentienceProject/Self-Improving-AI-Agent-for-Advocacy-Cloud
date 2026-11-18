@@ -332,7 +332,8 @@ anything it should never propose.
 publishes the good changes. This is how most people get tech watch's results. If you cloned with git, Claude tells
 you at the start of a session when updates are available, and if there have been none for 60 days; `! python3 scripts/update.py` gets them. It keeps your changes: anything tech watch applied is put back
 afterwards (or prepared again if the update changed the same files), your own edits are kept, and where one clashes
-with the update, a copy of yours is saved. Your `my/` and `workspace/` files are never touched. (A plain `git pull`
+with the update, a copy of yours is saved. Your `my/` and `workspace/` files are never touched. If an update includes a
+change the maintainer still has on trial, it says so, and a later update tells you the result. (A plain `git pull`
 also works, but can stop with a merge conflict.)
 
 ### Keeping the docs in step

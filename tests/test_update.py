@@ -51,10 +51,10 @@ class TestUpdate(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def maintainer_changes(self, **files):
+    def maintainer_changes(self, msg="v2", **files):
         for name, text in files.items():
             (self.maint / name).write_text(text)
-        git(self.maint, "-c", "user.name=m", "-c", "user.email=m@x", "commit", "-qam", "v2")
+        git(self.maint, "-c", "user.name=m", "-c", "user.email=m@x", "commit", "-qam", msg)
         git(self.maint, "push", "-q")
 
     def techwatch_applies(self, pid, target, text):
@@ -97,6 +97,26 @@ class TestUpdate(unittest.TestCase):
         self.assertEqual(self.read("notes.md"), "notes.md v1\nmy own line\n")
         self.assertIn("kept: p1", out)
         self.assertEqual(self.review().status_of("p1"), "applied")
+
+    def test_a_change_on_trial_is_announced(self):
+        self.maintainer_changes("Effort high\n\nTrial: high effort by default (checked by 2027-01-11) [t1]",
+                                **{"other.md": "other.md v2\n"})
+        out = self.update()
+        self.assertIn("Update contains a change being trialed: high effort by default (checked by 2027-01-11). "
+                      "You'll get its result in a later update.", out)
+        self.assertNotIn("[t1]", out)
+        self.maintainer_changes("Trial ended\n\nTrial result: high effort by default: kept [t1]",
+                                **{"other.md": "other.md v3\n"})
+        out = self.update()
+        self.assertIn("Result of a trial: high effort by default: kept.", out)
+        self.assertNotIn("being trialed", out)
+
+    def test_a_trial_and_its_result_in_one_update_show_just_the_result(self):
+        self.maintainer_changes("x\n\nTrial: a thing (checked by 2027-01-11) [t2]", **{"other.md": "v2\n"})
+        self.maintainer_changes("y\n\nTrial result: a thing: rolled back [t2]", **{"other.md": "v3\n"})
+        out = self.update()
+        self.assertIn("Result of a trial: a thing: rolled back.", out)
+        self.assertNotIn("being trialed", out)
 
     def test_techwatch_change_to_an_updated_file_is_restaged(self):
         self.techwatch_applies("p1", "CLAUDE.md", "CLAUDE.md by tech watch\n")

@@ -16,6 +16,8 @@ This avoids that:
      decide again;
   6. updates the integrity manifest for the files the update changed, since you chose to take it. If a protected
      file had already changed some other way before the update, that one isn't re-blessed: you're told instead.
+If the maintainer published a change that's still on trial (checked again later, then kept or rolled back), the
+summary says so, and a later update tells you the result.
 If anything goes wrong midway, tech watch's changes and your edits are put back as they were, and the backup folder
 has a copy of everything.
 
@@ -28,6 +30,7 @@ brings the whole repository up to date.
 """
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -53,6 +56,9 @@ def git(*args, check=False, timeout=120):
     return r
 
 
+# A line in the maintainer's commit message: "Trial: <what> (checked by <date>) [<id>]" when a change on trial is
+# published, "Trial result: <what>: kept|rolled back [<id>]" when its trial ends.
+TRIAL = re.compile(r"^Trial( result)?: (.+?)\s*(?:\[([^\]\s]+)\])?\s*$")
 OUTSIDE = "outside-workspace"   # in the backup folder: your edited files from elsewhere in the repository
 
 
@@ -133,6 +139,19 @@ def restore(tw, wrote):
             if t is not None and text is not None:
                 t.parent.mkdir(parents=True, exist_ok=True)
                 t.write_text(text, encoding="utf-8")
+
+
+def trials(old_head):
+    """What the update's commit messages say about changes on trial, as lines to print."""
+    started, results = {}, {}
+    for line in git("log", "--reverse", "--format=%B", f"{old_head}..HEAD").stdout.splitlines():
+        m = TRIAL.match(line.strip())
+        if m:
+            text = m.group(2).rstrip(".")
+            (results if m.group(1) else started)[m.group(3) or text] = text
+    return ([f"Update contains a change being trialed: {t}. You'll get its result in a later update."
+             for k, t in started.items() if k not in results]   # one whose result came in the same update: just that
+            + [f"Result of a trial: {t}." for t in results.values()])
 
 
 def drifted():
@@ -268,6 +287,8 @@ def finish(a, tw, wrote, notes, outcome, backup, changed, behind, old_version, b
         new = log.split(f"## {old_version}")[0].split("\n## ", 1)
         if len(new) > 1:
             print("\n" + S.b("What's new (CHANGELOG.md):") + "\n## " + new[1].strip() + "\n")
+    for t in trials(old_head):
+        print(S.b(t))
     kept = [p for p, o in outcome.items() if o == "kept"]
     if kept:
         print(f"Tech-watch changes kept: {', '.join(kept)}")
