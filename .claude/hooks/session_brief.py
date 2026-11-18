@@ -4,6 +4,7 @@
 - First run: point at setup.
 - Tech watch: changes ready to decide or being tested, changes it applied for you (with how to undo them), a
   missing schedule (or, if you start scans yourself, a scan that's due), and any problem with the last run.
+- Eval harness checkups: once when one starts, and once when it finishes (with its verdict).
 - Updates: whether the workspace's upstream has new commits (checked at most once a day, 5 s timeout; only for a
   git clone with an upstream branch), or, at most once a week, that it hasn't had any in 60 days.
 
@@ -51,6 +52,30 @@ def applied_lines():
             out.append(f"Tech watch rolled back {e['id']}: {e['note'][:200]}")
             NEWLY_SEEN.add(key)
     return out
+
+
+def checkup_lines():
+    """A checkup by the eval harness started or finished (techwatch/evaluations/checkup-status.json): said once each."""
+    try:
+        st = json.loads((TW / "evaluations" / "checkup-status.json").read_text(encoding="utf-8"))
+        seen = set(json.loads(SEEN.read_text(encoding="utf-8"))) if SEEN.exists() else set()
+    except (OSError, ValueError):
+        return []
+    key = f"checkup:{st.get('state')}:{st.get('started') or st.get('finished')}"
+    if key in seen:
+        return []
+    NEWLY_SEEN.add(key)
+    if st.get("state") == "running":
+        tasks = " and ".join(f"{n} {name}" for name, n in st.get("tasks", {}).items())
+        return [f"Eval harness: a checkup started on {st.get('started')}: this workspace now vs {st.get('against')}, "
+                f"on {tasks} task(s), about ${st.get('expected_usd_per_workspace', 0):.0f} of usage per workspace "
+                "plus judging. It runs in the background over hours or days; you'll see the result here."]
+    by_set = "; ".join(f"{name} tasks {v['current']:.2f} now vs {v['earlier']:.2f} then"
+                       for name, v in st.get("by_set", {}).items()
+                       if v.get("current") is not None and v.get("earlier") is not None)
+    return [f"Eval harness: the checkup finished on {st.get('finished')}: {st.get('verdict', '')}"
+            + (f" ({by_set})" if len(st.get("by_set", {})) > 1 and by_set else "")
+            + f". Details: {st.get('report', 'techwatch/evaluations/')}"]
 
 
 def mark_seen():
@@ -280,7 +305,7 @@ def main():
         lines += first_run()
     except Exception:
         pass
-    for part in (applied_lines, techwatch_lines, update_lines, compat_lines, setup_lines, backlog_lines):
+    for part in (applied_lines, checkup_lines, techwatch_lines, update_lines, compat_lines, setup_lines, backlog_lines):
         try:
             lines += part()
         except Exception:
