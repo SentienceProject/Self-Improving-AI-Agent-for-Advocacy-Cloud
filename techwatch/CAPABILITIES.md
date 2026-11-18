@@ -14,7 +14,7 @@ applying it.*
   session writes), `analyst` (hardened mode: analysis code in a Docker container with no network).
 - **Backlog** (optional): `scripts/backlog.py`, unattended runs with leftover weekly usage (README).
 - **Skills**: `/wild-ideas`, `/add-papers`, `/connect`, `/my-ethics`, `/plain-prose`, `/techwatch`, `/fetch-sources` (hardened).
-- **Models**: agents run on Opus or inherit the session's model; tech-watch dailies on Sonnet.
+- **Models**: agents run on Opus or inherit the session's model; tech-watch dailies on Opus.
 - **Corpus**: `workspace/corpus/`, papers as text, searched with grep; semantic search (Ollama + ChromaDB) in
   hardened mode if set up.
 - **Memory**: `workspace/memory.md` (verified facts carried between tasks).
