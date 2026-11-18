@@ -848,10 +848,14 @@ class TestFeedbackAndCheckpoints(Workspace):
     def test_feedback_summary_by_period(self):
         sys.path.insert(0, str(self.ws / "scripts"))
         fb = load(self.ws / "scripts" / "feedback.py", f"fb_{id(self)}")
-        fb.record(True, "a.md")
-        fb.record(False, "b.md")
+        fb.record(8, "a.md")
+        fb.record(5, "b.md")
+        with fb.LOG.open("a") as f:   # an older yes/no answer
+            f.write(json.dumps({"ts": "2026-01-01T00:00:00+00:00", "useful": True, "draft": "c.md"}) + "\n")
         lines = fb.summary([("9999-01-01", "p1")])
-        self.assertEqual(lines, ["since the start: 1/2 useful"])
+        self.assertEqual(lines, ["since the start: avg 6.5/10 over 2 ratings; 1/1 useful (older yes/no answers)"])
+        self.assertEqual(fb.undo()["draft"], "c.md")
+        self.assertEqual(fb.summary([]), ["since the start: avg 6.5/10 over 2 ratings"])
 
     def test_restore_a_checkpoint(self):
         cp = self.ws.parent / f"cp-{id(self)}"

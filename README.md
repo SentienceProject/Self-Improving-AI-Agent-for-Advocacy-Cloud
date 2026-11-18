@@ -319,8 +319,8 @@ entirely: `! python3 techwatch/scripts/techwatch.py schedule off`.
 
 **How it guards against "improvements" that aren't.** No test can tell for sure that a change makes the workspace
 better, so tech watch combines several imperfect signals: the eval harness's test (with a noise check that runs a
-task twice and reruns everything if the scores wobble); reviewers from other model families; your own "was this
-useful?" answers after each draft, compared before and after each change; a checkup every two months that runs the
+task twice and reruns everything if the scores wobble); reviewers from other model families; your own 1-10
+ratings after each draft, compared before and after each change; a checkup every two months that runs the
 current workspace against a saved earlier version on tasks no change was ever tested on; and (with `Proposals:
 all`) a removal proposal every four weeks, so the workspace finds out what it can do without. Earlier versions are kept, and
 `review.py restore <date>` goes back to one. `techwatch/README.md` explains why.

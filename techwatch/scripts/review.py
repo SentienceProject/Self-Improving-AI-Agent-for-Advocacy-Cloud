@@ -657,7 +657,7 @@ def cmd_status():
         applied = sorted((e["ts"], e["id"]) for e in events() if e.get("event") in APPLIED)
         lines = feedback.summary(applied)
         if lines:
-            print(f"{DIM}Your 'was this useful?' answers: " + "; ".join(lines[-3:]) + OFF)
+            print(f"{DIM}Your 1-10 draft ratings: " + "; ".join(lines[-3:]) + OFF)
     except Exception:
         pass
 

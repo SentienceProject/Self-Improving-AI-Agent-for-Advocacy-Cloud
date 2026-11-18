@@ -141,8 +141,8 @@ measured on coding tasks, not writing like this):
   markers its checker looked for. What exposed it was a record of every version that someone could inspect.
 
 What tech watch does about it, at modest cost:
-- **Several signals, not one:** the test, reviewers from other model families, and your own "was this useful?"
-  answers after each draft (`workspace/feedback.jsonl`; `python3 scripts/feedback.py summary` compares the rate
+- **Several signals, not one:** the test, reviewers from other model families, and your own 1-10 ratings
+  after each draft (`workspace/feedback.jsonl`; `python3 scripts/feedback.py summary` compares the average
   before and after each change).
 - **A noise check in every test:** the cheapest task runs twice; if the two runs score noticeably differently, every
   task runs twice.

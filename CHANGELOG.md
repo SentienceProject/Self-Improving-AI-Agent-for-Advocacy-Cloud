@@ -6,6 +6,15 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- **Drafts are rated 1 to 10 instead of yes/no, and Claude never sees the rating.** Claude now ends a reply that
+  delivers a draft with "How useful was this, 1 to 10?" and the draft's path. Answer with the number first, then a
+  word on why if you like, ending with `*` ("8 good sources, too long*"). The new `.claude/hooks/rating.py` saves
+  it to `workspace/feedback.jsonl` and stops the message there: Claude doesn't see it, react to it or spend usage
+  on it, so you can be frank. A note says what was saved and where to fix it. Anything you type after the `*`
+  isn't sent either (a hook can block a message but not shorten it); the note shows it so you can send it again.
+  Only your first message after the question counts, so a later "3 more fixes" goes through as usual. `feedback.py
+  summary` and `review.py` now show the average rating before and after each tech-watch change, with older yes/no
+  answers counted separately.
 - **PDF downloads no longer ask first (hardened mode).** `scripts/fetch_pdf.py` is now allowed without a prompt,
   like `corpus_search.py`, so `/fetch-sources` works the same in Manual and Auto mode. The preflight hook still
   accepts only its exact form, and the script still downloads only from its fixed list of research sites. Run
