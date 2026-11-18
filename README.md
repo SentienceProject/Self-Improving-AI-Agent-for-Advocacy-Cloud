@@ -399,6 +399,35 @@ full, unattended workspace sessions.
 - It needs the eval harness beside the workspace (that's how usage is read), and Claude Code must trust the
   workspace folder (open `claude` there once and accept); otherwise nothing runs, and `status` says why.
 
+## A browser Claude can drive (optional, Linux and WSL2)
+
+For sites WebFetch can't read (pages that need JavaScript, a login, or clicking through), Claude can use a Firefox
+of its own: `python3 scripts/browser_setup.py`, then start a new session. **Read the warning first:** many sites
+forbid automated browsing in their terms and can tell this browser is automated, and accounts used with it can be
+banned, sometimes for good. Don't log in to accounts you can't afford to lose; use a site's official API or a
+Claude connector (`/connect`) where there is one; and never have Claude get past CAPTCHAs or bot checks. What
+Claude does with your logins is done as you.
+
+- **It's a separate Firefox** in `~/.local/share/agent-firefox/`, with its own profile (log in there yourself:
+  `~/.local/share/agent-firefox/open-firefox.sh`), driven through Mozilla's MCP server. Your everyday browser isn't
+  touched.
+- **It can't read your files.** Firefox runs in a bubblewrap sandbox where your home folder, other drives and the
+  sockets that could act as you (SSH and GPG agents, D-Bus, Docker, WSL's bridge to Windows) don't exist, so a
+  `file://` page, an upload or a compromised browser reaches only its own folder. Its policies also turn off
+  telemetry, install uBlock Origin, block `file://` and localhost pages, and stop sites asking for your camera,
+  microphone, location or local network.
+- **You see what it's about to do.** Clicking, typing, keys, forms, uploads and dialogs ask first, and the prompt
+  says what the element is ("Click button "Search" on …") instead of an ID like `e31`. Labels come from the page,
+  so a hostile page can mislabel a button; the address is the more reliable part.
+- **Browsing on a cheaper model.** The main session can hand browsing to `browser-haiku`, `browser-sonnet` or
+  `browser-opus`, which read the pages in their own context and report back briefly. They check in with the main
+  session after a few interactions or page visits (smaller models more often), and every few check-ins the main
+  session looks at the page itself. Haiku costs least but needs a clear task; if it needs steering at every step,
+  Sonnet is cheaper overall.
+- **Keep Firefox updated:** the automation turns off its own updates, so run `python3 scripts/browser_setup.py
+  --update-firefox` now and then, or weekly from cron (it does nothing when Firefox is current or open). Your own
+  Firefox policies go in `my/browser-policies.json`; the script's notes explain both.
+
 ## Phone notifications (ntfy)
 
 [ntfy](https://ntfy.sh) is a free app that shows notifications sent to a "topic", a private name only you know.

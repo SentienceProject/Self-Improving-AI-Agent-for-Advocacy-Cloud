@@ -6,6 +6,12 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- **A browser Claude can drive (optional, Linux and WSL2).** `python3 scripts/browser_setup.py` installs a
+  separate Firefox, sandboxed so it can't read your files or act through your SSH agent, D-Bus or Docker, and
+  connects it to Claude Code through Mozilla's MCP server. Clicking and typing ask first, with a prompt that says
+  what's being clicked (`.claude/hooks/browser_guard.py`). The new `browser-haiku`, `browser-sonnet` and
+  `browser-opus` agents browse on a cheaper model and check in with the main session as they go. Many sites ban
+  accounts for automated browsing: read the README section "A browser Claude can drive" before you use it.
 - **Drafts are rated 1 to 10 instead of yes/no, and Claude never sees the rating.** Claude now ends a reply that
   delivers a draft with "How useful was this, 1 to 10?" and the draft's path. Answer with the number first, then a
   word on why if you like, ending with `*` ("8 good sources, too long*"). The new `.claude/hooks/rating.py` saves

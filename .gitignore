@@ -32,3 +32,6 @@ techwatch/logs/*
 techwatch/evaluations/
 techwatch/evaluations-full/
 !techwatch/*/.gitkeep
+
+# The browsing agents: scripts/browser_setup.py writes them for people who set up the browser.
+.claude/agents/browser-*.md
