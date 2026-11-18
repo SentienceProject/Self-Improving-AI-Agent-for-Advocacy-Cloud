@@ -464,7 +464,8 @@ topic.
 - **Backing up your own files.** `my/`, `workspace/` and tech watch's findings are never in the public repository,
   so a lost computer loses them. `python3 scripts/private_backup.py init <url of a PRIVATE repository>` once, then
   `python3 scripts/private_backup.py` whenever you like (or from cron): it keeps them, and the eval harness's
-  results, in that private repository only.
+  results, in that private repository only. Folders outside the repository (your notes, a Claude memory folder) can
+  go there too: list them in `my/backup-folders.txt`. Your `.env` keys are never backed up.
 - **Publishing your own copy?** `python3 scripts/leak_check.py --install` adds git hooks that refuse commits and
   pushes carrying your files, keys, your home folder's path, email addresses or held-out task text; list your own
   private strings (your name, a notification topic) in `.git/info/leak-patterns`.

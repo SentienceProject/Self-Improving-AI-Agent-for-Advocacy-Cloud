@@ -9,8 +9,14 @@ repository of your own, e.g. a private GitHub repository.
 
 What's backed up: my/, workspace/ (except the search index and downloaded code repositories, which can be
 rebuilt), tech watch's findings and state, this machine's .claude/settings.local.json, and, if the eval harness is
-beside this workspace, its private settings, unlocked tasks, results, reviews, test reports and runs (without the
-runs' raw transcripts). Files over 90 MB are skipped (GitHub refuses files over 100 MB) and named in the output.
+beside this workspace, its private settings, unlocked tasks, results, reviews, test reports, runs (without the
+runs' raw transcripts) and archived workspaces (without installed packages). Files over 90 MB are skipped (GitHub
+refuses files over 100 MB) and named in the output. Not backed up: .env (API keys don't belong in git; you can make
+new ones), and anything that can be rebuilt.
+
+Folders outside the repository (your own notes, a Claude memory folder): list them in my/backup-folders.txt, one
+path per line (# comments and ~ are fine). Each is backed up whole to its own branch, extra/<path>, of the same
+backup repository; restore puts each in its own folder.
 
 It's a second git repository over the same folders: its history lives in
 ai-welfare-eval-harness/.private-backup.git (agents in the workspace can't read the harness folder, and the
@@ -20,6 +26,7 @@ public repository's own history never sees these files, and this one never sees 
 Make sure the remote is private: this pushes your drafts, memory and settings there.
 """
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime
@@ -32,6 +39,8 @@ HARNESS = next((p for p in (REPO / "ai-welfare-eval-harness", WS.parent / "ai-we
                 if (p / "evals").is_dir()), None)
 GITDIR = (HARNESS or WS) / ".private-backup.git"
 MAX_BYTES = 90_000_000
+FOLDERS_FILE = WS / "my" / "backup-folders.txt"
+SKIP_GLOBS = ["**/__pycache__/**", "**/*.pyc", "**/.DS_Store", "**/*.locked", "**/.venv/**", "**/node_modules/**"]
 
 
 def rel(p):
@@ -51,18 +60,37 @@ def pathspecs():
         inc += [f"{ci}/{d}" for d in ("runs", "results", "review", "techtest", "config.local.toml",
                                       "external-queries-log.md")]
         inc += [rel(p) for p in sorted((HARNESS / "evals").glob("tasks*")) if p.is_dir()]
-        inc += [f"{h}/evals/legacy-rubric-eval/data"]
+        inc += [f"{h}/evals/legacy-rubric-eval/data", f"{h}/evals/legacy-rubric-eval/improver_tasks",
+                f"{h}/evals/.unlocked-from", f"{h}/archived-workspaces"]
+        exc += [rel(p) for p in sorted((HARNESS / "archived-workspaces").glob("*/tools/node"))]  # a Node install
     inc = [p for p in inc if (REPO / p).exists()]
-    exc_glob = ["**/raw/**", "**/__pycache__/**", "**/*.pyc", "**/.DS_Store", "**/*.locked"]
+    exc_glob = ["**/raw/**"] + SKIP_GLOBS
     return inc + [f":(exclude){p}" for p in exc if (REPO / p).exists()] + [f":(exclude,glob){g}" for g in exc_glob]
 
 
-def git(*args, check=True, quiet=False):
-    env = {**os.environ, "GIT_DIR": str(GITDIR), "GIT_WORK_TREE": str(REPO)}
-    r = subprocess.run(["git", *args], cwd=REPO, env=env, capture_output=True, text=True)
+def folders():
+    """Folders outside the repository listed in my/backup-folders.txt: [(path, branch)]."""
+    out = []
+    lines = FOLDERS_FILE.read_text(encoding="utf-8").splitlines() if FOLDERS_FILE.is_file() else []
+    for line in lines:
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        p = Path(line).expanduser().resolve()
+        name = re.sub(r"[^A-Za-z0-9_-]+", "-", os.path.relpath(p, Path.home())).strip("-")
+        out.append((p, f"extra/{name}"))
+    return out
+
+
+def git(*args, check=True, tree=None, index=None):
+    """git on the backup repository; tree/index: another work tree and its own index (an extra folder)."""
+    env = {**os.environ, "GIT_DIR": str(GITDIR), "GIT_WORK_TREE": str(tree or REPO)}
+    if index:
+        env["GIT_INDEX_FILE"] = str(index)
+    r = subprocess.run(["git", *args], cwd=tree or REPO, env=env, capture_output=True, text=True)
     if check and r.returncode != 0:
         sys.exit(f"git {' '.join(args[:3])}... failed: {(r.stderr or r.stdout).strip()[:500]}")
-    return r.stdout
+    return r if not check else r.stdout
 
 
 def init(url):
@@ -73,49 +101,71 @@ def init(url):
         git("config", "user.email", "backup@localhost")
         # This repository holds only the listed folders: don't let the public .gitignore files hide them.
         git("config", "core.excludesFile", os.devnull)
-    if git("remote", check=False).strip():
+    if git("remote", check=False).stdout.strip():
         git("remote", "set-url", "origin", url)
     else:
         git("remote", "add", "origin", url)
     print(f"Backup repository ready ({GITDIR}), remote {url}.\nRun python3 scripts/private_backup.py to back up.")
 
 
-def too_big():
+def too_big(root, specs):
     out = []
-    for spec in pathspecs():
+    for spec in specs:
         if spec.startswith(":"):
             continue
-        p = REPO / spec
+        p = root / spec
         for f in ([p] if p.is_file() else p.rglob("*") if p.is_dir() else []):
             try:
-                if f.is_file() and f.stat().st_size > MAX_BYTES:
-                    out.append(rel(f))
+                if f.is_file() and f.stat().st_size > MAX_BYTES and ".venv" not in f.parts:
+                    out.append(Path(os.path.relpath(f, root)).as_posix())
             except OSError:
                 pass
     return out
 
 
+def backup_folder(path, branch):
+    """Commit the folder to its own branch (its own index, so the main backup's index is untouched)."""
+    big = too_big(path, ["."])
+    specs = ["."] + [f":(exclude,glob){g}" for g in SKIP_GLOBS] + [f":(exclude){b}" for b in big]
+    index = GITDIR / f"index-{branch.replace('/', '-')}"
+    git("add", "-A", "-f", "--", *specs, tree=path, index=index)
+    tree = git("write-tree", tree=path, index=index).strip()
+    parent = git("rev-parse", "-q", "--verify", f"refs/heads/{branch}", check=False).stdout.strip()
+    if parent and git("rev-parse", f"{parent}^{{tree}}").strip() == tree:
+        print(f"private backup: {path}: nothing changed")
+    else:
+        commit = git("commit-tree", tree, *(["-p", parent] if parent else []),
+                     "-m", f"Backup {datetime.now():%Y-%m-%d %H:%M}").strip()
+        git("update-ref", f"refs/heads/{branch}", commit)
+        print(f"private backup: {path}: committed")
+    for b in big:
+        print(f"  skipped (over 90 MB): {path / b}")
+
+
 def backup():
     if not GITDIR.exists():
         sys.exit("Not set up yet: python3 scripts/private_backup.py init <url of a PRIVATE repository>")
-    big = too_big()
+    big = too_big(REPO, pathspecs())
     specs = pathspecs() + [f":(exclude){b}" for b in big]
     git("add", "-A", "-f", "--", *specs)
-    has_commit = subprocess.run(["git", "rev-parse", "-q", "--verify", "HEAD"], cwd=REPO, capture_output=True,
-                                env={**os.environ, "GIT_DIR": str(GITDIR), "GIT_WORK_TREE": str(REPO)}).returncode == 0
-    if has_commit and subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=REPO,
-                                     env={**os.environ, "GIT_DIR": str(GITDIR),
-                                          "GIT_WORK_TREE": str(REPO)}).returncode == 0:
+    has_commit = git("rev-parse", "-q", "--verify", "HEAD", check=False).returncode == 0
+    if has_commit and git("diff", "--cached", "--quiet", check=False).returncode == 0:
         print("private backup: nothing changed since the last backup")
     else:
         git("commit", "-q", "-m", f"Backup {datetime.now():%Y-%m-%d %H:%M}")
         print("private backup: committed")
     for b in big:
         print(f"  skipped (over 90 MB): {b}")
-    r = subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=REPO, capture_output=True, text=True,
-                       env={**os.environ, "GIT_DIR": str(GITDIR), "GIT_WORK_TREE": str(REPO)})
+    refs = ["HEAD:main"]
+    for path, branch in folders():
+        if path.is_dir():
+            backup_folder(path, branch)
+            refs.append(f"refs/heads/{branch}:refs/heads/{branch}")
+        else:
+            print(f"private backup: {path} (in {FOLDERS_FILE.name}) isn't a folder; skipped")
+    r = git("push", "-q", "origin", *refs, check=False)
     if r.returncode != 0:
-        sys.exit(f"private backup: push failed (the commit is kept and goes with the next push): "
+        sys.exit(f"private backup: push failed (the commits are kept and go with the next push): "
                  f"{(r.stderr or r.stdout).strip()[:300]}")
     print("private backup: pushed")
 
@@ -124,8 +174,11 @@ def status():
     print(f"Backup repository: {GITDIR}{'' if GITDIR.exists() else ' (not set up yet)'}")
     for s in pathspecs():
         print(f"  {s}")
+    for path, branch in folders():
+        print(f"  {path} -> branch {branch}{'' if path.is_dir() else ' (not found)'}")
     if GITDIR.exists():
-        print("Last backup: " + (git("log", "-1", "--format=%cd", "--date=local", check=False).strip() or "none yet"))
+        print("Last backup: " + (git("log", "-1", "--format=%cd", "--date=local", check=False).stdout.strip()
+                                 or "none yet"))
 
 
 def restore(dest):
@@ -134,8 +187,15 @@ def restore(dest):
         sys.exit(f"{dest} isn't empty; give an empty or new folder")
     dest.mkdir(parents=True, exist_ok=True)
     url = git("remote", "get-url", "origin").strip()
-    subprocess.run(["git", "clone", "-q", url, str(dest)], check=True)
-    print(f"Restored into {dest}. Copy the folders you need back beside your workspace.")
+    subprocess.run(["git", "clone", "-q", url, str(dest / "repository")], check=True)
+    extras = subprocess.run(["git", "ls-remote", "--heads", url, "extra/*"], capture_output=True, text=True,
+                            check=True).stdout.split()[1::2]
+    for ref in extras:
+        branch = ref.removeprefix("refs/heads/")
+        subprocess.run(["git", "clone", "-q", "-b", branch, url, str(dest / branch.replace("/", "-"))], check=True)
+    print(f"Restored into {dest}: repository/ (the files that go beside your workspace)"
+          + "".join(f", {r.removeprefix('refs/heads/').replace('/', '-')}/" for r in extras)
+          + ". Copy what you need back into place.")
 
 
 def main(args):
