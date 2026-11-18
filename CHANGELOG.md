@@ -6,6 +6,12 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- **PDF downloads no longer ask first (hardened mode).** `scripts/fetch_pdf.py` is now allowed without a prompt,
+  like `corpus_search.py`, so `/fetch-sources` works the same in Manual and Auto mode. The preflight hook still
+  accepts only its exact form, and the script still downloads only from its fixed list of research sites. Run
+  `python3 setup.py --hardened` to pick this up. When a publisher refuses the download (Springer and Taylor &
+  Francis often do, even for open-access papers), `/fetch-sources` now looks up an arXiv copy through Semantic
+  Scholar before adding the paper to `workspace/requests/pdfs.md`.
 - **Optional action table.** With `**Action table:** on` in `my/profile.md` (setup asks; off if the line is
   missing), Claude ends its final reply with a short table of what was researched, drafted or decided and what's
   left: ✅ done, ❌ failed, ❗️ needs you, ⏳ still running, 🔵 deliberately not done. It's left out when there's too

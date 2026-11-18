@@ -91,7 +91,8 @@
     "defaultMode": "default",
     "allow": [
       "Bash({{HOME}}/.venvs/ai-welfare-search/bin/python {{WORKSPACE}}/scripts/corpus_search.py *)",
-      "Bash(python3 {{WORKSPACE}}/scripts/ask_model.py *)"
+      "Bash(python3 {{WORKSPACE}}/scripts/ask_model.py *)",
+      "Bash(python3 {{WORKSPACE}}/scripts/fetch_pdf.py *)"
     ],
     "ask": [
       "Bash(pip install *)",

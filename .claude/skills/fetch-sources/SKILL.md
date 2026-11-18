@@ -9,7 +9,7 @@ Hardened mode only. `<workspace>` below is this workspace's absolute path, from 
 
 ## PDFs
     python3 <workspace>/scripts/fetch_pdf.py "<https-url>" <name>
-(name = letters, digits, - or _). Only allowlisted research sites work. If a site is refused or blocks the download, add the URL to `workspace/requests/pdfs.md` and tell the operator. Extract text inside the sandbox with pypdf (the inbox is mounted read-only at /data/inbox), via the `analyst` agent or the analysis runner below. Never move files into `workspace/corpus/`; the operator does that.
+(name = letters, digits, - or _). Only allowlisted research sites work. Some publishers turn the script away even for open-access papers: Springer sends it to a login page and Taylor & Francis returns 403. When a download is refused or fails, look for an open-access copy before giving up. WebFetch `https://api.semanticscholar.org/graph/v1/paper/DOI:<doi>?fields=externalIds,openAccessPdf`. If it lists an `ArXiv` id, fetch `https://arxiv.org/pdf/<id>`. Otherwise try the `openAccessPdf` URL, but only if its host isn't the one that just refused. PMC and Europe PMC PDF links don't work with the script either (a bot check and a 403). A preprint can differ from the published version, so cite which one you read. If no copy downloads, add the URL to `workspace/requests/pdfs.md` and tell the operator. Extract text inside the sandbox with pypdf (the inbox is mounted read-only at /data/inbox), via the `analyst` agent or the analysis runner below. Never move files into `workspace/corpus/`; the operator does that.
 
 ## Code and data releases (main session only)
     python3 <workspace>/scripts/fetch_repo.py "<https-url>" <name>

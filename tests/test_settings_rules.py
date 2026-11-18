@@ -91,6 +91,12 @@ class TestSettingsRules(unittest.TestCase):
     def test_only_the_known_exclusions(self):
         self.assertEqual(set(self.sandbox.get("excludedCommands", [])), EXCLUDED)
 
+    def test_fetch_pdf_runs_without_asking(self):
+        # /fetch-sources must work in every permission mode. The preflight gate (exact form only) and the
+        # script's host allowlist are the boundary, not a prompt.
+        rule = f"Bash(python3 {REPO.as_posix()}/scripts/fetch_pdf.py *)"
+        self.assertIn(rule, self.project.get("permissions", {}).get("allow", []))
+
     def test_localhost_not_allowed(self):
         allowed = self.sandbox.get("network", {}).get("allowedDomains", [])
         self.assertFalse([d for d in allowed if "localhost" in d or d.startswith("127.")])
