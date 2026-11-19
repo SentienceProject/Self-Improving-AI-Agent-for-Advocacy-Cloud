@@ -1,5 +1,7 @@
 # Welfare research workspace
 
+*This file is **long and dense**. The main README (Self-Improving-AI-Agent-for-Advocacy/README.md) is the one that should be read by humans. This one works better as a wiki to refer to whenever you can't find other information on something in ai-welfare-workspace/.*
+
 A ready-made setup for [Claude Code](https://code.claude.com/docs) that turns it into a careful research, writing
 and strategy assistant for people working on the welfare of animals, digital minds, or anyone else whose welfare is
 neglected.
