@@ -90,6 +90,15 @@ class RatingHook(unittest.TestCase):
         self.run_hook("5", [assistant(QUESTION), user("can you also check X")])
         self.assertEqual(self.saved(), [])
 
+    def test_question_before_a_last_line(self):
+        # Cloud sessions save after asking; Claude may add "Saved." after the question in the same turn.
+        tool = {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "x"}]}}
+        out = self.run_hook("9 helpful", [user("draft it"), assistant("Draft.\n\n" + QUESTION, "q"), tool,
+                                          assistant("Saved to GitHub.", "s")])
+        self.assertEqual(json.loads(out)["decision"], "block")
+        self.assertEqual((self.saved()[0]["rating"], self.saved()[0]["reply"]), (9, "q"))
+        self.assertEqual(self.run_hook("5", [assistant(QUESTION, "old"), user("more"), assistant("Saved.", "s2")]), "")
+
     def test_tool_results_dont_count_as_prompts(self):
         tool = {"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "content": "x"}]}}
         self.run_hook("6", [tool, assistant(QUESTION), tool])

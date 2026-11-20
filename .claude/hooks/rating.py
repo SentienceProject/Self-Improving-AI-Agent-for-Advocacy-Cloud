@@ -36,8 +36,10 @@ def prompt_text(content):
 
 
 def last_reply(transcript, prompt):
-    """(id, text) of Claude's last reply, if the person hasn't sent anything since except (perhaps) this prompt."""
-    reply, rid, since = None, "", []
+    """(id, text) of the message in Claude's last turn that ends with the rating question (or else its last message),
+    if the person hasn't sent anything since except (perhaps) this prompt. A turn can have several messages: in a
+    cloud session Claude saves after asking, and may add a line ("Saved.") after the question."""
+    turn, since = [], []
     with open(transcript, encoding="utf-8", errors="replace") as f:
         for line in f:
             try:
@@ -50,14 +52,19 @@ def last_reply(transcript, prompt):
             if d.get("type") == "assistant" and isinstance(content, list):
                 text = "\n".join(c.get("text", "") for c in content if c.get("type") == "text").strip()
                 if text:
-                    reply, rid, since = text, str(d.get("uuid", "")), []
-            elif d.get("type") == "user" and reply is not None:
+                    if since:   # a new turn after a prompt
+                        turn, since = [], []
+                    turn.append((str(d.get("uuid", "")), text))
+            elif d.get("type") == "user" and turn:
                 t = prompt_text(content)
                 if t is not None:
                     since.append(t.strip())
-    if reply is None or any(t != prompt.strip() for t in since):
+    if not turn or any(t != prompt.strip() for t in since):
         return None
-    return rid, reply
+    for rid, text in reversed(turn):
+        if any(QUESTION.search(line) for line in [x for x in text.splitlines() if x.strip()][-3:]):
+            return rid, text
+    return turn[-1]
 
 
 def main():
