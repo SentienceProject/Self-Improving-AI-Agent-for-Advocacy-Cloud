@@ -395,9 +395,17 @@ class TestImageLock(FakeRepo):
 
 class TestArgv(unittest.TestCase):
 
+    def test_limits_ignore_zero_memory(self):
+        # Some containers report MemTotal 0; "--memory 0m" would make Docker refuse the run.
+        r = subprocess.CompletedProcess([], 0, stdout="4 0\n", stderr="")
+        with mock.patch.object(ra.subprocess, "run", return_value=r):
+            self.assertEqual(ra._fit_limits(), (ra.MEMORY, ra.CPUS))
+
     def test_argv_shape(self):
-        argv = ra.build_argv("r1", 3, Path("/x/run"), Path("/x/staged"),
-                             "sub/a.py", "sha256:" + "1" * 64)
+        # The machine's own Docker may have less memory or fewer CPUs; this test is about the shape.
+        with mock.patch.object(ra, "_fit_limits", return_value=(ra.MEMORY, ra.CPUS)):
+            argv = ra.build_argv("r1", 3, Path("/x/run"), Path("/x/staged"),
+                                 "sub/a.py", "sha256:" + "1" * 64)
         self.assertEqual(argv[:2], ["/usr/bin/docker", "run"])
         for flag in ("-e", "--env", "--env-file"):
             self.assertNotIn(flag, argv)

@@ -86,6 +86,10 @@ def main(n):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help"):
+        sys.exit(__doc__ or "usage: python3 scripts/draw_card.py [n]   (n = 1-6 cards, default 3)")
+    if len(sys.argv) > 1 and not sys.argv[1].isdigit():
+        sys.exit("usage: python3 scripts/draw_card.py [n]   (n = 1-6 cards, default 3)")
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 3
     if not 1 <= n <= 6:
         sys.exit("draw_card: n must be 1-6")

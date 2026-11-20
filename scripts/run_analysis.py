@@ -166,13 +166,16 @@ def _check_image() -> str:
 def _fit_limits() -> tuple[str, str]:
     """MEMORY and CPUS, lowered if Docker has less: at most all its CPUs and
     3/4 of its memory. Docker refuses --cpus above its CPU count. If docker
-    info fails, the constants are used unchanged."""
+    info fails, or reports no CPUs or no memory (some containers report 0),
+    the constants are used unchanged."""
     try:
         r = subprocess.run(
             [DOCKER, "info", "--format", "{{.NCPU}} {{.MemTotal}}"],
             capture_output=True, text=True, timeout=30)
         ncpu, mem_total = (int(x) for x in r.stdout.split())
     except (OSError, ValueError, subprocess.TimeoutExpired):
+        return MEMORY, CPUS
+    if ncpu <= 0 or mem_total <= 0:
         return MEMORY, CPUS
     units = {"k": 2**10, "m": 2**20, "g": 2**30}
     want = int(MEMORY[:-1]) * units[MEMORY[-1].lower()]
