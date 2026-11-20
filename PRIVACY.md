@@ -22,6 +22,11 @@ turn it off.
   and, in hardened mode, `strictAllowlist`. The file as it was before setup first changed it is kept as
   `settings.json.before-ai-welfare-setup`.
 
+**In a cloud session (claude.ai/code)** none of this stays on a computer of yours: `my/` and `workspace/` are saved
+to your private GitHub copy (`scripts/cloud.py save`), so GitHub holds them, and during a session they're on
+Anthropic's cloud computer, which is cleared afterwards. Keys you add as the environment's variables are visible to
+Claude there. `save` refuses to push to a public repository; keep your copy private.
+
 "Stays on your computer" means it isn't uploaded *as a file*. Anything Claude reads in a session is sent to
 Anthropic as part of that session (next section).
 

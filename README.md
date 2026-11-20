@@ -1,6 +1,6 @@
 # Welfare research workspace
 
-*This file is **long and dense**. The main README (Self-Improving-AI-Agent-for-Advocacy/README.md) is the one that should be read by humans. This one works better as a wiki to refer to whenever you can't find other information on something in ai-welfare-workspace/.*
+*This file is **long and dense**. The main README (Self-Improving-AI-Agent-for-Advocacy/README.md) is the one that should be read by humans. This one works better as a wiki to refer to whenever you can't find other information on something in ai-welfare-workspace/. To use the workspace from claude.ai in your browser instead, with nothing installed, see [Using it from claude.ai](#using-it-from-claudeai-no-computer-setup).*
 
 A ready-made setup for [Claude Code](https://code.claude.com/docs) that turns it into a careful research, writing
 and strategy assistant for people working on the welfare of animals, digital minds, or anyone else whose welfare is
@@ -62,6 +62,43 @@ get updates (`python3 scripts/update.py` needs a git clone). If you open the fol
 the first session sets up casual mode by itself, so the ask-first rules are in place; run setup later for the rest.
 
 Claude tells you what it's doing as it goes.
+
+## Using it from claude.ai (no computer setup)
+
+You can also use the workspace entirely in your browser or phone, at [claude.ai/code](https://claude.ai/code), with
+nothing installed. Claude then runs it on a cloud computer, working from your own **private** copy on GitHub, and
+saves your work there. You need a Claude Pro or Max plan and a free [GitHub](https://github.com) account.
+
+**Once (about ten minutes):**
+
+1. **Make your private copy.** Signed in to GitHub, open [github.com/new/import](https://github.com/new/import),
+   paste `https://github.com/SentienceProject/Self-Improving-AI-Agent-for-Advocacy-Cloud` as the URL to import,
+   name your copy, choose **Private**, and click Begin import. Private matters: your profile, drafts and memory are
+   saved there, and the workspace refuses to save to a public repository.
+2. **Let Claude reach it.** Install the [Claude GitHub app](https://github.com/apps/claude) (Configure, then "Only
+   select repositories", then your copy). claude.ai/code may also offer this when you pick the repository.
+3. **Open the network.** At claude.ai/code, start a new session, and before sending anything click the first
+   control under the message box (the environment), then **New environment**. Name it, set **Network access** to
+   **Full**, and click **Add environment**. The default ("Limited") blocks the paper databases, the outside models
+   and most websites, so research fails.
+4. **Optional: outside models.** In the same environment's **Environment variables**, add the keys you have, one
+   per line: `GEMINI_API_KEY=...`, `OPENROUTER_API_KEY=...`, `GROQ_API_KEY=...`. Unlike the `.env` file on your own
+   computer, Claude can see these there, so use keys with a spending limit.
+5. **Start.** Pick your copy and that environment, and ask for something. The first session sets the workspace up
+   by itself and asks briefly about your work.
+
+**Day to day:** every session starts from what's saved in your copy. Claude saves `my/` and `workspace/` at the end
+of each task (`python3 scripts/cloud.py save`, which commits and pushes them to your copy's `main`). If you stop a
+session mid-task, ask Claude to save first, or the unsaved part is lost when the cloud computer is cleared. When
+updates are out, Claude says so at the start of a session; say yes and it runs `python3 scripts/cloud.py update`.
+(If your copy is a GitHub fork, its **Sync fork** button on GitHub does the same.)
+To carry a cloud session on in a terminal, `claude --teleport` works as usual.
+
+**What's different there:** casual mode only (hardened mode needs your own computer), and no browser for Claude,
+analyst, semantic corpus search or scheduled runs (tech watch, follow-ups, backlog). The cloud computer is separate
+from your own devices, but with Full network Claude can reach any website, as in casual mode on your computer. Your
+files live in your private GitHub copy and, during a session, on Anthropic's cloud computer (see
+[PRIVACY.md](PRIVACY.md)).
 
 ## Make it yours
 

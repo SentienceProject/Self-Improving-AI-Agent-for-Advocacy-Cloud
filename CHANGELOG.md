@@ -6,6 +6,19 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- **Use it from claude.ai, with nothing installed.** You can now run the workspace in cloud sessions at
+  [claude.ai/code](https://claude.ai/code), from your browser or phone: import the cloud copy
+  (github.com/SentienceProject/Self-Improving-AI-Agent-for-Advocacy-Cloud, the workspace on its own) as your own
+  private GitHub repository, and start sessions from it. A cloud computer is cleared after a session, so Claude
+  saves `my/` and `workspace/` to your private copy after each task (the new `scripts/cloud.py save`, pre-approved;
+  it refuses public repositories). Each cloud session re-applies the ask-first rules (`setup.py --reapply`), and
+  Claude passes on the session-start notes, which the web app doesn't show. Setup steps, including the network
+  setting research needs: README, "Using it from claude.ai". Nothing changes on your own computer.
+- **Ratings are caught even when Claude adds a line after the question.** `.claude/hooks/rating.py` now looks for
+  the rating question in all of Claude's last turn, not only its very last message.
+- **Fixes:** the analyst asked Docker for `--memory 0m` (and `compat_check.py` failed) where Docker reports no
+  memory, as some containers do; it now keeps its usual limits there. `scripts/draw_card.py --help` works.
+
 - **A browser Claude can drive (optional, Linux and WSL2).** `python3 scripts/browser_setup.py` installs a
   separate Firefox, sandboxed so it can't read your files or act through your SSH agent, D-Bus or Docker, and
   connects it to Claude Code through Mozilla's MCP server. Clicking and typing ask first, with a prompt that says

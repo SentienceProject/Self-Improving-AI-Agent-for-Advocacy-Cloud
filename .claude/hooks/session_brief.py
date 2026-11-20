@@ -8,6 +8,11 @@
 - Updates: whether the workspace's upstream has new commits (checked at most once a day, 5 s timeout; only for a
   git clone with an upstream branch), or, at most once a week, that it hasn't had any in 60 days.
 
+- Cloud sessions (claude.ai/code): re-applies the ask-first rules (scripts/cloud.py start), says where work is saved
+  and whether updates are available. The web app doesn't show these lines to the person, so there they go to Claude,
+  who passes on what matters. Tech watch, harness checkups and the Claude Code compatibility reminder are skipped
+  there: their state isn't kept between cloud sessions.
+
 Never blocks, never fails a session: any error just means fewer lines.
 """
 import json
@@ -299,19 +304,35 @@ def backlog_lines():
     return out
 
 
+def cloud_lines():
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import cloud
+    return cloud.start()
+
+
 def main():
+    cloud = os.environ.get("CLAUDE_CODE_REMOTE") == "true"
     lines = []
     try:
         lines += first_run()
     except Exception:
         pass
-    for part in (applied_lines, checkup_lines, techwatch_lines, update_lines, compat_lines, setup_lines, backlog_lines):
+    parts = ((cloud_lines, setup_lines, backlog_lines) if cloud else
+             (applied_lines, checkup_lines, techwatch_lines, update_lines, compat_lines, setup_lines, backlog_lines))
+    for part in parts:
         try:
             lines += part()
         except Exception:
             pass
     if lines:
-        print(json.dumps({"systemMessage": "\n".join(lines)}), flush=True)
+        out = {"systemMessage": "\n".join(lines)}
+        if cloud:   # the web app doesn't show systemMessage, so Claude relays it
+            out["hookSpecificOutput"] = {
+                "hookEventName": "SessionStart",
+                "additionalContext": "Session-start notes from the workspace. The person can't see these: in your "
+                                     "first reply, pass on briefly, in your own words, any that need them (updates, "
+                                     "warnings, waiting results); skip routine ones.\n- " + "\n- ".join(lines)}
+        print(json.dumps(out), flush=True)
         mark_seen()
 
 

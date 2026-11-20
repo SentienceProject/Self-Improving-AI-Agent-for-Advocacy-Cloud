@@ -26,7 +26,10 @@
       "Bash(python3 scripts/export.py *)",
       "Bash(python3 scripts/import_zotero.py *)",
       "Bash(python3 scripts/compat_check.py)",
-      "Bash(python3 scripts/backlog.py *)"
+      "Bash(python3 scripts/backlog.py *)",
+      "Bash(python3 scripts/cloud.py save*)",
+      "Bash(python3 scripts/cloud.py status)",
+      "Bash(python3 scripts/cloud.py update --check)"
     ]
   },
   "sandbox": {

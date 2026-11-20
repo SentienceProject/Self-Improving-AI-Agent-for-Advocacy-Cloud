@@ -6,6 +6,8 @@
     python3 setup.py --casual      switch back from hardened to casual
     python3 setup.py --search      also set up semantic corpus search (hardened mode; needs Ollama)
     python3 setup.py --status      show the current mode and what's set up; change nothing
+    python3 setup.py --reapply     only re-apply the current mode's rules to .claude/settings.local.json, quietly
+                                   (cloud sessions run this at the start: that file isn't kept between them)
     python3 setup.py --more        the optional extras: safety mode, your paper corpus, using sessions from your phone
     python3 setup.py --ask-outside-models     ask before each call Claude makes to an outside model (off by default;
                                               --no-ask-outside-models turns it off again)
@@ -751,6 +753,11 @@ def main(args):
     if not STATE.exists() and any(f in args for f in rule_flags):
         print("This workspace isn't set up yet, so setting it up first.")
         main([a for a in args if a in ("--casual", "--hardened")])
+    if "--reapply" in args:
+        if not STATE.exists():
+            sys.exit("Run python3 setup.py first; --reapply is for after the main setup.")
+        cloud = os.environ.get("CLAUDE_CODE_REMOTE") == "true"   # no bubblewrap there: hardened can't run
+        return apply_layer("casual" if cloud else current_mode() or "casual")
     if rule_command(args):
         return
     if "--more" in args:
