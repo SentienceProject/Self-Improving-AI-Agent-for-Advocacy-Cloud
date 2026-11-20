@@ -1,6 +1,6 @@
 ---
 name: plain-prose
-description: A final editing pass that removes AI writing patterns from outward-facing prose (op-eds, letters, emails, posts, briefings) so it reads like a careful human writer, without changing what it says. Use on a finished draft before it goes out, or when the person asks to make writing sound less like AI.
+description: Use on any draft going out under my name, or when the person asks to make writing sound less like AI. Only use on finished drafts. Removes AI writing patterns from outward-facing prose (op-eds, letters, emails, posts, briefings) so it reads like a careful human writer, without changing what it says.
 ---
 
 # Plain prose: a final pass for outward-facing writing

@@ -1,6 +1,6 @@
 ---
 name: wild-ideas
-description: Divergent ideation with wild-ideators (random cards, disguised goal), translated and filtered by the ideator, with its best picks recommended back. Use for any task that wants new lines of action (campaigns, outreach strategies, study designs, framings) rather than pure analysis. One ideator with 12 ideas by default; scale up to 3 × 35 when the task needs much more creativity. Skip for factual lookups and short replies.
+description: Use for any task that wants new lines of action rather than pure analysis, or when the user asks for more creativity. Wild-ideators brainstorm on a disguised version of the task, the `ideator` translates and recommends the best ideas. One ideator with 12 ideas by default; scale up to 3 × 35 depending on the needed/asked-for level of creativity. Skip for factual lookups and short replies.
 ---
 
 # Wild ideas

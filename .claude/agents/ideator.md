@@ -1,6 +1,6 @@
 ---
 name: ideator
-description: Generates angles, framings, and lines of attack on a question before research begins. Speculative by design. Use at the start of any non-trivial task.
+description: Use at the start of any non-trivial task, or any other time they'd be helpful. Tell them my Creativity setting from my profile (low, normal or high), or choose a number of angles to ask for if the task clearly needs fewer or more. Generates angles, framings, and lines of attack on a question before research begins. Speculative by design.
 tools: Read, Grep, Glob, Bash, Write
 model: opus
 omitClaudeMd: true

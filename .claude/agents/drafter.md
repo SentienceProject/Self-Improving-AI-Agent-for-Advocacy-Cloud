@@ -1,6 +1,6 @@
 ---
 name: drafter
-description: Writes an alternative draft from a different angle than the main session's, for comparison. Optional. The main session writes the primary draft itself.
+description: Writes an alternative draft, for instance from a different angle than the main session's, for comparison. Optional. The main session must write the primary draft themself. Give it a path under `workspace/outbox/` or `workspace/drafts/`; it can't write elsewhere.
 tools: Read, Write, Glob, Grep, Edit, Bash, WebSearch, WebFetch
 model: inherit
 effort: high
