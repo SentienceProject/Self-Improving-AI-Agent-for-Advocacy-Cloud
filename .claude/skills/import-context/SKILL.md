@@ -13,7 +13,10 @@ so they don't have to explain it all again. Be quick and careful: this is their 
    them how to get it, in a few lines. Chat history is the richer source, especially when their other tools remember
    little: ChatGPT (Settings > Data controls > Export data), Claude (Settings > Privacy > Export data) and Gemini
    (takeout.google.com, "My Activity" with only "Gemini Apps") all email or prepare a download; then they run
-   `! python3 scripts/import_chats.py <the .zip>` (or `--claude-code` for their Claude Code sessions here). Or:
+   `! python3 scripts/import_chats.py <the .zip>` (or `--claude-code` for their Claude Code sessions here). In a
+   cloud session (claude.ai/code), they upload the .zip to their GitHub copy instead (on GitHub: Add file, Upload
+   files, into `my/imports/`; GitHub takes files up to 25 MB that way), start a new session, and you run
+   `python3 scripts/import_chats.py my/imports/<the .zip>` after their yes. Or:
    - Claude (claude.ai or the app): ask it "Please write out everything you remember about me, my work and my
      preferences from our past chats and your memory, as a plain list I can copy", and copy any Project instructions.
    - ChatGPT: Settings > Personalization > Memory > Manage, or ask it the same question. Gemini and others: the same

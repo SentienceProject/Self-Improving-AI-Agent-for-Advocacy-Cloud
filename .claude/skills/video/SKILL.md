@@ -7,6 +7,12 @@ description: Get what's said and shown in a video or recording (a YouTube link, 
 
 You can't watch or hear a video. This turns it into text you can read: captions or a speech-to-text transcript for the words, and a frame-by-frame index for what's on screen.
 
+**In a cloud session (claude.ai/code):** YouTube refuses cloud computers ("Sign in to confirm you're not a bot"),
+so ask the operator to download the video and attach it (it lands in `~/.claude/uploads/<session folder>/`), then
+work on the file. ffmpeg is installed there: `video.py` means `python3 -I .claude/skills/video/video.py`, with no venv. Other
+sites may still work with yt-dlp in a venv (`python3 -m venv /tmp/yt && /tmp/yt/bin/pip install yt-dlp`, after
+their yes; it's gone next session).
+
 Before downloading anything long, ask what the operator needs: the whole video or parts, and whether the visuals matter or only the words. Captions take seconds. Speech-to-text takes about a minute per 20-minute piece. Reading frames costs real usage.
 
 Below, `<workspace>` is this workspace's absolute path, from `my/profile.md` ("Machine"). `video.py` means `~/.venvs/yt-dlp/bin/python -I <workspace>/.claude/skills/video/video.py` (each command has `--help`), and `yt-dlp` means `~/.venvs/yt-dlp/bin/yt-dlp`. Downloads go in `workspace/videos/<id>/`, and results go in `workspace/videos/<id>-transcript.md` and `<id>-onscreen.md`.

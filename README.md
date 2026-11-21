@@ -82,8 +82,12 @@ saves your work there. You need a Claude Pro or Max plan and a free [GitHub](htt
    **Full**, and click **Add environment**. The default ("Limited") blocks the paper databases, the outside models
    and most websites, so research fails.
 4. **Optional: outside models.** In the same environment's **Environment variables**, add the keys you have, one
-   per line: `GEMINI_API_KEY=...`, `OPENROUTER_API_KEY=...`, `GROQ_API_KEY=...`. Unlike the `.env` file on your own
-   computer, Claude can see these there, so use keys with a spending limit.
+   per line: `GEMINI_API_KEY=...` (free from [Google AI Studio](https://aistudio.google.com/apikey)),
+   `GROQ_API_KEY=...` (free), `OPENROUTER_API_KEY=...` (prepaid credits). Unlike the `.env` file on your own
+   computer, Claude can see these there, so use keys with a spending limit. ChatGPT needs no key: it uses your own
+   ChatGPT account. Turn on device-code sign-in for Codex in ChatGPT's settings (Settings, Security) once, then
+   in a session where you want it, Claude gives you a link and a code to enter (once per session). To save a minute
+   each time, put `npm install -g @openai/codex` in the environment's **Setup script**.
 5. **Start.** Pick your copy and that environment, and ask for something. The first session sets the workspace up
    by itself and asks briefly about your work.
 
@@ -92,10 +96,16 @@ of each task (`python3 scripts/cloud.py save`, which commits and pushes them to 
 session mid-task, ask Claude to save first, or the unsaved part is lost when the cloud computer is cleared. When
 updates are out, Claude says so at the start of a session; say yes and it runs `python3 scripts/cloud.py update`.
 (If your copy is a GitHub fork, its **Sync fork** button on GitHub does the same.)
-To carry a cloud session on in a terminal, `claude --teleport` works as usual.
+To carry a cloud session on in a terminal, `claude --teleport` works as usual. You can't type `!` commands in
+the web app: where this README gives one, ask Claude to run it. It tells you what the command does and runs it
+once you say yes. To give Claude files (a chat-history export, PDFs, notes), attach them with the button by the
+message box; Claude copies the ones worth keeping into your saved folders. Big or many files can also go to your copy on
+GitHub (Add file, Upload files) into `my/imports/` or `workspace/inbox/`, for the next session.
 
-**What's different there:** casual mode only (hardened mode needs your own computer), and no browser for Claude,
-analyst, semantic corpus search or scheduled runs (tech watch, follow-ups, backlog). The cloud computer is separate
+**What's different there:** casual mode only (hardened mode needs your own computer), and no analyst, semantic
+corpus search or scheduled runs (tech watch, follow-ups, backlog). Claude gets a browser of its own there: headless
+Chrome through Microsoft's Playwright (`scripts/cloud_browser.py`), with no logins, for pages that need JavaScript. YouTube refuses cloud computers, so `/video`
+works there only on files you attach. PDF export, Word export and PDF reading work as at home. The cloud computer is separate
 from your own devices, but with Full network Claude can reach any website, as in casual mode on your computer. Your
 files live in your private GitHub copy and, during a session, on Anthropic's cloud computer (see
 [PRIVACY.md](PRIVACY.md)).

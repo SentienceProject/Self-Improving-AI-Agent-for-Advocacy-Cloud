@@ -21,6 +21,9 @@ summary says so, and a later update tells you the result.
 If anything goes wrong midway, tech watch's changes and your edits are put back as they were, and the backup folder
 has a copy of everything.
 
+In a cloud session (claude.ai/code) this hands over to scripts/cloud.py update, which merges the maintainer's cloud
+copy instead.
+
 Your my/ and workspace/ folders aren't tracked by git, so updates never touch them. If you've made git commits of
 your own on this copy, this stops and explains instead of guessing.
 
@@ -32,6 +35,7 @@ import hashlib
 import json
 import re
 import shutil
+import os
 import subprocess
 import sys
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
@@ -188,6 +192,9 @@ def update_manifest(before_drift, changed_by_update):
 
 
 def main(a):
+    if os.environ.get("CLAUDE_CODE_REMOTE") == "true":   # a cloud copy: its own saves are commits, so merge instead
+        sys.exit(subprocess.run([sys.executable, str(ROOT / "scripts" / "cloud.py"), "update",
+                                 *(["--check"] if "--check" in a else [])]).returncode)
     if not in_git():
         sys.exit("This copy isn't a git clone, so it can't update itself. Download the new version and copy your my/ "
                  "and workspace/ folders into it.")

@@ -22,6 +22,20 @@ python3 <this workspace's folder>/scripts/ask_model.py groq --model <speech-to-t
 python3 <this workspace's folder>/scripts/ask_model.py --status
 ```
 
+**In a cloud session (claude.ai/code)** there's no `.env`: keys come from the cloud environment's Environment
+variables, which the person sets on claude.ai (README, "Using it from claude.ai"). The free options are a Gemini key
+(https://aistudio.google.com/apikey) and Groq; OpenRouter needs prepaid credits. ChatGPT works with the person's
+own ChatGPT account, with no new account or key, but signs in again each session, since the cloud computer is
+cleared:
+1. Once: the person turns on device-code sign-in for Codex in ChatGPT's settings (Settings, Security; the wording may
+   differ). Without it, step 3 falls back to a browser login that can't finish there.
+2. If `codex` isn't installed: with their OK, `npm install -g @openai/codex` (about a minute; the environment's
+   Setup script can do it before each session instead).
+3. Run `codex login --device-auth` in the background, and give the person the link and one-time code it prints.
+   They open the link on any device, sign in to ChatGPT and enter the code (it expires after about 15 minutes).
+   Wait until `codex login status` succeeds, then call `chatgpt` as usual.
+Never print, copy or save `~/.codex/auth.json`: it holds their login.
+
 **Choosing an OpenRouter or Groq model.** Models change fast, so nothing here names one: look at what's current with
 `--models <words>` (e.g. `--models openai`, `--models google`, `--models deepseek`; free, calls no model). It lists
 Groq's few models first, then OpenRouter's, newest first, with prices per million tokens. OpenRouter ids ending in

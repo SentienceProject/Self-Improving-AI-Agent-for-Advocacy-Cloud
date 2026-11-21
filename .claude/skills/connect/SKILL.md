@@ -33,4 +33,9 @@ instructions.
    not be asked for one, `--allow` does that; it's their call.
 6. **Test with something harmless** ("list my five most recent documents") and confirm it works.
 
+**In a cloud session (claude.ai/code):** suggest a claude.ai connector. They work there with nothing to install, and
+they stay connected. An MCP server added with `claude mcp add` is gone at the next session, and the person can't type
+`!` commands there: if they still want one for this session, run the command yourself after their yes in the
+conversation.
+
 To remove a connection later: `claude mcp remove <name>`, or turn the connector off on claude.ai.

@@ -14,6 +14,16 @@ number means something you set up may need redoing, and the entry says what.
   it refuses public repositories). Each cloud session re-applies the ask-first rules (`setup.py --reapply`), and
   Claude passes on the session-start notes, which the web app doesn't show. Setup steps, including the network
   setting research needs: README, "Using it from claude.ai". Nothing changes on your own computer.
+- **More of the workspace works from claude.ai.** ChatGPT works there with your own ChatGPT account, no key or new
+  account: turn on device-code sign-in for Codex in ChatGPT's settings once, and Claude gives you a link and a code
+  to enter in each session that uses it (OUTSIDE_MODELS.md). The web app can't run `!` commands, so in a cloud
+  session Claude runs those itself once you've said yes; installs and `setup.py` commands are now ask-first rules
+  in casual mode everywhere. Files you attach in the chat are copied into your saved folders. `/video` works on
+  attached files there (YouTube refuses cloud computers), `/connect` suggests claude.ai connectors, and
+  `scripts/update.py` hands over to `cloud.py update`. Missing keys now get cloud-specific instructions.
+  Cloud sessions also get a browser: headless Chrome through Microsoft's Playwright MCP server (`.mcp.json`,
+  `scripts/cloud_browser.py`, pinned to 0.0.86). On your own computer that entry offers no tools, so nothing
+  changes there.
 - **Ratings are caught even when Claude adds a line after the question.** `.claude/hooks/rating.py` now looks for
   the rating question in all of Claude's last turn, not only its very last message.
 - **Fixes:** the analyst asked Docker for `--memory 0m` (and `compat_check.py` failed) where Docker reports no

@@ -137,11 +137,18 @@ def sandbox_hint():
             "before it: no cd, no &&, no environment variables.)")
 
 
+CLOUD = os.environ.get("CLAUDE_CODE_REMOTE") == "true"   # a claude.ai/code cloud session: no .env, no browser login
+CLOUD_HOW = " (cloud session: see OUTSIDE_MODELS.md, 'In a cloud session')"
+
+
 def available(which):
     """(True, "") or (False, what to do)."""
     if which == "chatgpt":
         c = codex()
         if not c:
+            if CLOUD:
+                return False, ("the Codex CLI isn't installed here: with the person's OK, npm install -g "
+                               "@openai/codex, then codex login --device-auth" + CLOUD_HOW)
             return False, "the Codex CLI isn't installed (npm install -g @openai/codex, then codex login)"
         try:
             r = subprocess.run([c, "login", "status"], capture_output=True, text=True, timeout=60)
@@ -149,11 +156,16 @@ def available(which):
             return False, "the Codex CLI didn't answer" + sandbox_hint()
         if r.returncode == 0:
             return True, ""
+        if CLOUD:
+            return False, "Codex isn't signed in this session (codex login --device-auth" + CLOUD_HOW + ")"
         hint = sandbox_hint()
         return False, ("Codex couldn't confirm a sign-in" + hint) if hint else "Codex isn't signed in (run: codex login)"
     if which == "gemini":
         if gemini_key():
             return True, ""
+        if CLOUD:
+            return False, ("no Gemini key: the person adds GEMINI_API_KEY=... (free from https://aistudio.google.com/"
+                           "apikey) to the cloud environment's Environment variables" + CLOUD_HOW)
         if sandbox_hint():
             return False, "no Gemini key found from here" + sandbox_hint()
         return False, ("no Gemini key yet: run python3 setup.py, which saves a free key "
@@ -162,6 +174,9 @@ def available(which):
         base, var, name = APIS[which]
         if api_key(which):
             return True, ""
+        if CLOUD:
+            return False, (f"no {name} key: the person adds {var}=... (from {KEY_PAGES[which]}) to the cloud "
+                           "environment's Environment variables" + CLOUD_HOW)
         if sandbox_hint():
             return False, f"no {name} key found from here" + sandbox_hint()
         return False, f"no {name} key yet: put {var}=... (from {KEY_PAGES[which]}) in this workspace's .env"

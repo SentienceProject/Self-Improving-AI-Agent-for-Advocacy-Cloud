@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "cloud-browser": {
+      "command": "python3",
+      "args": ["${CLAUDE_PROJECT_DIR:-.}/scripts/cloud_browser.py"]
+    }
+  }
+}
