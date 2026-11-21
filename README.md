@@ -102,12 +102,14 @@ once you say yes. To give Claude files (a chat-history export, PDFs, notes), att
 message box; Claude copies the ones worth keeping into your saved folders. Big or many files can also go to your copy on
 GitHub (Add file, Upload files) into `my/imports/` or `workspace/inbox/`, for the next session.
 
-**What's different there:** casual mode only (hardened mode needs your own computer), and no analyst, semantic
-corpus search or scheduled runs (tech watch, follow-ups, backlog). Claude gets a browser of its own there: headless
-Chrome through Microsoft's Playwright (`scripts/cloud_browser.py`), with no logins, for pages that need JavaScript. YouTube refuses cloud computers, so `/video`
-works there only on files you attach. PDF export, Word export and PDF reading work as at home. The cloud computer is separate
-from your own devices, but with Full network Claude can reach any website, as in casual mode on your computer. Your
-files live in your private GitHub copy and, during a session, on Anthropic's cloud computer (see
+**What's different there:** casual mode only (hardened mode needs your own computer), and no analyst, semantic corpus
+search or scheduled runs (tech watch, follow-ups, backlog). Claude gets a browser of its own there: headless Chrome
+through Microsoft's Playwright (`scripts/cloud_browser.py`), with no logins, for pages that need JavaScript. As with
+the browser at home, clicking and typing ask first, and the `cloud-browser-haiku`, `-sonnet` and `-opus` agents do
+longer browsing on cheaper models, checking in with the main session as they go. YouTube refuses cloud computers, so
+`/video` works there only on files you attach. PDF export, Word export and PDF reading work as at home. The cloud
+computer is separate from your own devices, but with Full network Claude can reach any website, as in casual mode on
+your computer. Your files live in your private GitHub copy and, during a session, on Anthropic's cloud computer (see
 [PRIVACY.md](PRIVACY.md)).
 
 ## Make it yours
@@ -581,7 +583,7 @@ CLAUDE.md, GUARDRAILS.md     how Claude works here, and the honesty, consent and
 OUTSIDE_MODELS.md            when and how Claude asks ChatGPT, Gemini, OpenRouter or Groq models for a second opinion
 ETHICS_SHORT.md, ETHICS_FULL.md   the default ethical framework (yours goes in my/)
 my/                          your own files (gitignored)
-.claude/agents/              analyst, critic, drafter, helper, ideator, researcher, verifier, wild-ideator
+.claude/agents/              analyst, cloud-browser-haiku, cloud-browser-opus, cloud-browser-sonnet, critic, drafter, helper, ideator, researcher, verifier, wild-ideator
 .claude/skills/              /add-papers, /connect, /fetch-sources, /import-context, /my-ethics, /plain-prose, /techwatch, /video, /wild-ideas
 .claude/hooks/               session reminders, the /clear tip, guards; hardened mode adds the preflight and logs
 .claude/settings.json        the rules for every mode (your machine's additions: settings.local.json)

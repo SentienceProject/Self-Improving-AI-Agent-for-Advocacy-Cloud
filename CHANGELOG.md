@@ -23,7 +23,9 @@ number means something you set up may need redoing, and the entry says what.
   `scripts/update.py` hands over to `cloud.py update`. Missing keys now get cloud-specific instructions.
   Cloud sessions also get a browser: headless Chrome through Microsoft's Playwright MCP server (`.mcp.json`,
   `scripts/cloud_browser.py`, pinned to 0.0.86). On your own computer that entry offers no tools, so nothing
-  changes there.
+  changes there. Clicking and typing there ask first with a readable description (the same
+  `.claude/hooks/browser_guard.py` as at home), and the new `cloud-browser-haiku`, `-sonnet` and `-opus` agents
+  browse on cheaper models with the same check-ins.
 - **Ratings are caught even when Claude adds a line after the question.** `.claude/hooks/rating.py` now looks for
   the rating question in all of Claude's last turn, not only its very last message.
 - **Fixes:** the analyst asked Docker for `--memory 0m` (and `compat_check.py` failed) where Docker reports no

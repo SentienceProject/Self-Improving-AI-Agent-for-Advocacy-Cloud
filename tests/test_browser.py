@@ -175,3 +175,71 @@ class SetupTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+PW_PAGE = """### Page state
+- Page URL: https://example.org/search
+- Page Title: Search
+- Page Snapshot:
+```yaml
+- generic [ref=e1]:
+  - form "Search" [ref=e2]:
+    - textbox "Query" [ref=e3]
+    - button "Go" [ref=e4] [cursor=pointer]
+```"""
+
+
+class CloudBrowserGuardTest(unittest.TestCase):
+    """The same guard for the cloud sessions' Playwright browser (mcp__cloud-browser__*)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.main = self.tmp / "session.jsonl"
+        self.agent = self.tmp / "session" / "subagents" / "agent-a1.jsonl"
+        self.agent.parent.mkdir(parents=True)
+        page = result(PW_PAGE)
+        self.main.write_text(turn("hello") + page)
+        self.agent.write_text(turn("Please search") + page)
+        patcher = mock.patch.object(guard, "STATE", self.tmp / "state")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def run_pw(self, tool, args, agent_type=None):
+        d = {"transcript_path": str(self.main), "tool_name": "mcp__cloud-browser__" + tool, "tool_input": args}
+        if agent_type:
+            d.update(agent_id="a1", agent_type=agent_type)
+        out = io.StringIO()
+        with mock.patch.object(sys, "stdin", io.StringIO(json.dumps(d))), contextlib.redirect_stdout(out):
+            try:
+                guard.main()
+            except SystemExit:
+                pass
+        return json.loads(out.getvalue())["hookSpecificOutput"] if out.getvalue().strip() else {}
+
+    def test_prompts_use_the_page_s_own_labels(self):
+        o = self.run_pw("browser_type", {"target": "e3", "element": "the box", "text": "fish", "submit": True})
+        self.assertEqual(o["permissionDecision"], "ask")
+        self.assertEqual(o["updatedInput"]["action"], 'Type "fish" into textbox "Query" (in form "Search"), then '
+                                                      "press Enter on https://example.org/search")
+        o = self.run_pw("browser_click", {"target": "e99", "element": "Next page"})
+        self.assertIn("Claude's description", o["updatedInput"]["action"])
+        self.assertEqual(self.run_pw("browser_snapshot", {}), {})        # reading: no prompt
+        self.assertEqual(self.run_pw("browser_navigate", {"url": "https://x"}), {})
+
+    def test_cloud_agents_check_in(self):
+        acts, visits, _ = guard.CADENCE["cloud-browser-haiku"]
+        for _ in range(acts):
+            self.assertEqual(self.run_pw("browser_click", {"target": "e4"}, "cloud-browser-haiku")["permissionDecision"],
+                             "ask")
+        o = self.run_pw("browser_click", {"target": "e4"}, "cloud-browser-haiku")
+        self.assertEqual(o["permissionDecision"], "deny")
+        self.assertIn("Checkpoint 1", o["permissionDecisionReason"])
+
+
+class CloudAgentFiles(unittest.TestCase):
+    def test_agent_files_match_the_template(self):
+        cb = load("cloud_browser", REPO / "scripts" / "cloud_browser.py")
+        for name, text in cb.agent_files().items():
+            self.assertEqual((REPO / ".claude" / "agents" / name).read_text(encoding="utf-8"), text,
+                             f"{name} is out of date: python3 scripts/cloud_browser.py --write-agents")
+            self.assertNotIn("browser_run_code_unsafe", text.split("---")[1])   # main session only
