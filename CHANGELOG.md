@@ -6,6 +6,12 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- **Easier to start from claude.ai.** The cloud copy is now a GitHub template: one link makes your private copy
+  (README, "Using it from claude.ai"), instead of GitHub's importer. `scripts/cloud.py update` handles such copies,
+  whose history starts separately: the first update finds the version the copy was made from by its files and
+  merges from there. Copies made by import or as a fork keep working as before. A cloud session whose network
+  access is Limited now says so at the start, since research fails there. The cloud copy has a short front page of
+  its own (`.github/README.md`, which GitHub shows only there), and outside-model keys moved out of the setup steps.
 - **Use it from claude.ai, with nothing installed.** You can now run the workspace in cloud sessions at
   [claude.ai/code](https://claude.ai/code), from your browser or phone: import the cloud copy
   (github.com/SentienceProject/Self-Improving-AI-Agent-for-Advocacy-Cloud, the workspace on its own) as your own

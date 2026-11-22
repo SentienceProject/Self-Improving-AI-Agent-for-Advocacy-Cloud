@@ -156,6 +156,66 @@ class CloudTest(unittest.TestCase):
         self.assertEqual(run(self.tmp, "git", "--git-dir", str(self.remote), "show", "main:CLAUDE.md"), "v2")
         self.assertEqual(run(self.tmp, "git", "--git-dir", str(self.remote), "show", "main:my/profile.md"), "me")
 
+    def test_template_copy_updates(self):
+        """A copy made with "Use this template": one commit of its own holding v1's files, no shared history."""
+        first = run(self.upstream, "git", "commit-tree", "HEAD^{tree}", "-m", "Initial commit")
+        (self.upstream / "CLAUDE.md").write_text("v2\n")
+        (self.upstream / "new.md").write_text("new\n")
+        run(self.upstream, "git", "add", "-A")
+        run(self.upstream, "git", "commit", "-qm", "v2")
+        (self.upstream / "CLAUDE.md").write_text("v3\n")
+        run(self.upstream, "git", "commit", "-qam", "v3")
+        run(self.tmp, "rm", "-rf", str(self.remote), str(self.work))
+        run(self.tmp, "git", "init", "-q", "--bare", "-b", "main", str(self.remote))
+        run(self.upstream, "git", "push", "-q", str(self.remote), first + ":refs/heads/main")
+        self.work = self.clone("work")
+        with mock.patch.object(cloud, "ROOT", self.work):
+            (self.work / "my" / "profile.md").write_text("me\n")
+            self.save()
+            with redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(cloud.behind(), 2)
+                cloud.update(check_only=False)
+                self.assertEqual(cloud.behind(), 0)
+            self.assertIn("v2", out.getvalue())
+            self.assertEqual(run(self.work, "git", "replace", "-l"), "")   # the graft was only for that merge
+            (self.upstream / "CLAUDE.md").write_text("v4\n")
+            run(self.upstream, "git", "commit", "-qam", "v4")
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(cloud.behind(), 1)
+                cloud.update(check_only=False)
+        show = lambda f: run(self.tmp, "git", "--git-dir", str(self.remote), "show", "main:" + f)
+        self.assertEqual((show("CLAUDE.md"), show("new.md"), show("my/profile.md")), ("v4", "new", "me"))
+
+    def test_unmatched_history_is_refused(self):
+        run(self.tmp, "rm", "-rf", str(self.remote), str(self.work))
+        other = self.tmp / "other"
+        other.mkdir()
+        run(other, "git", "init", "-q", "-b", "main")
+        ident(other)
+        (other / "x.md").write_text("x\n")
+        run(other, "git", "add", "-A")
+        run(other, "git", "commit", "-qm", "unrelated")
+        run(self.tmp, "git", "clone", "-q", "--bare", str(other), str(self.remote))
+        self.work = self.clone("work")
+        with mock.patch.object(cloud, "ROOT", self.work), self.assertRaises(SystemExit) as e:
+            cloud.update(check_only=False)
+        self.assertIn("doesn't match", str(e.exception.code))
+
+
+class NetworkTest(unittest.TestCase):
+    def check(self, error):
+        with mock.patch.object(cloud.urllib.request, "urlopen", side_effect=error):
+            return cloud.network_limited()
+
+    def test_limited_full_and_unsure(self):
+        import urllib.error
+        self.assertTrue(self.check(urllib.error.URLError(OSError("Tunnel connection failed: 403 Forbidden"))))
+        self.assertTrue(self.check(urllib.error.HTTPError("u", 403, "Forbidden", {}, None)))
+        self.assertFalse(self.check(urllib.error.HTTPError("u", 503, "busy", {}, None)))
+        self.assertIsNone(self.check(urllib.error.URLError(OSError("timed out"))))
+        with mock.patch.object(cloud.urllib.request, "urlopen", return_value=io.BytesIO()):
+            self.assertFalse(cloud.network_limited())
+
 
 class SlugTest(unittest.TestCase):
     def test_origin_slug_forms(self):

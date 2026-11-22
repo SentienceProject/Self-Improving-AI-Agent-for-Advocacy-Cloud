@@ -15,7 +15,10 @@ Safety: `save` and `update` only run in a cloud session (CLAUDE_CODE_REMOTE=true
 maintainer's public repositories or to any repository GitHub reports as public.
 
 Updates come from the public cloud copy (UPSTREAM below; set AI_WELFARE_CLOUD_UPSTREAM to use another). Your own
-commits only touch my/ and workspace/, which the maintainer never ships, so updates merge without conflicts.
+commits only touch my/ and workspace/, which the maintainer never ships, so updates merge without conflicts. A copy
+made with GitHub's "Use this template" starts with a history of its own (one commit holding the files of the
+maintainer's copy at that time): the first update finds that commit of the maintainer's by its files and merges from
+there, and from then on the two histories are joined like any other.
 """
 import json
 import os
@@ -191,6 +194,22 @@ def fetch_upstream(timeout=60):
     return git("rev-parse", "FETCH_HEAD").stdout.strip() or None
 
 
+def template_start(head):
+    """For a copy made from the template, whose history doesn't meet the maintainer's: (its first commit, the newest
+    commit of the maintainer's with the same files). None when the histories already meet. (None, None) when no
+    commit of the maintainer's matches, so the copy can't be updated this way."""
+    if git("merge-base", "HEAD", head).returncode == 0:
+        return None
+    trees = {}
+    for root in git("rev-list", "--max-parents=0", "HEAD").stdout.split():
+        trees[git("rev-parse", root + "^{tree}").stdout.strip()] = root
+    for line in git("log", "--format=%H %T", head).stdout.splitlines():
+        sha, tree = line.split()
+        if tree in trees:
+            return trees[tree], sha
+    return None, None
+
+
 def behind(timeout=60):
     """How many of the maintainer's commits this copy doesn't have yet, or None if the check failed."""
     head = fetch_upstream(timeout)
@@ -198,8 +217,34 @@ def behind(timeout=60):
         return None
     if git("merge-base", "--is-ancestor", head, "HEAD").returncode == 0:
         return 0
-    n = git("rev-list", "--count", f"HEAD..{head}").stdout.strip()
+    start = template_start(head)
+    if start == (None, None):
+        return None
+    n = git("rev-list", "--count", head, *(["^" + start[1]] if start else ["^HEAD"])).stdout.strip()
     return int(n) if n.isdigit() else None
+
+
+def network_limited(timeout=5):
+    """True when the session's network access looks like claude.ai's "Limited" setting, which blocks the paper
+    databases and outside models (its proxy refuses them with a 403). False when they answer, None when unsure."""
+    blocked = 0
+    for url in ("https://export.arxiv.org/", "https://openrouter.ai/"):
+        try:
+            urllib.request.urlopen(urllib.request.Request(url, method="HEAD",
+                                                          headers={"User-Agent": "workspace-cloud-check"}),
+                                   timeout=timeout).close()
+            return False
+        except urllib.error.HTTPError as e:
+            if e.code != 403:
+                return False      # the site itself answered
+            blocked += 1
+        except urllib.error.URLError as e:
+            if not any(w in str(e.reason) for w in ("403", "Forbidden", "Tunnel")):
+                return None
+            blocked += 1
+        except (OSError, ValueError):
+            return None
+    return blocked == 2
 
 
 def reapply_rules():
@@ -216,6 +261,10 @@ def reapply_rules():
 def update(check_only):
     refuse_unless_cloud("update")
     n = behind()
+    if n is None and fetch_upstream() and template_start("FETCH_HEAD") == (None, None):
+        sys.exit("This copy's history doesn't match any version of the maintainer's copy, so updates can't be merged "
+                 "automatically. Ask Claude to compare the two and bring the changes in by hand, or make a fresh "
+                 "copy (README, 'Using it from claude.ai') and move my/ and workspace/ into it.")
     if n is None:
         sys.exit(f"Couldn't reach the maintainer's copy ({UPSTREAM}). Is the environment's network access set to "
                  "Full (README, 'Using it from claude.ai')? If your copy is a GitHub fork, the Sync fork button on "
@@ -226,11 +275,19 @@ def update(check_only):
     if check_only:
         print(f"{n} update(s) available. Get them: python3 scripts/cloud.py update")
         return
-    log = git("log", "--format=  - %s", f"HEAD..FETCH_HEAD").stdout.rstrip()
-    m = git("merge", "--no-edit", "--autostash", "-m", "Update from the maintainer's cloud copy", "FETCH_HEAD",
-            timeout=120)
+    start = template_start("FETCH_HEAD")
+    if start:   # template copy, first update: for this merge only, treat its first commit as following the match
+        git("replace", "--graft", *start)
+    try:
+        log = git("log", "--format=  - %s", "HEAD..FETCH_HEAD").stdout.rstrip()
+        m = git("merge", "--no-edit", "--autostash", "-m", "Update from the maintainer's cloud copy", "FETCH_HEAD",
+                timeout=120)
+        if m.returncode:
+            git("merge", "--abort")
+    finally:
+        if start:
+            git("replace", "-d", start[0])
     if m.returncode:
-        git("merge", "--abort")
         sys.exit("The update clashes with a change made in this copy outside my/ and workspace/, so nothing was "
                  "changed. Details:\n" + (m.stdout + m.stderr).strip()[-800:])
     LOCAL.unlink(missing_ok=True)   # rebuilt from the updated rules
@@ -260,6 +317,11 @@ def start():
                      "from claude.ai') and start sessions from that.")
     else:
         lines.append(f"Cloud session: work is kept by saving it to {slug} (python3 scripts/cloud.py save).")
+    if network_limited():
+        lines.append("This session's network access looks Limited: paper searches, outside models and most websites "
+                     "are blocked, so research will fail. Tell the person, before starting on the task: click the "
+                     "environment under the message box, edit it (or make a new one), set Network access to Full, "
+                     "and start a new session with it (README, 'Using it from claude.ai').")
     try:
         last = json.loads(CHECK.read_text(encoding="utf-8"))
     except (OSError, ValueError):

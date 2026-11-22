@@ -1,6 +1,6 @@
 # Welfare research workspace
 
-*This file is **long and dense**. The main README (Self-Improving-AI-Agent-for-Advocacy/README.md) is the one that should be read by humans. This one works better as a wiki to refer to whenever you can't find other information on something in ai-welfare-workspace/. To use the workspace from claude.ai in your browser instead, with nothing installed, see [Using it from claude.ai](#using-it-from-claudeai-no-computer-setup).*
+*This file is **long and dense**: a reference to come back to when you want to know how something works, more than a place to start. New here? Start with the short README of the [main repository](https://github.com/SentienceProject/Self-Improving-AI-Agent-for-Advocacy) (on your own computer) or the [cloud copy](https://github.com/SentienceProject/Self-Improving-AI-Agent-for-Advocacy-Cloud) (from claude.ai, nothing installed; the steps are also [below](#using-it-from-claudeai-no-computer-setup)).*
 
 A ready-made setup for [Claude Code](https://code.claude.com/docs) that turns it into a careful research, writing
 and strategy assistant for people working on the welfare of animals, digital minds, or anyone else whose welfare is
@@ -71,25 +71,36 @@ saves your work there. You need a Claude Pro or Max plan and a free [GitHub](htt
 
 **Once (about ten minutes):**
 
-1. **Make your private copy.** Signed in to GitHub, open [github.com/new/import](https://github.com/new/import),
-   paste `https://github.com/SentienceProject/Self-Improving-AI-Agent-for-Advocacy-Cloud` as the URL to import,
-   name your copy, choose **Private**, and click Begin import. Private matters: your profile, drafts and memory are
-   saved there, and the workspace refuses to save to a public repository.
-2. **Let Claude reach it.** Install the [Claude GitHub app](https://github.com/apps/claude) (Configure, then "Only
-   select repositories", then your copy). claude.ai/code may also offer this when you pick the repository.
+0. **No GitHub account yet?** Sign up at [github.com/signup](https://github.com/signup): an email address, a
+   password and a username, then confirm the code GitHub emails you. The free plan is all you need.
+1. **Make your private copy.** Signed in to GitHub, open
+   [this link](https://github.com/new?template_owner=SentienceProject&template_name=Self-Improving-AI-Agent-for-Advocacy-Cloud&name=advocacy-workspace&visibility=private)
+   (or click **Use this template**, then **Create a new repository**, on
+   [the cloud copy's page](https://github.com/SentienceProject/Self-Improving-AI-Agent-for-Advocacy-Cloud)). Check
+   that **Private** is selected, and click **Create repository**. Private matters: your profile, drafts and memory
+   are saved there, and the workspace refuses to save to a public repository.
+2. **Let Claude reach it.** At [claude.ai/code](https://claude.ai/code), connect GitHub when it asks, and when
+   GitHub asks which repositories Claude may use, choose "Only select repositories" and your copy. (If your copy
+   doesn't appear in claude.ai/code later, open the [Claude GitHub app](https://github.com/apps/claude), click
+   Configure, and add it there.)
 3. **Open the network.** At claude.ai/code, start a new session, and before sending anything click the first
    control under the message box (the environment), then **New environment**. Name it, set **Network access** to
    **Full**, and click **Add environment**. The default ("Limited") blocks the paper databases, the outside models
-   and most websites, so research fails.
-4. **Optional: outside models.** In the same environment's **Environment variables**, add the keys you have, one
-   per line: `GEMINI_API_KEY=...` (free from [Google AI Studio](https://aistudio.google.com/apikey)),
-   `GROQ_API_KEY=...` (free), `OPENROUTER_API_KEY=...` (prepaid credits). Unlike the `.env` file on your own
-   computer, Claude can see these there, so use keys with a spending limit. ChatGPT needs no key: it uses your own
-   ChatGPT account. Turn on device-code sign-in for Codex in ChatGPT's settings (Settings, Security) once, then
-   in a session where you want it, Claude gives you a link and a code to enter (once per session). To save a minute
-   each time, put `npm install -g @openai/codex` in the environment's **Setup script**.
-5. **Start.** Pick your copy and that environment, and ask for something. The first session sets the workspace up
+   and most websites, so research fails. If a session runs with Limited access anyway, Claude tells you at the
+   start.
+4. **Start.** Pick your copy and that environment, and ask for something. The first session sets the workspace up
    by itself and asks briefly about your work.
+
+Made your copy another way (GitHub's importer, or a fork)? That works too.
+
+**Later, if you want outside models** to check drafts: in the environment's settings, under **Environment
+variables**, add the keys you have, one per line: `GEMINI_API_KEY=...` (free from
+[Google AI Studio](https://aistudio.google.com/apikey)), `GROQ_API_KEY=...` (free), `OPENROUTER_API_KEY=...`
+(prepaid credits). Unlike the `.env` file on your own computer, Claude can see these there, so use keys with a
+spending limit. ChatGPT needs no key: it uses your own ChatGPT account. Turn on device-code sign-in for Codex in
+ChatGPT's settings (Settings, Security) once, then in a session where you want it, Claude gives you a link and a code
+to enter (once per session). To save a minute each time, put `npm install -g @openai/codex` in the environment's
+**Setup script**.
 
 **Day to day:** every session starts from what's saved in your copy. Claude saves `my/` and `workspace/` at the end
 of each task (`python3 scripts/cloud.py save`, which commits and pushes them to your copy's `main`). If you stop a
@@ -577,6 +588,7 @@ it.
 
 ```
 PRIVACY.md                   where your data goes
+.github/README.md            the front page of the cloud copy on GitHub
 VERSION, CHANGELOG.md        the version and what changed
 examples/                    real outputs, unedited
 CLAUDE.md, GUARDRAILS.md     how Claude works here, and the honesty, consent and outreach rules
