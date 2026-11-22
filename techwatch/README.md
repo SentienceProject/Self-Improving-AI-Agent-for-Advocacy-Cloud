@@ -87,8 +87,11 @@ prepared change (or `review.py test <id>`; `--no-apply` just reports). The next 
 `techtest.py`, which runs in the background:
 1. it picks 1-5 of its dev tasks that the change should affect, and writes down the pass criterion before any run;
 2. it runs those tasks in a copy of the workspace with exactly the prepared change, and in an unchanged copy;
-3. ChatGPT scores the drafts blind, side by side (twice, in different orders), and ChatGPT and Gemini look for a
-   strong reason not to adopt it;
+3. ChatGPT, Gemini and peers (each run's own session judging the other runs' drafts) score the drafts blind, side
+   by side; the score that counts is their weighted mean, with the peers counting double. Then ChatGPT and Gemini
+   look for a strong reason not to adopt it. If the outside judges alone and the peers alone disagree (one says
+   met, the other not), you're told at the next session start and nothing is applied or undone on the result for
+   12 hours;
 4. the verdict goes to `evaluations/<id>.md`: "met" unless the change does clearly worse (more than 0.5 below on
    average, or a task more than 1 point below), costs much more, or a reviewer objects strongly. Next to it, in
    plain terms, is what the test could actually tell: the difference, how many tasks and runs, and the smallest

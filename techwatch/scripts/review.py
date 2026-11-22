@@ -209,9 +209,21 @@ def tested_waiting(pid, evs=None):
     return bool(req) and bool(evaluation(pid, req.get("ts", ""))[0])
 
 
+def held(text):
+    """The time (ISO, UTC) until which a harness result is on hold, if that's still in the future: its judges
+    disagreed (the outside judges alone and the peers alone reached different results), so nothing is applied,
+    kept or undone on it until then. The person is told at session start."""
+    m = re.search(r"^Hold until: (\S+)\s*$", text, re.M)
+    try:
+        until = datetime.fromisoformat(m.group(1)) if m else None
+    except ValueError:
+        return None
+    return m.group(1) if until and until > datetime.now(timezone.utc) else None
+
+
 def evaluation(pid, after=""):
     """(outcome, verdict of the 'staged' arm) from the harness's evaluations/<id>.md, if written after `after`
-    (an ISO time); (None, None) if there's none yet."""
+    (an ISO time); (None, None) if there's none yet, or while it's on hold (held)."""
     f = EVALUATIONS / f"{pid}.md"
     if not f.exists() or (after and datetime.fromtimestamp(f.stat().st_mtime, timezone.utc).isoformat() < after):
         return None, None
@@ -219,7 +231,7 @@ def evaluation(pid, after=""):
     m = re.search(r"^Outcome: (.+)$", text, re.M)
     v = re.search(r"^\*\*staged: (met|not met|INVALID|inconclusive)\.\*\*", text, re.M)
     outcome = m.group(1).strip() if m else None
-    if outcome in ("in progress", "re-running"):
+    if outcome in ("in progress", "re-running") or held(text):
         return None, None
     return outcome, (v.group(1) if v else None)
 
@@ -1050,12 +1062,16 @@ def cmd_trial(pid, auto=None, log=print, yes=False):
 
 
 def checkup_after(start):
-    """(date, verdict) of the first harness checkup at least 14 days after `start` (YYYY-MM-DD), or None."""
+    """(date, verdict) of the first harness checkup at least 14 days after `start` (YYYY-MM-DD), or None (also
+    while that checkup is on hold because its judges disagreed: see held)."""
     first = date.fromordinal(date.fromisoformat(start).toordinal() + 14).isoformat()
     for f in sorted(EVALUATIONS.glob("checkup-*.md")) if EVALUATIONS.exists() else []:
         day = f.stem[len("checkup-"):]
         if day >= first:
-            m = re.search(r"^\*\*Verdict:\*\* (.+)$", f.read_text(encoding="utf-8"), re.M)
+            text = f.read_text(encoding="utf-8")
+            if held(text):
+                return None
+            m = re.search(r"^\*\*Verdict:\*\* (.+)$", text, re.M)
             return day, (m.group(1).strip() if m else "no verdict")
     return None
 

@@ -5,6 +5,8 @@
 - Tech watch: changes ready to decide or being tested, changes it applied for you (with how to undo them), a
   missing schedule (or, if you start scans yourself, a scan that's due), and any problem with the last run.
 - Eval harness checkups: once when one starts, and once when it finishes (with its verdict).
+- Eval harness judges disagreeing (outside judges vs peers) on an eval, test or checkup: once each, with how
+  long any change it would bring waits.
 - Updates: whether the workspace's upstream has new commits (checked at most once a day, 5 s timeout; only for a
   git clone with an upstream branch), or, at most once a week, that it hasn't had any in 60 days.
 
@@ -81,6 +83,24 @@ def checkup_lines():
     return [f"Eval harness: the checkup finished on {st.get('finished')}: {st.get('verdict', '')}"
             + (f" ({by_set})" if len(st.get("by_set", {})) > 1 and by_set else "")
             + f". Details: {st.get('report', 'techwatch/evaluations/')}"]
+
+
+def disagreement_lines():
+    """The eval harness's judges disagreed (the outside judges alone and the peers alone reached different results on
+    an eval, a tech-watch test or a checkup; techwatch/evaluations/judge-disagreements.json): said once each."""
+    try:
+        items = json.loads((TW / "evaluations" / "judge-disagreements.json").read_text(encoding="utf-8"))
+        seen = set(json.loads(SEEN.read_text(encoding="utf-8"))) if SEEN.exists() else set()
+    except (OSError, ValueError):
+        return []
+    out = []
+    for i in items:
+        key = f"disagree:{i.get('key')}"
+        if key in seen:
+            continue
+        NEWLY_SEEN.add(key)
+        out.append(f"Eval harness: the judges disagree on {i.get('what', '?')}")
+    return out
 
 
 def mark_seen():
@@ -318,7 +338,7 @@ def main():
     except Exception:
         pass
     parts = ((cloud_lines, setup_lines, backlog_lines) if cloud else
-             (applied_lines, checkup_lines, techwatch_lines, update_lines, compat_lines, setup_lines, backlog_lines))
+             (applied_lines, checkup_lines, disagreement_lines, techwatch_lines, update_lines, compat_lines, setup_lines, backlog_lines))
     for part in parts:
         try:
             lines += part()

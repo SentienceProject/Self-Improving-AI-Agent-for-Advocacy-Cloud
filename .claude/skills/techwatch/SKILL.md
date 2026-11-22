@@ -36,6 +36,9 @@ decision easy.
      test <id> --deeper` (every task three times, roughly $30-100 of usage) or `! python3
      techwatch/scripts/review.py trial <id>` (applied now, kept or rolled back after the next checkup). Explain that
      "no clear difference" from a small test means the test couldn't tell, not that the change failed;
+   - a result with a "Hold until:" line: the harness's judges disagreed (the outside judges alone and the peers alone
+     reached different verdicts), so nothing is applied, kept or undone on it until that time; the session-start
+     note says so. They can read the result and decide themselves meanwhile;
    - `! python3 techwatch/scripts/review.py apply-first <id>`: apply it as soon as it's prepared and checked, then
      test it, rolled back if the test shows it does worse (for a change they trust before its test, such as a
      clearly better new model);
