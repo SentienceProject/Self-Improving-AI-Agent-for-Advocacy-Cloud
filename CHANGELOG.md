@@ -4,7 +4,11 @@ Each release has a version number (in `VERSION`) and the Claude Code version it 
 scripts/update.py` shows you the new entries when you update. Numbers follow `major.minor.patch`: a new major
 number means something you set up may need redoing, and the entry says what.
 
-## Unreleased
+## 1.0.0 — 2026-11-24
+
+The repository is now public. Tested with Claude Code 2.1.331 on Linux (WSL2) and Windows; macOS is
+untested. The jump from 0.1.0 marks the public release: nothing you set up needs redoing beyond what the entries
+below say.
 
 - **Leaner way of working, with wider research.** The `researcher` and `critic` presets are gone: the `helper`
   agent takes any role, and its instructions now carry their key lines. CLAUDE.md's "How to work" asks for many

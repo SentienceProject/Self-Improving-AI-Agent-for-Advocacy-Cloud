@@ -53,7 +53,7 @@ search of your paper collection. [What's different in the cloud](https://github.
   long and detailed, a reference for when you want to know how something works.
 - [Privacy](https://github.com/SentienceProject/Self-Improving-AI-Agent-for-Advocacy-Cloud/blob/main/PRIVACY.md):
   what is sent where, and how to turn each part off.
-- **This is a beta.** One person maintains it, with limited time and usage, so updates may be slow, and a Claude
+- **This is version 1.0.0.** One person maintains it, with limited time and usage, so updates may be slow, and a Claude
   update may break something. If that happens, plain Claude Code at claude.ai/code still works.
 - **Please be careful with social media.** Content that is obviously AI-written can damage the credibility of
   advocacy for animals and digital minds.
