@@ -16,3 +16,5 @@ scripts/rule_paths.py   # helper module (permission-rule paths)
 scripts/style.py   # helper module (terminal colours)
 techwatch/scripts/outcome.py   # helper module for techwatch.py
 .claude/hooks/docs_pending.py   # described in docs_sync.py and README (Tech watch)
+.claude/hooks/browser_guard.py   # browser tools' hook; covered by README's 'A browser Claude can drive' section
+.claude/hooks/rating.py   # saves the 1-10 rating; CLAUDE.md's "How useful was this" line covers it
