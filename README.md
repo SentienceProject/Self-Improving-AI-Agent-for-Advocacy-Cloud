@@ -246,7 +246,9 @@ who plan to add capabilities (analysis containers, new tools, connectors) and wa
 - a strict network limit: sandboxed commands reach only the listed research sites. Claude Code takes this one from
   your user settings (`"strictAllowlist": true` under `sandbox` > `network` in `~/.claude/settings.json`), so setup
   asks before adding it there, and it then applies to all your Claude Code projects;
-- **automatic run logs** and saved subagent outputs (`workspace/logs/`);
+- **automatic run logs** and saved subagent outputs (`workspace/logs/`), named like the run's draft
+  (`2026-11-22-05-heat-stress-oped.log.md`, `.findings.md`, `.critique.md`...); a run with no draft is named by
+  a quick Haiku call on your Claude account;
 - the **analyst** agent, which runs analysis code in a locked-down Docker container with no network (build it once
   with `sandbox/build.sh`), and allowlisted downloads of PDFs and code releases with provenance;
 - optional semantic search over the corpus (`python3 setup.py --search`; needs [Ollama](https://ollama.com) with

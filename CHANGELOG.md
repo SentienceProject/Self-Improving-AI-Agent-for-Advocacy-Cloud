@@ -6,6 +6,12 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- **Logs are named like drafts.** In hardened mode a run's log files now carry the name of its draft:
+  `2026-11-22-05-heat-stress-oped.log.md`, with `.prompts.md`, `.findings.md`, `.critique.md`, `.review.md` and
+  `.ideation.md` beside it, instead of `2026-11-22-05.md` and `2026-11-22-05-findings.md`. A run with no draft is
+  named by a quick Haiku call (a fraction of a cent, at most once per run; the request's first words if that
+  fails), and a later draft's name replaces it. Earlier logs keep their names. The eval harness reads both kinds,
+  and no longer mistakes a draft whose name ends in `-review` for a verifier's review.
 - **Easier to start from claude.ai.** The cloud copy is now a GitHub template: one link makes your private copy
   (README, "Using it from claude.ai"), instead of GitHub's importer. `scripts/cloud.py update` handles such copies,
   whose history starts separately: the first update finds the version the copy was made from by its files and

@@ -2,20 +2,25 @@
 """SubagentStop hook: write subagent prompts and returns to the run's logs.
 
 CLAUDE.md asks for the ideator's and researchers' returns verbatim in
-workspace/logs/<run-id>-ideation.md and -findings.md. Before this hook the
-main session copied them with Write, so each return sat in its context twice
-and was re-read on every later turn. This hook writes the files itself, at no
-token cost to anyone.
+workspace/logs/. Before this hook the main session copied them with Write, so
+each return sat in its context twice and was re-read on every later turn. This
+hook writes the files itself, at no token cost to anyone.
 
-    ideator     -> <run-id>-ideation.md   (return, verbatim)
-    researcher  -> <run-id>-findings.md   (return, verbatim)
-    verifier    -> <run-id>-review.md     (return, verbatim; Claude no longer copies it)
-    critic      -> <run-id>-critique.md   (return, verbatim)
-    every type  -> <run-id>-prompts.md    (the main session's prompt, verbatim)
+    ideator     -> <name>.ideation.md   (return, verbatim)
+    researcher  -> <name>.findings.md   (return, verbatim)
+    verifier    -> <name>.review.md     (return, verbatim; Claude no longer copies it)
+    critic      -> <name>.critique.md   (return, verbatim)
+    every type  -> <name>.prompts.md    (the main session's prompt, verbatim)
 
-The run ID is the first YYYY-MM-DD-NN in the subagent's prompt, which is the
-first line of its transcript (subagents run in the background, so the Agent
-tool's own result is only "async_launched" and has no return in it).
+<name> is the run's current name, <run-id>-<slug> or just <run-id> until the
+run has a slug (see run_log.py, which also renames the files when it gets one).
+
+The run ID is the session's (run_log.py gave it at SessionStart). If the
+session has none, it's the first YYYY-MM-DD-NN in the subagent's prompt, which
+is the first line of its transcript (subagents run in the background, so the
+Agent tool's own result is only "async_launched" and has no return in it).
+The session's ID comes first so that a prompt mentioning an older run's file
+doesn't file the return under that run.
 
 A subagent spawned with a `name` (an in-process teammate) reports that name as
 agent_type, e.g. "translator" for an ideator (run 2026-10-07-02 lost its dry
@@ -38,7 +43,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from run_log import run_id_for  # noqa: E402
+from run_log import log_path, names_lock, run_id_for  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 LOGS = ROOT / "workspace" / "logs"
@@ -127,17 +132,17 @@ def main(event, logs=LOGS):
     prompt = read_prompt(transcript)
     m = RUN_ID_RE.search(prompt)
     # Prompts no longer need "Run ID: ..."; the SessionStart hook maps session -> run ID.
-    run_id = m.group(1) if m else run_id_for(event.get("session_id", ""), logs=logs)
+    run_id = run_id_for(event.get("session_id", ""), logs=logs) or (m.group(1) if m else None)
     if not run_id:
         return None  # not a workspace run (e.g. a meta session); nothing to file
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     name = f" '{reported}'" if reported and reported != agent_type else ""
     heading = f"{agent_type}{name} {agent_id} ({stamp})"
-    logs.mkdir(parents=True, exist_ok=True)
-    append_once(logs / f"{run_id}-prompts.md", agent_id, f"Prompt to {heading}", prompt)
-    if agent_type in RETURN_FILES:
-        text = handback_text(transcript) or event.get("last_assistant_message") or ""
-        append_once(logs / f"{run_id}-{RETURN_FILES[agent_type]}.md", agent_id, heading, text)
+    text = handback_text(transcript) or event.get("last_assistant_message") or ""
+    with names_lock(logs):   # run_log.py may be renaming the run's files
+        append_once(log_path(run_id, "prompts", logs), agent_id, f"Prompt to {heading}", prompt)
+        if agent_type in RETURN_FILES:
+            append_once(log_path(run_id, RETURN_FILES[agent_type], logs), agent_id, heading, text)
     return run_id
 
 

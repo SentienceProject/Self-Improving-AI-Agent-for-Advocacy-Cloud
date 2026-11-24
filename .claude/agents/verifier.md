@@ -70,7 +70,7 @@ Then check the draft as a whole:
 ## Output
 
 Write your report as your returned result — do not create files. A hook saves it
-to `workspace/logs/<run-id>-review.md`.
+in `workspace/logs/`, next to the run's other logs (`<run-id>-<slug>.review.md`).
 
 Structure:
 
