@@ -6,13 +6,13 @@ Groq need `OPENROUTER_API_KEY=...` and `GROQ_API_KEY=...` in this workspace's `.
 
 | Name | Model | Good for |
 |---|---|---|
-| `chatgpt` | ChatGPT, through the Codex CLI and the person's ChatGPT login | reading long documents; a second critique |
+| `chatgpt` | ChatGPT, through the Codex CLI and the person's ChatGPT login | reading long documents; a second review; web research with `--search` |
 | `gemini` | Gemini 4 Hydrogen, through its free API key | general reasoning; checking a claim against a passage |
 | `openrouter` | any of hundreds of models, paid from the person's prepaid OpenRouter credits | picking the model that suits the job |
 | `groq` | a few very fast open models, free within Groq's rate limits (paid only if billing is added there) | quick, short checks at no cost |
 
 ```
-python3 <this workspace's folder>/scripts/ask_model.py chatgpt "Please critique this draft for overstated claims. Thank you!" --file workspace/outbox/2026-11-05-oped.md --purpose "critique of the op-ed"
+python3 <this workspace's folder>/scripts/ask_model.py chatgpt "Please give this draft a critical review: what is wrong, missing or unclear? Thank you!" --file workspace/outbox/2026-11-05-oped.md --purpose "review of the op-ed"
 python3 <this workspace's folder>/scripts/ask_model.py gemini "..." --file a.md --file b.md --purpose "..."
 python3 <this workspace's folder>/scripts/ask_model.py gemini "..." --video <public YouTube link> [--start 1:00 --end 5:00] --purpose "..."
 python3 <this workspace's folder>/scripts/ask_model.py --models deepseek

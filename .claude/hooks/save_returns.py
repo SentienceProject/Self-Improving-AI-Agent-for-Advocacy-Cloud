@@ -7,9 +7,10 @@ each return sat in its context twice and was re-read on every later turn. This
 hook writes the files itself, at no token cost to anyone.
 
     ideator     -> <name>.ideation.md   (return, verbatim)
-    researcher  -> <name>.findings.md   (return, verbatim)
+    researcher  -> <name>.findings.md   (return, verbatim; older workspaces and named teammates)
     verifier    -> <name>.review.md     (return, verbatim; Claude no longer copies it)
-    critic      -> <name>.critique.md   (return, verbatim)
+    critic      -> <name>.critique.md   (return, verbatim; older workspaces and named teammates)
+    helper      -> <name>.helper.md     (return, verbatim: researchers, panels, critics)
     every type  -> <name>.prompts.md    (the main session's prompt, verbatim)
 
 <name> is the run's current name, <run-id>-<slug> or just <run-id> until the
@@ -49,7 +50,8 @@ ROOT = Path(__file__).resolve().parents[2]
 LOGS = ROOT / "workspace" / "logs"
 RUN_ID_RE = re.compile(r"\b(20\d\d-\d\d-\d\d-\d\d)\b")
 RETURN_FILES = {"ideator": "ideation", "researcher": "findings",
-                "verifier": "review", "critic": "critique"}
+                "verifier": "review", "critic": "critique",
+                "helper": "helper"}
 
 
 def subagent_transcript(event):

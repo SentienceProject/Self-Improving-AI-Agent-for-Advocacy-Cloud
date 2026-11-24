@@ -45,7 +45,8 @@ class GeneratedSectionsTest(unittest.TestCase):
     def test_subagent_table_follows_the_guard(self):
         table = ds.subagent_limits()
         self.assertIn("| helper | `workspace/helper/` |", table)
-        self.assertIn("| critic | nothing | text search |", table)
+        self.assertIn("| verifier | nothing | text search, citation check |", table)
+        self.assertIn("PDF download and conversion", table)
 
     def test_prompt_is_polite_and_offers_to_decline(self):
         text = (REPO / "scripts" / "docs_sync_prompt.md").read_text(encoding="utf-8")

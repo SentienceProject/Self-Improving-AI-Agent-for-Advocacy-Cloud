@@ -6,6 +6,16 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- **Leaner way of working, with wider research.** The `researcher` and `critic` presets are gone: the `helper`
+  agent takes any role, and its instructions now carry their key lines. CLAUDE.md's "How to work" asks for many
+  parallel Haiku researchers, a researcher of its own for the facts a draft stands on, one or two passes to close
+  gaps before drafting, the verifier on Opus, a critical review from an outside model (rather than a flaw-hunting
+  critic), and a Claude critic for major public pieces; required steps come before extra research. Helpers can
+  download PDFs from research and government sites (`scripts/fetch_pdf.py` now accepts government domains in many
+  countries) and convert them with `pdftotext`. ChatGPT can search the web as a researcher:
+  `scripts/ask_model.py chatgpt "..." --search`. Helper returns are saved to `.helper.md` in `workspace/logs/`.
+  On eight animal-advocacy test tasks this version scored above both the previous one and the October version.
+  If you allowed `Agent(researcher)` or `Agent(critic)` in your own settings, those lines now do nothing.
 - **Logs are named like drafts.** In hardened mode a run's log files now carry the name of its draft:
   `2026-11-22-05-heat-stress-oped.log.md`, with `.prompts.md`, `.findings.md`, `.critique.md`, `.review.md` and
   `.ideation.md` beside it, instead of `2026-11-22-05.md` and `2026-11-22-05-findings.md`. A run with no draft is

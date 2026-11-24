@@ -6,12 +6,15 @@ applying it.*
 
 ## Shape
 
-- **Main session writes the drafts.** It researches in parallel through subagents, reads key sources itself,
-  gets a critic's review, revises, and has the verifier check facts before anything that matters goes out.
-- **Agents** (`.claude/agents/`): `researcher` (one sub-question, web + corpus), `critic`, `verifier` (checks
-  claims against sources; read-only), `ideator` (angles; also translates and filters wild ideas), `wild-ideator`
-  (disguised-goal brainstorming from random cards), `drafter` (alternative drafts), `helper` (any role the main
-  session writes), `analyst` (hardened mode: analysis code in a Docker container with no network).
+- **Main session writes the drafts.** It researches in parallel through `helper` subagents (many on Haiku, plus
+  ChatGPT web search if set up), closes the gaps with further passes, reads key sources itself, has the verifier
+  (on Opus) check facts and gets an outside model's review before anything that matters goes out, and a Claude
+  critic for major public pieces.
+- **Agents** (`.claude/agents/`): `helper` (any role the main session writes: researcher, critic, reader panel;
+  can download and convert PDFs from research and government sites), `verifier` (checks claims against sources;
+  read-only), `ideator` (angles; also translates and filters wild ideas), `wild-ideator` (disguised-goal
+  brainstorming from random cards), `drafter` (alternative drafts), `analyst` (hardened mode: analysis code in a
+  Docker container with no network).
 - **Backlog** (optional): `scripts/backlog.py`, unattended runs with leftover weekly usage (README).
 - **Skills**: `/wild-ideas`, `/add-papers`, `/connect`, `/my-ethics`, `/plain-prose`, `/techwatch`, `/fetch-sources` (hardened).
 - **Models**: agents run on Opus or inherit the session's model; tech-watch dailies on Opus.

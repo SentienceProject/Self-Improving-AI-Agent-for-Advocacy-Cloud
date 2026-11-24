@@ -281,10 +281,11 @@ def log(model, prompt, files, purpose):
                 f"{clean(prompt, 200)} | {clean(', '.join(files), 300) or '-'} |\n")
 
 
-def ask_chatgpt(prompt, timeout=900):
+def ask_chatgpt(prompt, timeout=900, search=False):
+    """search=True turns on Codex's live web search (OpenAI's own search tool; nothing runs locally)."""
     with tempfile.TemporaryDirectory(prefix="ask-chatgpt-") as d:
         out = Path(d) / "reply.md"
-        r = subprocess.run([codex(), "exec", "--skip-git-repo-check", "--ephemeral", "-s", "read-only", "-o",
+        r = subprocess.run([codex(), *(["--search"] if search else []), "exec", "--skip-git-repo-check", "--ephemeral", "-s", "read-only", "-o",
                             str(out), "-"], input=prompt, cwd=d, capture_output=True, text=True, timeout=timeout)
         if r.returncode:
             raise RuntimeError(f"ChatGPT (Codex) failed: {r.stderr.strip()[-800:]}")
@@ -525,6 +526,8 @@ def main(argv):
                          "or the model's own maximum if lower)")
     ap.add_argument("--allow-pricey", action="store_true",
                     help=f"openrouter/groq: allow models above ${PRICEY_PER_M:.0f} per million output tokens")
+    ap.add_argument("--search", action="store_true",
+                    help="chatgpt: let ChatGPT search the web live (for research; ask it for URLs and check key pages)")
     ap.add_argument("--log", help="log to this file instead of workspace/logs/outside-models.md")
     ap.add_argument("--video", help="gemini: a public YouTube link for Gemini to watch")
     ap.add_argument("--start", help="gemini --video: start of the clip (seconds, m:ss or h:mm:ss)")
@@ -534,6 +537,8 @@ def main(argv):
                                     f"transcribe ({', '.join(TRANSCRIBE_TYPES)}; up to "
                                     f"{MAX_TRANSCRIBE_BYTES // 1_000_000} MB)")
     a = ap.parse_args(argv)
+    if a.search and a.model != "chatgpt":
+        ap.error("--search works only with chatgpt")
     if a.log:
         global LOG
         LOG = Path(a.log).expanduser().resolve()
@@ -616,7 +621,7 @@ def main(argv):
         elif a.model == "gemini":
             print(ask_gemini(full, timeout=600 if media else 300, media=media))
         else:
-            print(ask_chatgpt(full))
+            print(ask_chatgpt(full, search=a.search))
     except (RuntimeError, subprocess.TimeoutExpired) as e:
         print(f"Not answered: {e}", file=sys.stderr)
         return 1

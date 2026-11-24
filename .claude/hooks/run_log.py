@@ -14,7 +14,7 @@ Claude writes below the NOTES marker survives regeneration, so a short
 "what I was unsure about" note is still possible but optional.
 
 Names. A run's log files are <run-id>-<slug>.<kind>.md (kind: log, prompts,
-findings, ideation, review, critique), e.g. 2026-11-22-05-animal-heat-injects.log.md,
+findings, ideation, review, critique, helper), e.g. 2026-11-22-05-animal-heat-injects.log.md,
 so they read like the drafts in workspace/outbox/. The slug is the run's first
 draft's: the first workspace/outbox/<run-id>-<slug>.* the main session writes.
 A run with no draft at its first Stop is named by Haiku from the operator's
@@ -48,7 +48,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 LOGS = ROOT / "workspace" / "logs"
 RUNS = LOGS / ".runs.json"
-KINDS = ("log", "prompts", "findings", "ideation", "review", "critique")
+KINDS = ("log", "prompts", "findings", "ideation", "review", "critique", "helper")
 NAMER_ENV = "AI_WELFARE_RUN_NAMER"   # set in the Haiku call, so nothing it might start names runs in turn
 NAMER_TIMEOUT = 45
 STOPWORDS = set("""a an and are as at be by can could do for from have help how i if in into is it its me my of on

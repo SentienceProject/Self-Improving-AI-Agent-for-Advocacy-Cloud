@@ -1,4 +1,4 @@
-"""Tests for .claude/hooks/agent_guard.py (write and shell limits for the researcher, ideator and drafter).
+"""Tests for .claude/hooks/agent_guard.py (write and shell limits for the helper, verifier, ideator and drafter).
 
 Each test copies the guard (and preflight.py, whose search-command pattern it reuses) into a throwaway repo layout,
 feeds it the JSON Claude Code would send, and checks the exit code: 0 = allowed through, 2 = blocked.
@@ -65,36 +65,36 @@ class AgentGuardTest(unittest.TestCase):
         os.symlink(self.root / "workspace" / "corpus", self.root / "workspace" / "outbox" / "link")
         self.assertEqual(self.write("drafter", "workspace/outbox/link/x.txt"), 2)
 
-    def test_researcher_has_no_shell_and_no_writes(self):
-        self.assertEqual(self.run_guard("researcher", "Bash", {"command": "grep -r x workspace/corpus"}), 2)
-        self.assertEqual(self.run_guard("researcher", "Bash", {"command": "echo hi > workspace/corpus/a"}), 2)
-        self.assertEqual(self.write("researcher", "workspace/ideas/a.md"), 2)
+    def test_verifier_has_no_general_shell_and_no_writes(self):
+        self.assertEqual(self.run_guard("verifier", "Bash", {"command": "grep -r x workspace/corpus"}), 2)
+        self.assertEqual(self.run_guard("verifier", "Bash", {"command": "echo hi > workspace/corpus/a"}), 2)
+        self.assertEqual(self.write("verifier", "workspace/ideas/a.md"), 2)
 
-    def test_researcher_may_run_semantic_search(self):
+    def test_helper_may_run_semantic_search(self):
         py = Path.home() / ".venvs" / "ai-welfare-search" / "bin" / "python"
         good = f'{py} {self.root}/scripts/corpus_search.py "fish pain evidence" --k 8'
-        self.assertEqual(self.run_guard("researcher", "Bash", {"command": good}), 0)
-        self.assertEqual(self.run_guard("researcher", "Bash", {"command": good + "; rm -rf workspace"}), 2)
+        self.assertEqual(self.run_guard("helper", "Bash", {"command": good}), 0)
+        self.assertEqual(self.run_guard("helper", "Bash", {"command": good + "; rm -rf workspace"}), 2)
 
     def test_every_role_may_run_find_text_and_nothing_else(self):
         good = f'python3 {self.root}/scripts/find_text.py -i "fish pain" workspace/corpus'
-        for role in ("researcher", "helper", "critic", "verifier", "ideator", "drafter"):
+        for role in ("helper", "verifier", "ideator", "drafter"):
             with self.subTest(role=role):
                 self.assertEqual(self.run_guard(role, "Bash", {"command": good}), 0)
                 self.assertEqual(self.run_guard(role, "Bash", {"command": good + "; id"}), 2)
                 self.assertEqual(self.run_guard(role, "Bash", {"command": "grep -r fish workspace"}), 2)
                 self.assertEqual(self.run_guard(role, "PowerShell", {"command": good}), 0)
 
-    def test_semantic_search_only_for_researcher_and_helper(self):
+    def test_semantic_search_only_for_helper(self):
         py = Path.home() / ".venvs" / "ai-welfare-search" / "bin" / "python"
         good = f'{py} {self.root}/scripts/corpus_search.py "fish pain evidence" --k 8'
         self.assertEqual(self.run_guard("helper", "Bash", {"command": good}), 0)
-        for role in ("critic", "verifier", "ideator", "drafter"):
+        for role in ("verifier", "ideator", "drafter"):
             with self.subTest(role=role):
                 self.assertEqual(self.run_guard(role, "Bash", {"command": good}), 2)
 
     def test_read_only_roles_write_nothing(self):
-        for role in ("researcher", "critic", "verifier"):
+        for role in ("verifier",):
             with self.subTest(role=role):
                 self.assertEqual(self.write(role, "workspace/ideas/a.md"), 2)
                 self.assertEqual(self.write(role, "workspace/outbox/a.md", "Edit"), 2)
@@ -121,19 +121,19 @@ class AgentGuardTest(unittest.TestCase):
                             "python3 scripts/check_citations.py workspace/outbox/a.md",   # relative script
                             f"python3 {self.root}/scripts/check_citations.py 'a b.md'"):
                     self.assertEqual(self.run_guard(role, "Bash", {"command": bad}), 2, bad)
-        for role in ("researcher", "critic", "ideator", "drafter"):
+        for role in ("ideator", "drafter"):
             with self.subTest(role=role):
                 self.assertEqual(self.run_guard(role, "Bash", {"command": good}), 2)
 
     def test_commands_matched_as_given(self):
         """The guard doesn't strip: the preflight gate matches the raw command, so the two agree."""
         good = f'python3 {self.root}/scripts/find_text.py "fish"'
-        self.assertEqual(self.run_guard("critic", "Bash", {"command": good}), 0)
-        self.assertEqual(self.run_guard("critic", "Bash", {"command": " " + good}), 2)
-        self.assertEqual(self.run_guard("critic", "Bash", {"command": good + "\n"}), 2)
+        self.assertEqual(self.run_guard("verifier", "Bash", {"command": good}), 0)
+        self.assertEqual(self.run_guard("verifier", "Bash", {"command": " " + good}), 2)
+        self.assertEqual(self.run_guard("verifier", "Bash", {"command": good + "\n"}), 2)
 
     def test_read_tools_pass(self):
-        self.assertEqual(self.run_guard("researcher", "Read", {"file_path": "/etc/hostname"}), 0)
+        self.assertEqual(self.run_guard("verifier", "Read", {"file_path": "/etc/hostname"}), 0)
 
     def test_unknown_role_and_bad_input_fail_closed(self):
         self.assertEqual(self.write("nobody", "workspace/ideas/a.md"), 2)

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""PreToolUse guard for the researcher, helper, critic, verifier, ideator and drafter subagents. Fails closed.
+"""PreToolUse guard for the helper, verifier, ideator and drafter subagents. Fails closed.
 
-    agent_guard.py researcher   no writes; Bash only for find_text.py and the semantic corpus search (hardened mode)
     agent_guard.py helper       Write/Edit only under workspace/helper/; Bash only for find_text.py, the semantic
-                                corpus search and check_citations.py
-    agent_guard.py critic       no writes; Bash only for find_text.py
+                                corpus search, check_citations.py, fetch_pdf.py and pdftotext from
+                                workspace/inbox/ into workspace/helper/
     agent_guard.py verifier     no writes; Bash only for find_text.py and check_citations.py
     agent_guard.py ideator      Write/Edit only under workspace/ideas/; Bash only for find_text.py
     agent_guard.py drafter      Write/Edit only under workspace/outbox/ and workspace/drafts/; Bash only for find_text.py
@@ -33,9 +32,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WS = ROOT / "workspace"
-WRITE_DIRS = {"ideator": ["ideas"], "drafter": ["outbox", "drafts"], "researcher": [], "helper": ["helper"],
-              "critic": [], "verifier": []}
-SEMANTIC_SEARCH_ROLES = {"researcher", "helper"}
+WRITE_DIRS = {"ideator": ["ideas"], "drafter": ["outbox", "drafts"], "helper": ["helper"], "verifier": []}
+SEMANTIC_SEARCH_ROLES = {"helper"}
 CITATION_CHECK_ROLES = {"helper", "verifier"}
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
@@ -45,6 +43,14 @@ CHECK_CITATIONS_RE = re.compile(
     "python3 " + re.escape(str(ROOT)) + r"/scripts/check_citations\.py "
     r"/?[A-Za-z0-9_.][A-Za-z0-9_./-]{0,300}(?: --offline| --json){0,2}")
 CHECK_CITATIONS_USAGE = f"python3 {ROOT}/scripts/check_citations.py <draft path> [--offline] [--json]"
+# PDFs for the helper: fetch_pdf.py in preflight.py's exact form (it enforces the host list), then pdftotext from a
+# downloaded PDF into the helper's own folder. Names are bare words, paths absolute, so nothing else can ride along.
+PDF_ROLES = {"helper"}
+_PDF_NAME = r"[A-Za-z0-9][A-Za-z0-9_-]{0,80}"
+PDFTOTEXT_RE = re.compile("pdftotext -layout " + re.escape(str(WS)) + "/inbox/" + _PDF_NAME + r"\.pdf "
+                          + re.escape(str(WS)) + "/helper/" + _PDF_NAME + r"\.txt")
+PDF_USAGE = (f'python3 {ROOT}/scripts/fetch_pdf.py "<https-url>" <name>, then '
+             f"pdftotext -layout {WS}/inbox/<name>.pdf {WS}/helper/<name>.txt")
 
 
 def block(role, reason):
@@ -69,7 +75,7 @@ def check_write(role, tool_input):
 def check_bash(role, tool_input):
     cmd = tool_input.get("command")
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from preflight import CORPUS_SEARCH_RE, FIND_TEXT_QUOTING, FIND_TEXT_RE, FIND_TEXT_USAGE
+    from preflight import CORPUS_SEARCH_RE, FETCH_PDF_RE, FIND_TEXT_QUOTING, FIND_TEXT_RE, FIND_TEXT_USAGE
     # The command is matched as given, not stripped: preflight.py's gate matches it the same way, so a form this
     # guard allows is never then blocked there with a different message.
     if isinstance(cmd, str):
@@ -79,11 +85,15 @@ def check_bash(role, tool_input):
             return
         if role in CITATION_CHECK_ROLES and CHECK_CITATIONS_RE.fullmatch(cmd):
             return
+        if role in PDF_ROLES and (FETCH_PDF_RE.fullmatch(cmd) or PDFTOTEXT_RE.fullmatch(cmd)):
+            return
     also = ""
     if role in SEMANTIC_SEARCH_ROLES:
         also += "; or the semantic corpus search command exactly as the main session gave it"
     if role in CITATION_CHECK_ROLES:
         also += f"; or the citation check, as exactly: {CHECK_CITATIONS_USAGE}"
+    if role in PDF_ROLES:
+        also += f"; or a PDF download and conversion, as exactly: {PDF_USAGE}"
     block(role, f"the only shell for this agent is the read-only search, run as exactly: {FIND_TEXT_USAGE} "
                 f"({FIND_TEXT_QUOTING}){also}. Nothing before or after the command. Read opens files.")
 

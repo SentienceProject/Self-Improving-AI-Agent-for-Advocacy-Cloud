@@ -247,7 +247,7 @@ who plan to add capabilities (analysis containers, new tools, connectors) and wa
   your user settings (`"strictAllowlist": true` under `sandbox` > `network` in `~/.claude/settings.json`), so setup
   asks before adding it there, and it then applies to all your Claude Code projects;
 - **automatic run logs** and saved subagent outputs (`workspace/logs/`), named like the run's draft
-  (`2026-11-22-05-heat-stress-oped.log.md`, `.findings.md`, `.critique.md`...); a run with no draft is named by
+  (`2026-11-22-05-heat-stress-oped.log.md`, `.helper.md`, `.review.md`...); a run with no draft is named by
   a quick Haiku call on your Claude account;
 - the **analyst** agent, which runs analysis code in a locked-down Docker container with no network (build it once
   with `sandbox/build.sh`), and allowlisted downloads of PDFs and code releases with provenance;
@@ -288,11 +288,9 @@ sandbox, which has to let the main session's own scripts write to the corpus):
 <!-- docs_sync:subagent-limits -->
 | Agent | Can write in | Shell commands |
 |---|---|---|
-| critic | nothing | text search |
 | drafter | `workspace/outbox/`, `workspace/drafts/` | text search |
-| helper | `workspace/helper/` | text search, semantic search (hardened mode), citation check |
+| helper | `workspace/helper/` | text search, semantic search (hardened mode), citation check, PDF download and conversion |
 | ideator | `workspace/ideas/` | text search |
-| researcher | nothing | text search, semantic search (hardened mode) |
 | verifier | nothing | text search, citation check |
 <!-- /docs_sync -->
 
@@ -597,7 +595,7 @@ CLAUDE.md, GUARDRAILS.md     how Claude works here, and the honesty, consent and
 OUTSIDE_MODELS.md            when and how Claude asks ChatGPT, Gemini, OpenRouter or Groq models for a second opinion
 ETHICS_SHORT.md, ETHICS_FULL.md   the default ethical framework (yours goes in my/)
 my/                          your own files (gitignored)
-.claude/agents/              analyst, cloud-browser-haiku, cloud-browser-opus, cloud-browser-sonnet, critic, drafter, helper, ideator, researcher, verifier, wild-ideator
+.claude/agents/              analyst, cloud-browser-haiku, cloud-browser-opus, cloud-browser-sonnet, drafter, helper, ideator, verifier, wild-ideator
 .claude/skills/              /add-papers, /connect, /fetch-sources, /import-context, /my-ethics, /plain-prose, /techwatch, /video, /wild-ideas
 .claude/hooks/               session reminders, the /clear tip, guards; hardened mode adds the preflight and logs
 .claude/settings.json        the rules for every mode (your machine's additions: settings.local.json)

@@ -148,6 +148,8 @@ def subagent_limits():
             cmds.append("semantic search (hardened mode)")
         if role in g.CITATION_CHECK_ROLES:
             cmds.append("citation check")
+        if role in getattr(g, "PDF_ROLES", ()):
+            cmds.append("PDF download and conversion")
         rows.append(f"| {role} | {where} | {', '.join(cmds)} |")
     return "\n".join(rows)
 

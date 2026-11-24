@@ -7,7 +7,9 @@ excluded command, locked to that exact form by the preflight gate), so it is
 deliberately small and strict:
 
   * https only, and only to hosts in ALLOWED_HOSTS (exact match, no
-    subdomains). Every redirect hop must pass the same check.
+    subdomains) or under a government suffix in GOV_SUFFIXES (registries
+    there are restricted to public bodies, whose server logs outsiders
+    can't read). Every redirect hop must pass the same check.
   * Ignores proxy settings from the environment and verifies TLS.
   * Never parses the PDF. It only checks the first bytes are "%PDF-".
     Conversion (pdftotext) happens later, inside the sandbox.
@@ -41,6 +43,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# Government domains: only public bodies can register under these. Never add open TLDs (.gal, .eu, .org ...).
+GOV_SUFFIXES = (
+    "gov", "mil", "gov.uk", "gov.au", "gc.ca", "canada.ca", "govt.nz", "europa.eu", "gob.es", "boe.es", "xunta.gal",
+    "gob.mx", "gob.pe", "gob.ar", "gob.cl", "gov.co", "gov.br", "gouv.fr", "bund.de", "admin.ch", "gv.at",
+    "gov.it", "gov.ie", "overheid.nl", "go.jp", "gov.in", "gov.za",
+)
 
 ALLOWED_HOSTS = frozenset({
     "arxiv.org",
@@ -127,8 +136,8 @@ def check_url(url: str) -> str:
     if p.port is not None and p.port != 443:
         raise Refusal("only the default https port is allowed")
     host = (p.hostname or "").lower()
-    if host not in ALLOWED_HOSTS:
-        raise Refusal(f"host {host!r} is not on the allowlist")
+    if host not in ALLOWED_HOSTS and not any(host == s or host.endswith("." + s) for s in GOV_SUFFIXES):
+        raise Refusal(f"host {host!r} is not on the allowlist (research sites and government domains only)")
     return host
 
 
