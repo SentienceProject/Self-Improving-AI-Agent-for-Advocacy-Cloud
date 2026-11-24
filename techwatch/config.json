@@ -107,6 +107,25 @@
         "why": "High-signal independent coverage of new LLM tools across all vendors"
       },
       {
+        "id": "claude-dev-blog",
+        "url": "https://claude.dev/blog/",
+        "type": "html",
+        "why": "Anthropic developers' posts on agents, model choice and verification, which the other Anthropic pages don't list"
+      },
+      {
+        "_comment": "Community sources: what practitioners say works. Leads to trace to a primary source or test, never evidence on their own. Reddit isn't here because it refuses feed readers; the weekly scout searches it instead (prompts/weekly.md, community pass).",
+        "id": "hn-claude",
+        "url": "https://hnrss.org/newest?q=Claude&points=50",
+        "type": "atom",
+        "why": "Hacker News stories about Claude with 50+ points: launches and practitioners' write-ups"
+      },
+      {
+        "id": "hn-agents",
+        "url": "https://hnrss.org/newest?q=%22AI+agents%22+OR+subagents+OR+%22Claude+Code%22&points=40",
+        "type": "atom",
+        "why": "Hacker News stories about AI agents with 40+ points: what people are building and what works"
+      },
+      {
         "id": "ollama-library-newest",
         "url": "https://ollama.com/library?sort=newest",
         "type": "html",
