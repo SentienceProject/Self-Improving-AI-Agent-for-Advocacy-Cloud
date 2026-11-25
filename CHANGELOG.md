@@ -4,6 +4,14 @@ Each release has a version number (in `VERSION`) and the Claude Code version it 
 scripts/update.py` shows you the new entries when you update. Numbers follow `major.minor.patch`: a new major
 number means something you set up may need redoing, and the entry says what.
 
+## Unreleased
+
+- **Tech watch's new default: short scans 3 days a week.** A new `my/techwatch.md` now says `Scans: 3 days a week
+  and weekly`: the weekly scan plus a short scan on three other days (roughly $10-25 of usage a month). Daily scans
+  ran past the $45 monthly cap in a month with several prepared changes. `daily and weekly` and `weekly only` are
+  still there, and your current setting is kept. New optional setting `Monthly cap:` in `my/techwatch.md` sets your
+  own cap instead of the $45 in `techwatch/config.json`.
+
 ## 1.0.0 — 2026-11-24
 
 The repository is now public. Tested with Claude Code 2.1.331 on Linux (WSL2) and Windows; macOS is

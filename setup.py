@@ -294,8 +294,8 @@ def setup_techwatch():
         print("Tech watch looks for new tools and AI features that could help your work, and prepares each change as "
               "an exact edit\n  to the workspace. The maintainer already runs it, tests what it finds, and ships the "
               "changes that suit\n  everyone (python3 scripts/update.py; Claude tells you when there are some). "
-              "Running it yourself mostly\n  repeats that work with your own usage: roughly $5-15 a month for "
-              "weekly scans, plus $10-40 for each\n  change you test. So we recommend leaving it off. If you turn "
+              "Running it yourself mostly\n  repeats that work with your own usage: roughly $10-25 a month for "
+              "its default scans, plus $10-40 for each\n  change you test. So we recommend leaving it off. If you turn "
               "it on, it proposes only changes your own\n  settings in my/ call for (\"Proposals: all\" in "
               "my/techwatch.md for everything; not recommended).")
         a = ask("  Leave it off (Enter), run it only when you start it (m), or automatically (a)? [O/m/a]\n"

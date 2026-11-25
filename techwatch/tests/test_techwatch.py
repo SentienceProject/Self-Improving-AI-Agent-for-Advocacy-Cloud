@@ -219,8 +219,8 @@ class TestAutomatic(Workspace):
 
     def test_prefs_defaults_and_old_setting(self):
         p = self.review.prefs()
-        self.assertEqual((p["runs"], p["scans"], p["ready"], p["harness"], p["proposals"]),
-                         ("off", "weekly only", "ask", None, "mine"))
+        self.assertEqual((p["runs"], p["scans"], p["ready"], p["harness"], p["proposals"], p["cap"]),
+                         ("off", "3 days a week and weekly", "ask", None, "mine", None))
         (self.ws / "my" / "techwatch.md").write_text("**Run my own tech watch:** no\n")
         self.assertEqual(self.review.prefs()["runs"], "off")
 
@@ -842,6 +842,63 @@ class TestSafeguards(TestAutomatic):
         self.assertEqual(self.review.prefs()["runs"], "when I start it")
         (self.ws / "my" / "techwatch.md").write_text("**Tech watch runs**: off\n")
         self.assertEqual(self.review.prefs()["runs"], "off")
+
+
+class TestScanCadence(Workspace):
+    """Which scan runs on which day, and whose monthly cap applies."""
+
+    def runner(self, settings):
+        for f in ("style.py", "rule_paths.py"):
+            shutil.copy(REPO / "scripts" / f, self.ws / "scripts")
+        (self.ws / "techwatch" / "state").mkdir(exist_ok=True)
+        (self.ws / "my" / "techwatch.md").write_text(settings)
+        tw = load(self.ws / "techwatch" / "scripts" / "techwatch.py", f"techwatch_cadence_{id(self)}")
+        tw.review = self.review
+        tw.problem = lambda m: None
+        return tw
+
+    def scans_over(self, settings, days=28):
+        """Simulated days, one scheduled run each: the scans that would start."""
+        from unittest import mock
+        tw = self.runner(settings)
+        start, ran = date(2026, 12, 1), []
+        for i in range(days):
+            today = start + timedelta(days=i)
+            fake = type("FakeDate", (date,), {"today": classmethod(lambda cls, d=today: d)})
+            with mock.patch.object(tw, "date", fake):
+                mode = "weekly" if tw.weekly_due() else ("daily" if tw.daily_due(self.review.prefs()["scans"])
+                                                         else None)
+            if mode:
+                tw.mark("scout_ok", today.isoformat())
+                if mode == "weekly":
+                    tw.mark("last_weekly", today.isoformat())
+                ran.append(mode)
+        return ran
+
+    def test_default_is_three_short_scans_a_week(self):
+        ran = self.scans_over("**Tech watch runs:** automatically\n")
+        self.assertEqual((ran.count("weekly"), ran.count("daily")), (4, 12))
+
+    def test_daily_and_weekly_still_scans_every_day(self):
+        ran = self.scans_over("**Scans:** daily and weekly\n")
+        self.assertEqual((ran.count("weekly"), ran.count("daily")), (4, 24))
+
+    def test_weekly_only(self):
+        self.assertEqual(self.scans_over("**Scans:** weekly only\n"), ["weekly"] * 4)
+
+    def test_scan_settings_read(self):
+        for text, want in (("3 days a week and weekly", "3 days a week and weekly"), ("Daily and weekly",
+                           "daily and weekly"), ("weekly only", "weekly only"), ("whenever", "3 days a week and weekly")):
+            (self.ws / "my" / "techwatch.md").write_text(f"**Scans:** {text}\n")
+            self.assertEqual(self.review.prefs()["scans"], want, text)
+
+    def test_monthly_cap_of_your_own(self):
+        tw = self.runner("**Monthly cap:**\n")
+        self.assertEqual(tw.monthly_cap()[0], float(tw.CONFIG["monthly_cap_usd"]))
+        (self.ws / "my" / "techwatch.md").write_text("**Monthly cap:** $1,000.50\n")
+        self.assertEqual(tw.monthly_cap()[0], 1000.5)
+        (self.ws / "my" / "techwatch.md").write_text("**Monthly cap:** $2\n")
+        self.assertFalse(tw.within_cap("weekly"))   # $4 run, $2 cap
 
 
 class TestFeedbackAndCheckpoints(Workspace):

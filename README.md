@@ -332,9 +332,11 @@ your own version of the workspace.
 **If you turn it on.** `setup.py` asks you about it. Saying "automatically" doesn't start the schedule by
 itself: setup ends by showing the command that does, `python3 techwatch/scripts/techwatch.py schedule on` (cron on
 Linux and WSL2, launchd on macOS, Task Scheduler on Windows). Once a week it checks a list of news pages and runs a
-scan (Opus, up to $4 of usage); `Scans: daily and weekly` adds a short daily scan (Opus, up to $1.50). Then it
-prepares the changes worth making (up to $3 each). That's roughly $5-15 of usage a month for weekly scans or $25-45
-with daily ones, and scans stop for the month at $45 (tests in the eval harness are counted separately).
+scan (Opus, up to $4 of usage) and, on three other days, a short scan (Opus, up to $1.50); `Scans: daily and
+weekly` runs the short scan on all the other days, `Scans: weekly only` never. Then it prepares the changes worth making
+(up to $3 each). That's roughly $10-25 of usage a month by default, $25-45 with daily scans or $5-15 with weekly
+ones only, and scans stop for the month at $45, or at your own `Monthly cap:` (tests in the eval harness are counted
+separately).
 On a subscription these are estimates against your usage limits, not charges. It runs only while your computer
 is on. Scouts can't run commands, use your connected apps or change the workspace; they only write notes and
 proposals.
@@ -361,7 +363,8 @@ choose:
 |---|---|
 | `Tech watch runs:` | `off` (default; recommended) · `when I start it` (Claude reminds you when a weekly scan is due; you run `! python3 techwatch/scripts/techwatch.py run`) · `automatically` |
 | `Proposals:` | `only ones for me` (default; recommended) · `all` (not recommended unless you maintain your own version) |
-| `Scans:` | `weekly only` (default; roughly $5-15 a month) · `daily and weekly` (roughly $25-45) |
+| `Scans:` | `3 days a week and weekly` (default; roughly $10-25 a month) · `daily and weekly` (roughly $25-45) · `weekly only` (roughly $5-15) |
+| `Monthly cap:` | blank (default: $45) · an amount of your own |
 | `When a change is ready:` | `ask me` (default) · `test it, then ask me` · `test it, apply if it passes` · `apply it` |
 
 **Which changes those automatic choices cover** is set in a second file, `my/techwatch-auto.md`. By default:

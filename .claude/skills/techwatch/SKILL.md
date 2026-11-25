@@ -53,7 +53,9 @@ decision easy.
     schedule on`; the session-start note says if it's missing);
   - `Proposals:` `only ones for me` (the default, recommended: only changes their own `my/` settings call for, plus
     urgent ones) or `all` (not recommended unless they maintain their own version);
-  - `Scans:` `weekly only` (the default; roughly $5-15 of usage a month) or `daily and weekly` ($25-45);
+  - `Scans:` `3 days a week and weekly` (the default; roughly $10-25 of usage a month), `daily and weekly`
+    ($25-45) or `weekly only` ($5-15);
+  - `Monthly cap:` blank for the default $45, or an amount of their own;
   - `When a change is ready:` `ask me`, `test it, apply if it passes`, `test it, then ask me`, or `apply it`. With the automatic choices,
     changes to settings, hooks, the guardrails and ethics files, tech watch's rules and `my/` still wait for them;
   - `Eval harness folder:` for testing changes.

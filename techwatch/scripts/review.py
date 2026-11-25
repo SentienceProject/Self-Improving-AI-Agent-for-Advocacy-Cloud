@@ -130,7 +130,14 @@ def prefs():
     # a value tech watch doesn't recognise means the cautious choice, not the automatic one
     runs = ("automatically" if runs.startswith("auto") else "off" if runs.startswith(("off", "no", "never", "stop"))
             else "when I start it")
-    scans = "daily and weekly" if field("Scans").lower().startswith("daily") else "weekly only"
+    scans = field("Scans").lower()
+    # "3 days a week and weekly" is the default (and what a missing or unrecognised value means): "daily and weekly"
+    # ran past the $45 monthly cap in a month with several prepared changes
+    scans = ("daily and weekly" if scans.startswith("daily") else "weekly only" if scans.startswith("weekly")
+             else "3 days a week and weekly")
+    # an optional cap of your own in my/techwatch.md ("Monthly cap: $90") replaces monthly_cap_usd in config.json
+    cap = re.search(r"\d+(?:\.\d+)?", field("Monthly cap").replace(",", ""))
+    cap = float(cap.group()) if cap else None
     # "only ones for me" (the default): scouts file only changes that this operator's my/ settings call for, since
     # the maintainer finds, tests and ships the ones for everyone (scripts/update.py). "all": every kind.
     proposals = "all" if field("Proposals").lower().startswith(("all", "every")) else "mine"
@@ -139,7 +146,7 @@ def prefs():
              else "apply" if ready.startswith("apply") else "ask")
     harness = field("Eval harness folder")
     harness = Path(harness).expanduser() if harness and not harness.startswith(("(", "<")) else None
-    return {"runs": runs, "scans": scans, "ready": ready, "harness": harness, "proposals": proposals}
+    return {"runs": runs, "scans": scans, "ready": ready, "harness": harness, "proposals": proposals, "cap": cap}
 
 
 def techtest_script(p=None):

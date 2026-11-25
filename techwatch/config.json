@@ -25,7 +25,7 @@
     }
   },
   "cadence": {
-    "_comment": "Which scans run is set in my/techwatch.md (\"Scans: daily and weekly\" or \"weekly only\"). This sets how often the weekly scan comes round.",
+    "_comment": "Which scans run is set in my/techwatch.md (\"Scans: 3 days a week and weekly\", the default, \"daily and weekly\" or \"weekly only\"). This sets how often the weekly scan comes round. A \"Monthly cap:\" in my/techwatch.md replaces monthly_cap_usd below.",
     "weekly_every_days": 7
   },
   "docs_sync": {

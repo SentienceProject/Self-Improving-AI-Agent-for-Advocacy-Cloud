@@ -2,7 +2,7 @@
 """Tech-watch runner: notices new technology that could help this workspace's work, and prepares changes for you.
 
     python3 techwatch/scripts/techwatch.py run          do whatever is due now: the sensor, a scan if one is due
-                                                        (daily and weekly by default), staging (see AUTONOMY.md),
+                                                        (as my/techwatch.md's "Scans:" says), staging (see AUTONOMY.md),
                                                         and what my/techwatch.md says to do with ready changes
     python3 techwatch/scripts/techwatch.py weekly       a weekly scan now (Opus, up to $4 of usage)
     python3 techwatch/scripts/techwatch.py daily        a daily scan now (Opus, up to $1.50)
@@ -146,12 +146,20 @@ def month_spend():
     return total
 
 
+def monthly_cap():
+    """(cap, where it's set): "Monthly cap:" in my/techwatch.md if there is one, else monthly_cap_usd in config.json."""
+    mine = review.prefs()["cap"]
+    if mine is not None:
+        return mine, "\"Monthly cap\" in my/techwatch.md"
+    return float(CONFIG.get("monthly_cap_usd") or 0), "monthly_cap_usd in techwatch/config.json"
+
+
 def within_cap(mode):
-    cap = float(CONFIG.get("monthly_cap_usd") or 0)
+    cap, where = monthly_cap()
     budget = float(CONFIG["runs"][mode]["max_budget_usd"])
     if cap and month_spend() + budget > cap:
         problem(f"skipped a {mode} run: this month's spend (${month_spend():.2f}) plus its cap (${budget:.2f}) would "
-                f"pass monthly_cap_usd (${cap:.2f}) in techwatch/config.json")
+                f"pass the monthly cap (${cap:.2f}, {where})")
         return False
     return True
 
@@ -396,6 +404,25 @@ def record_bases(pid, keep=()):
     (d / f"{pid}.json").write_text(json.dumps(bases, indent=1), encoding="utf-8")
 
 
+def days_since(marker):
+    try:
+        return (date.today() - date.fromisoformat(st(marker))).days
+    except ValueError:
+        return None
+
+
+def daily_due(scans):
+    """A daily scan, on a day the weekly one isn't due: every day with "daily and weekly"; with "3 days a week and
+    weekly" (the default), once at least 2 days have passed since the last scan of either kind, which makes three
+    between one weekly scan and the next (and catches up gently after days the computer was off)."""
+    gap = days_since("scout_ok")
+    if scans == "daily and weekly":
+        return gap != 0
+    if scans == "3 days a week and weekly":
+        return gap is None or gap >= 2
+    return False
+
+
 def weekly_due():
     last = st("last_weekly")
     try:
@@ -464,10 +491,8 @@ def scans_and_staging(scheduled):
             return
     elif not scheduled:
         run_sensor()
-    cadence = "weekly_only" if review.prefs()["scans"] == "weekly only" else "daily_and_weekly"
     if not scanned and (st("scout_ok") != TODAY or not scheduled):
-        mode = "weekly" if weekly_due() else ("daily" if cadence == "daily_and_weekly" and st("scout_ok") != TODAY
-                                              else None)
+        mode = "weekly" if weekly_due() else ("daily" if daily_due(review.prefs()["scans"]) else None)
         if mode:
             kind, retry_at = scan(mode)
             if kind == "retry":
@@ -475,7 +500,8 @@ def scans_and_staging(scheduled):
                     mark("retry_after", retry_at or time.time() + 3600)
                 return
         elif not scheduled:
-            log(f"no scan due (last weekly {st('last_weekly') or 'never'}); run `weekly` or `daily` to scan anyway")
+            log(f"no scan due (last weekly {st('last_weekly') or 'never'}, last scan {st('scout_ok') or 'never'}); "
+                "run `weekly` or `daily` to scan anyway")
     for pid in review.to_check()[:3] if checks_on() else []:
         kind, retry_at, _ = check(pid)
         if kind == "retry":

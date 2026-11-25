@@ -13,7 +13,8 @@ default nothing changes in the workspace until you say yes.
 |---|---|
 | `Tech watch runs:` | `off` (default; recommended) · `when I start it` (Claude reminds you when a weekly scan is due) · `automatically` (then `techwatch.py schedule on`; setup.py shows the command) |
 | `Proposals:` | `only ones for me` (default; recommended): only `"audience": "me"` proposals, plus ones for everyone marked `"urgent"` · `all` (not recommended unless you maintain your own version of the workspace) |
-| `Scans:` | `weekly only` (default; roughly $5-15 of usage a month) · `daily and weekly` (roughly $25-45) |
+| `Scans:` | `3 days a week and weekly` (default; roughly $10-25 of usage a month) · `daily and weekly` (roughly $25-45) · `weekly only` (roughly $5-15) |
+| `Monthly cap:` | blank (default: `monthly_cap_usd` in `config.json`, $45) · an amount of your own, such as `$60` |
 | `When a change is ready:` | `ask me` (default) · `test it, then ask me` · `test it, apply if it passes` · `apply it` |
 | `Eval harness folder:` | where `ai-welfare-eval-harness` is, for testing changes (setup.py fills it in if it finds one beside the workspace in the repository, or in `~/ai-welfare-evals/`) |
 
@@ -173,7 +174,8 @@ of the folder and run both.
    ├─ sensor.py ─ no AI ─ fetches the watched pages, keeps only new lines → inbox/sensor-DATE.md
    │
    ├─ weekly scout (Opus, ≤$4) ─ every 7 days: landscape, creative and subtraction passes, follow-ups
-   │     (daily scout, Opus ≤$1.50, on other days unless my/techwatch.md says "weekly only")
+   │     (daily scout, Opus ≤$1.50: on 3 other days a week by default, on all the rest with "daily and weekly",
+   │      never with "weekly only")
    │     → inbox/DATE-weekly.md and up to 3 proposals in proposals/<id>/
    │
    └─ stage run (Opus, ≤$3) ─ for each notable or major proposal (and any you approve): the exact change
@@ -251,9 +253,11 @@ be told apart: commit that file by hand (`git add -p`). `personal.py list` shows
 
 ## Cost
 
-Per-run caps are in `config.json`: weekly $4, daily $1.50, staging $3. With the default weekly scans, expect
-roughly $5–15 a month; `daily and weekly` (in `my/techwatch.md`) runs $25–45. Nothing starts once this month's
-runs would pass `monthly_cap_usd` ($45), so a busy month ends early. Tests in the eval harness are separate
+Per-run caps are in `config.json`: weekly $4, daily $1.50, staging $3. With the default (a weekly scan and daily
+scans on 3 other days), expect roughly $10–25 a month; `daily and weekly` (in `my/techwatch.md`) runs $25–45 and
+can reach the cap in a month with several prepared changes; `weekly only` runs $5–15. Nothing starts once this
+month's runs would pass `monthly_cap_usd` ($45), or `Monthly cap:` in `my/techwatch.md` if you set one, so a busy
+month ends early. Tests in the eval harness are separate
 (roughly $10–40 each) and stop at the harness's own usage limits. On a subscription these are estimates
 against your usage limits, not charges, and they compete with your own work for the same limits.
 

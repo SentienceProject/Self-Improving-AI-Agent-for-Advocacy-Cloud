@@ -9,7 +9,8 @@ have no limit there. -->
 <!-- Off by default, and that's what we recommend for most people. The maintainer already runs tech watch, tests
 what it finds on advocacy tasks, and ships the changes that suit everyone: `python3 scripts/update.py` gets them, and
 Claude tells you at the start of a session when there are some. Running it yourself mostly repeats that work with
-your own usage: the scans alone are roughly $5-15 a month (weekly only) or $25-45 (daily and weekly), and each test
+your own usage: the scans alone are roughly $10-25 a month (3 days a week and weekly), $5-15 (weekly only) or $25-45 (daily and
+weekly), and each test
 of a change in the eval harness is roughly $10-40 more. On a subscription these come out of the same usage limits as
 your own work.
 "automatically": scans run on a schedule, while your computer is on. Start the schedule once with
@@ -23,11 +24,16 @@ settings in my/ call for (your budget, platform, privacy, interests, ethics), wh
 plus anything urgent that can't wait for the maintainer's next update. "all": every change it finds, including the
 ones the maintainer will ship anyway; not recommended unless you maintain your own version of the workspace. -->
 
-**Scans:** weekly only
-<!-- "weekly only": one deeper weekly scan (Opus, up to $4); roughly $5-15 of usage a month. "daily and weekly": a
-quick daily scan (Opus, up to $1.50) as well; roughly $25-45 a month. Preparing a change costs up to $3 more.
-Everything stops at the monthly cap in techwatch/config.json ($45). On a subscription these are estimates against
-your usage limits, not charges. -->
+**Scans:** 3 days a week and weekly
+<!-- "3 days a week and weekly": one deeper weekly scan (Opus, up to $4) and a quick scan (Opus, up to $1.50) on
+three other days; roughly $10-25 of usage a month. "daily and weekly": the quick scan on all the other days; roughly
+$25-45 a month, and a month with several prepared changes can reach the cap. "weekly only": roughly $5-15 a month.
+Preparing a change costs up to $3 more. On a subscription these are estimates against your usage limits, not
+charges. -->
+
+**Monthly cap:**
+<!-- Scans and preparation stop for the month once they would pass this. Blank: $45 (monthly_cap_usd in
+techwatch/config.json). Write an amount, such as "$60", to use your own. -->
 
 **When a change is ready:** ask me
 <!-- "ask me": Claude tells you at the start of a session; `! python3 techwatch/scripts/review.py` asks, change by
