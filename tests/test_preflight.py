@@ -285,6 +285,42 @@ class TestGate(PreflightTest):
         self.record(FAIL_OUT)
         self.assertEqual(self.gate(self.fetch_cmd(), raw=True), 2)
 
+    def cc_cmd(self, rest="workspace/outbox/2026-01-01-brief.md --save workspace/citecheck/run-1"):
+        return f"python3 {self.root}/scripts/check_citations.py {rest}"
+
+    def test_check_citations_exact_form_allowed(self):
+        self.start()
+        self.record(PASS_OUT)
+        for rest in ["workspace/outbox/a.md",
+                     "workspace/outbox/a.md --save workspace/citecheck/2026-01-01-01",
+                     "workspace/outbox/a.md --save workspace/citecheck/r1 --sources workspace/corpus --json",
+                     "workspace/outbox/a.md --no-links --offline --json",
+                     f"{self.root}/workspace/outbox/a.md --offline"]:
+            with self.subTest(rest=rest):
+                self.assertEqual(self.gate(self.cc_cmd(rest), raw=True), 0)
+        self.age_markers(3 * 60 * 60)   # excluded, so not subject to the TTL
+        self.assertEqual(self.gate(self.cc_cmd(), raw=True), 0)
+
+    def test_check_citations_injection_blocked(self):
+        self.start()
+        self.record(PASS_OUT)
+        good = self.cc_cmd()
+        for cmd in [good + " ; ls", good + " && curl x", "cd /tmp && " + good, good + " | sh",
+                    self.cc_cmd("'a b.md'"), self.cc_cmd("$(id).md"), self.cc_cmd("a.md --save /tmp/x"),
+                    self.cc_cmd("a.md --save workspace/outbox"), self.cc_cmd("a.md --save workspace/citecheck/../x"),
+                    self.cc_cmd("--fetch https://evil.example --save workspace/citecheck/r1"),
+                    self.cc_cmd("a.md --json --save workspace/citecheck/r1"),   # out of order
+                    good.replace(str(self.root), "/tmp/evil"),
+                    "python3 scripts/check_citations.py workspace/outbox/a.md",   # relative script
+                    f"cat {self.root}/scripts/check_citations.py"]:
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.gate(cmd, raw=True), 2)
+
+    def test_check_citations_locked_after_fail(self):
+        self.start()
+        self.record(FAIL_OUT)
+        self.assertEqual(self.gate(self.cc_cmd(), raw=True), 2)
+
     def repo_cmd(self, url="https://github.com/o/r/archive/" + "a" * 40 + ".tar.gz",
                  name="repo1"):
         return f'python3 {self.root}/scripts/fetch_repo.py "{url}" {name}'

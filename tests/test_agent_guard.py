@@ -117,7 +117,10 @@ class AgentGuardTest(unittest.TestCase):
             with self.subTest(role=role):
                 self.assertEqual(self.run_guard(role, "Bash", {"command": good}), 0)
                 self.assertEqual(self.run_guard(role, "Bash", {"command": good + " --offline --json"}), 0)
+                self.assertEqual(self.run_guard(role, "Bash", {"command": good + " --no-links --offline"}), 0)
                 for bad in (good + "; id", good + " > workspace/corpus/x", good + " $(id)",
+                            good + " --save workspace/citecheck/r1", good + " --sources workspace/corpus",
+                            good + " --fetch https://example.org/x",
                             "python3 scripts/check_citations.py workspace/outbox/a.md",   # relative script
                             f"python3 {self.root}/scripts/check_citations.py 'a b.md'"):
                     self.assertEqual(self.run_guard(role, "Bash", {"command": bad}), 2, bad)

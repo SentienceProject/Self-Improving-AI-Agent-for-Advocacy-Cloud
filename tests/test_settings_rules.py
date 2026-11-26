@@ -47,6 +47,9 @@ EXCLUDED = {
     f"{Path(SEARCH_PY).as_posix()} {REPO.as_posix()}/scripts/corpus_search.py *",
     f"python3 {REPO.as_posix()}/scripts/fetch_pdf.py *",
     f"python3 {REPO.as_posix()}/scripts/fetch_repo.py *",
+    # the citation checker opens a draft's links (most aren't on the sandbox's list): preflight.py's exact form and
+    # the script's own path guards (draft and sources in workspace/, saved pages in workspace/citecheck/) hold it
+    f"python3 {REPO.as_posix()}/scripts/check_citations.py *",
     f"python3 {REPO.as_posix()}/scripts/ask_model.py *",   # outside models: their logins live outside the sandbox
     # a docs change the person said yes or no to (it writes CLAUDE.md and agent files); always asks the person too
     f"python3 {REPO.as_posix()}/scripts/docs_sync.py apply *",

@@ -11,7 +11,8 @@
 Bash commands must match exact forms: find_text.py and corpus_search.py as preflight.py enforces them, and
 check_citations.py as CHECK_CITATIONS_RE below. find_text.py is the read-only text search and file listing that
 stands in for the Grep and Glob tools, which some Claude Code builds don't give subagents. check_citations.py reads a
-draft and the corpus, sends only arXiv IDs and DOIs to arXiv and Crossref, and writes nothing.
+draft and the corpus, sends its arXiv IDs and DOIs to arXiv and Crossref, opens its links (not with --no-links),
+and in the form allowed here (no --save) writes nothing.
 
 Why no general shell, even for the helper: these agents read web pages, and the Bash sandbox can't stop a command
 from writing to workspace/corpus, memory or proposals, because the main session's own scripts write there. Claude
@@ -41,8 +42,8 @@ WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 # named by its absolute path: a relative one would run whatever scripts/check_citations.py is in the current folder.
 CHECK_CITATIONS_RE = re.compile(
     "python3 " + re.escape(str(ROOT)) + r"/scripts/check_citations\.py "
-    r"/?[A-Za-z0-9_.][A-Za-z0-9_./-]{0,300}(?: --offline| --json){0,2}")
-CHECK_CITATIONS_USAGE = f"python3 {ROOT}/scripts/check_citations.py <draft path> [--offline] [--json]"
+    r"/?[A-Za-z0-9_.][A-Za-z0-9_./-]{0,300}(?: --no-links| --offline| --json){0,3}")
+CHECK_CITATIONS_USAGE = f"python3 {ROOT}/scripts/check_citations.py <draft path> [--no-links] [--offline] [--json]"
 # PDFs for the helper: fetch_pdf.py in preflight.py's exact form (it enforces the host list), then pdftotext from a
 # downloaded PDF into the helper's own folder. Names are bare words, paths absolute, so nothing else can ride along.
 PDF_ROLES = {"helper"}

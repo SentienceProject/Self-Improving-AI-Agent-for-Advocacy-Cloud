@@ -173,7 +173,9 @@ Other things worth knowing:
   read as more human and work better for their readers.
 - **Citation check.** Before the verifier reads a draft, Claude runs `scripts/check_citations.py` on it. The script
   checks that every arXiv ID and DOI exists and matches the cited title, author and year, flags retracted papers,
-  and checks quotes word for word against the corpus. It uses no AI. It only catches broken references, not a
+  opens every link in the draft and flags broken ones, saves the linked pages as text for the verifier, and checks
+  quotes word for word against the corpus and the pages they cite. Opening the links lets those sites see what's
+  being read; `--no-links` or `--offline` avoids that. It uses no AI. It only catches broken references, not a
   real paper cited for something it doesn't say; the verifier still checks that.
 - **Starting fresh.** When a session has grown large, Claude Code shows a tip to type `/clear` before an unrelated
   task. It's cheaper and keeps Claude focused; anything worth keeping is in `workspace/memory.md`.

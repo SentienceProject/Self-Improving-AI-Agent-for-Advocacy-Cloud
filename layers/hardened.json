@@ -92,7 +92,8 @@
     "allow": [
       "Bash({{HOME}}/.venvs/ai-welfare-search/bin/python {{WORKSPACE}}/scripts/corpus_search.py *)",
       "Bash(python3 {{WORKSPACE}}/scripts/ask_model.py *)",
-      "Bash(python3 {{WORKSPACE}}/scripts/fetch_pdf.py *)"
+      "Bash(python3 {{WORKSPACE}}/scripts/fetch_pdf.py *)",
+      "Bash(python3 {{WORKSPACE}}/scripts/check_citations.py *)"
     ],
     "ask": [
       "Bash(pip install *)",
@@ -224,6 +225,7 @@
       "{{HOME}}/.venvs/ai-welfare-search/bin/python {{WORKSPACE}}/scripts/corpus_search.py *",
       "python3 {{WORKSPACE}}/scripts/fetch_pdf.py *",
       "python3 {{WORKSPACE}}/scripts/fetch_repo.py *",
+      "python3 {{WORKSPACE}}/scripts/check_citations.py *",
       "python3 {{WORKSPACE}}/scripts/ask_model.py *",
       "python3 {{WORKSPACE}}/scripts/docs_sync.py apply *",
       "python3 {{WORKSPACE}}/scripts/docs_sync.py reject *"

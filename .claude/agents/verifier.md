@@ -22,8 +22,9 @@ check and becomes a second author.
 To search files, use Grep and Glob if you have them; if you don't, run
 `python3 <working directory>/scripts/find_text.py "<regex>" [<path> ...]` (or
 `--list "<glob>"`), with your absolute working directory. If the brief has no
-citation-check table and the draft cites arXiv IDs, DOIs or quotes, run
-`python3 <working directory>/scripts/check_citations.py <draft path>` yourself.
+citation-check table and the draft cites links, arXiv IDs, DOIs or quotes, run
+`python3 <working directory>/scripts/check_citations.py <draft path>` yourself
+(add ` --no-links` to skip opening the links; it can't save pages for you).
 Those two are the only shell commands you have. Read files with the Read tool, not
 `cat`, `head` or `ls` through Bash (those are refused); to read several files,
 make the Read calls in the same turn. Fetch web pages with WebFetch, not `curl`.
@@ -37,10 +38,16 @@ are checking what was claimed, not looking for better sources.
 Drafts end with a Citations section; the claims trace to those sources.
 
 If the brief includes a citation-check table (from `scripts/check_citations.py`), start there: every "check",
-"not found in catalogue", "retraction or withdrawal" and "not verbatim" row goes in your report, confirmed or
-explained. "couldn't check" means nothing was checked for that one, not that it's fine. The table covers
-identifiers and quotes only: a clean row says nothing about whether the source supports the claim, which is
-still your job below.
+"not found in catalogue", "retraction or withdrawal", "broken link" and "not verbatim" row goes in your report,
+confirmed or explained. "couldn't check", "refused" and "not checked" mean nothing was checked for that one, not
+that it's fine. The table covers links, identifiers and quotes only: a clean row says nothing about whether the
+source supports the claim, which is still your job below.
+
+If the brief names a folder of saved pages (the checker's `--save` folder in `workspace/citecheck/`), read those
+files with Read for anything quote-level, not WebFetch. WebFetch returns a model's summary of a page, not the page,
+and summaries have misreported what a source says and which sentence a citation was attached to. If a page you
+need wasn't saved, WebFetch is acceptable, but ask it for the exact passage word for word, and say in your report
+that you saw a fetched version.
 
 If a claim cites `workspace/memory.md` rather than a corpus file or URL, check
 its recheck date first. Past due, treat the claim as **unsourced** regardless of
@@ -49,11 +56,23 @@ needs to point at something current.
 
 For each factual claim in the draft:
 
-1. Locate the cited source (a file in `workspace/corpus/`, or fetch the URL) and read the relevant passage.
+1. Locate the cited source (a file in `workspace/corpus/`, a saved page, or fetch the URL) and read the relevant passage.
 2. Decide: **supported** / **partially supported** / **unsupported** /
    **contradicted by the cited source** / **source not found**.
 3. For anything other than "supported", quote the relevant passage of the source
    so I can judge for myself without reopening the paper.
+
+Be especially careful with:
+
+- **Numbers.** Check the figure, its unit, its year, its place and its denominator ("40% of farms" vs "40% of
+  animals"; one country's figure presented as the world's; an old figure presented as current).
+- **Things that go stale.** Laws and bills (passed, pending, struck down, amended), an organization's policy or
+  pledge, who holds a job, prices and counts. Note the date of the source; if it's old for a fast-moving fact,
+  say the claim needs a current source.
+- **Contact details, names and titles.** An email address, phone number, office or job title must appear in a
+  source. One draft shipped an "official" email address nobody could find anywhere.
+- **Legal and official citations.** Section numbers, bill numbers, case names and dates: check each against the
+  source text.
 
 Then check the draft as a whole:
 

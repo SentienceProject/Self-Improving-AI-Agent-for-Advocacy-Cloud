@@ -7,8 +7,9 @@
                           the probe until the probe has PASSED this session.
                           Also enforces the exact form of the commands that
                           are excluded from the sandbox: run_analysis.py,
-                          corpus_search.py, fetch_pdf.py, fetch_repo.py and
-                          docs_sync.py apply/reject, and of find_text.py
+                          corpus_search.py, fetch_pdf.py, fetch_repo.py,
+                          check_citations.py and docs_sync.py apply/reject,
+                          and of find_text.py
                           (sandboxed; the subagents' search).
     preflight.py record   PostToolUse (Bash): when the probe ran, record PASS
                           or FAIL, write workspace/logs/preflight-*.json, and
@@ -85,6 +86,20 @@ FIND_TEXT_RE = re.compile(
     + rf"(--list {_FT_GLOB}|(?:-[iwl] |-C [0-9] |--glob {_FT_GLOB} )*{_FT_PAT}(?: {_FT_PATH})*)")
 FIND_TEXT_USAGE = (f'python3 {ROOT}/scripts/find_text.py [-i] [-w] [-l] [-C <0-9>] [--glob "<glob>"] '
                    f'"<regex>" [<path> ...]   or   python3 {ROOT}/scripts/find_text.py --list "<glob>"')
+# check_citations.py: opens the links a draft cites, so it runs outside the
+# sandbox (most cited sites aren't on the sandbox's list). Paths are bare
+# words of letters, digits and _ . / - only, in a fixed order: draft, then
+# optionally --save under workspace/citecheck/, one --sources folder, and the
+# read-only flags. No --fetch. The script itself refuses any draft or source
+# outside workspace/ and any --save outside workspace/citecheck/.
+_CC_PATH = r"/?[A-Za-z0-9_.][A-Za-z0-9_./-]{0,300}"
+CHECK_CITATIONS_RE = re.compile(
+    "python3 " + R + r"/scripts/check_citations\.py " + _CC_PATH
+    + r"(?: --save workspace/citecheck/" + RUN_ID + r")?"
+    + r"(?: --sources " + _CC_PATH + r")?"
+    + r"(?: --no-links| --offline| --json){0,3}")
+CHECK_CITATIONS_USAGE = (f"python3 {ROOT}/scripts/check_citations.py <draft> [--save workspace/citecheck/<run-id>] "
+                         "[--sources <folder>] [--no-links] [--offline] [--json]")
 RUN_ANALYSIS_RE = re.compile(
     rf"python3? {R}/scripts/run_analysis\.py ({RUN_ID}) "
     rf"workspace/analysis/\1/[A-Za-z0-9_][A-Za-z0-9_./-]*\.py")
@@ -227,6 +242,9 @@ def gate(data):
         block(f'fetch_repo.py must be run as exactly: python3 {ROOT}/scripts/'
               'fetch_repo.py "<https-url>" <name>  (nothing before or after it; '
               "name = letters, digits, - or _).")
+    if "check_citations" in cmd and not CHECK_CITATIONS_RE.fullmatch(cmd):
+        block(f"check_citations.py must be run as exactly: {CHECK_CITATIONS_USAGE}  (in that order, "
+              "nothing before or after it; paths use only letters, digits and _ . / -)")
     if re.search(r"docs_sync\.py\s+(apply|reject)", cmd) and not DOCS_DECIDE_RE.fullmatch(cmd):
         block(f"docs_sync.py apply/reject must be run as exactly: python3 {ROOT}/scripts/docs_sync.py "
               "apply <id>  (or reject <id>; nothing before or after it).")
@@ -234,7 +252,8 @@ def gate(data):
     # is Docker / a frozen script), so a stale Layer A pass doesn't affect
     # them. Everything else runs sandboxed and needs a fresh pass.
     excluded = (RUN_ANALYSIS_RE.fullmatch(cmd) or CORPUS_SEARCH_RE.fullmatch(cmd)
-                or FETCH_PDF_RE.fullmatch(cmd) or FETCH_REPO_RE.fullmatch(cmd) or DOCS_DECIDE_RE.fullmatch(cmd))
+                or FETCH_PDF_RE.fullmatch(cmd) or FETCH_REPO_RE.fullmatch(cmd) or DOCS_DECIDE_RE.fullmatch(cmd)
+                or CHECK_CITATIONS_RE.fullmatch(cmd))
     if not excluded:
         age = None if ts is None else time.time() - ts
         if age is None or age < -60 or age > PASS_TTL_S:
