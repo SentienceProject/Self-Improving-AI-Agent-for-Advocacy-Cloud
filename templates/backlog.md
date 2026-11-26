@@ -15,11 +15,22 @@ you add the ones you want: python3 scripts/backlog.py add "..." -->
 
 **Start when the weekly reset is within (hours):** 24
 
-**Start below weekly usage (%):** 85
-<!-- Runs start only if weekly usage is below this when the reset is close. -->
+**Quiet hours:**
+<!-- The hours you usually don't use Claude and this computer is on, e.g. "00:00-06:00" (24-hour clock, local time;
+may pass midnight). New items start only then, so runs don't take usage while you work. Empty: any hour. -->
 
-**Stop at weekly usage (%):** 90
-<!-- Leaves the rest for you. No new item starts past this; one already running finishes (up to the cap below). -->
+**Weekly usage cap (%):** 90
+<!-- The backlog uses weekly usage only up to this, leaving the rest for you: no item starts at or past it, and usage
+is checked every few minutes while one runs, which stops if it gets there (a later run picks it up). -->
+
+**Most of each 5-hour session (%):** 90
+<!-- The same for the 5-hour session. If your quiet hours are long enough for the session to reset before you're
+back, 100 is fine. -->
+
+**Ask me the day before the reset:** yes
+<!-- "yes": once a cycle, outside quiet hours, you're told the plan (on your phone if notifications are on, with
+buttons; otherwise at the next session start) and can use all the usage left now or skip this week:
+python3 scripts/backlog.py answer all|skip|normal. No answer keeps the plan. "no": it just runs. -->
 
 **Tech watch and evals first:** yes
 <!-- "yes": a run waits while tech watch or the eval harness is running, or tech watch hasn't done today's run.

@@ -451,9 +451,14 @@ full, unattended workspace sessions.
 - **Turn it on** in `python3 setup.py --more` (option 4); it writes your settings to `my/backlog.md`. Then start the
   hourly check once: `python3 scripts/backlog.py schedule on`. `python3 scripts/backlog.py status` shows your
   settings, your usage, and whether a run would start now.
-- **When it runs** (all changeable in `my/backlog.md`): when the weekly reset is less than 24 hours away and weekly
-  usage is below 85%; it stops starting items at 90%, leaving the rest for you. Tech watch and the eval harness go
-  first. Each item is capped (about $15 of usage by default).
+- **When it runs** (all changeable in `my/backlog.md`): when the weekly reset is less than 24 hours away, it's
+  within your quiet hours (the hours you don't use Claude, e.g. 00:00-06:00; any hour if you give none), up to a cap
+  of 90% of your weekly usage and 90% of each 5-hour session, leaving the rest for you. Usage is checked every few
+  minutes while an item runs, and the item is stopped if usage reaches the cap; a later run picks it up. Tech watch
+  and the eval harness go first. Each item is also capped (about $15 of usage by default).
+- **The day before the reset** you're told the plan: on your phone if notifications are on, with buttons to use all
+  the usage left right away or skip this week, and otherwise at the next session start, where Claude asks you
+  (`python3 scripts/backlog.py answer all|skip|normal`). No answer keeps the plan.
 - **What goes on it:** anything you add (`python3 scripts/backlog.py add "one-line goal"`, or a `## heading` in the
   file), and, unless you chose "suggest only", ideas Claude notices during sessions, marked as Claude's. Every
   session sees a short version of the list at the start: when its work finishes an item it marks it done, and when

@@ -9,6 +9,7 @@ weekly usage cycle, if there's usage left, they're run one by one in full, unatt
     python3 scripts/backlog.py drop B3 [--note "why"]      no longer wanted
     python3 scripts/backlog.py keep B3                      still wanted (an old item runs again)
     python3 scripts/backlog.py run [--now]                  run due items now (--now: ignore the timing rules)
+    python3 scripts/backlog.py answer normal|all|skip       this week: keep the plan, use all usage left, or skip
     python3 scripts/backlog.py schedule on|off|status       check every hour (setup shows this; it doesn't run it)
     python3 scripts/backlog.py status                       settings, usage, and whether a run would start
 
@@ -16,11 +17,18 @@ Files, all in workspace/backlog/: BACKLOG.md (the open items; edit it by hand to
 PROGRESS.md (work done elsewhere that a later run can build on), DONE.md, and results/ (what backlog runs made).
 Settings: my/backlog.md (setup.py --more turns this on and writes it).
 
-When it runs: the hourly check starts only if the weekly usage reset is close (24 hours by default), weekly usage is
-below the start line (85%), and, unless my/backlog.md says otherwise, tech watch and the eval harness aren't
-running and tech watch has done today's run. It then runs items until weekly usage reaches the stop line (90%),
-the 5-hour session is nearly used up, or the items run out. Usage is read the way /usage shows it, through the eval
-harness; if it can't be read, nothing runs.
+When it runs: the hourly check starts only if the weekly usage reset is close (24 hours by default), it's within
+your quiet hours (the hours you don't use Claude, e.g. 00:00-06:00; if you give none, any hour), weekly usage is
+below the cap (90%), and, unless my/backlog.md says otherwise, tech watch and the eval harness aren't running and
+tech watch has done today's run. It then runs items until weekly usage reaches the cap, the 5-hour session reaches
+your share of it (90%), quiet hours end, or the items run out. Usage is checked every few minutes while an item
+runs, and the item is stopped if usage reaches the cap (a later run picks it up). Usage is read the way /usage
+shows it, through the eval harness; if it can't be read, nothing runs.
+
+The day before the reset (once a week, outside your quiet hours), it tells you the plan, on your phone if
+notifications are on, with buttons to use all the usage left now or to skip this week, and otherwise at the next
+session start, where Claude asks you. No answer keeps the plan. Answers from the phone go to a second ntfy topic
+(your topic + "-reply") that the hourly check reads.
 
 Each item runs as a normal workspace session (CLAUDE.md, subagents, critics, verifier) with no one to ask:
 anything that would ask you first is refused, so it can't send, post or share. Results go to workspace/backlog/
@@ -53,9 +61,12 @@ STATE, LOG, LOCK = DIR / ".state.json", DIR / ".log", DIR / ".run.lock"
 SETTINGS = HERE / "my" / "backlog.md"
 KEY = hashlib.sha256(HERE.as_posix().encode()).hexdigest()[:8]
 TAG = f"backlog:{HERE.as_posix()}"
-SESSION_CEILING = 90          # don't start an item when the 5-hour session is past this
+ALL = 98                      # "use it all": the caps, leaving a sliver so a run isn't cut off by the plan's limit
+CHECK_EVERY = 120             # seconds between usage checks while an item runs (readings are cached this long)
+CHOICES = ("normal", "all", "skip")
 DEFAULTS = {"backlog": "off", "claude adds items": "yes", "start when the weekly reset is within (hours)": "24",
-            "start below weekly usage (%)": "85", "stop at weekly usage (%)": "90",
+            "quiet hours": "", "weekly usage cap (%)": "90",
+            "most of each 5-hour session (%)": "90", "ask me the day before the reset": "yes",
             "tech watch and evals first": "yes", "most usage per item ($)": "15",
             "ask me about items older than (days)": "21", "weekly reset (if it can't be read)": ""}
 HEAD = ("# Backlog\n\nIdeas, unfinished work and things to look into, saved for spare weekly usage. One item per "
@@ -70,6 +81,9 @@ def settings():
     if SETTINGS.exists():
         for m in re.finditer(r"^\*\*(.+?):\*\*[ \t]*(.*)$", SETTINGS.read_text(encoding="utf-8"), re.M):
             s[m.group(1).strip().lower()] = m.group(2).strip()
+        if "weekly usage cap (%)" not in re.sub(r"<!--.*?-->", "", SETTINGS.read_text(encoding="utf-8"), flags=re.S).lower() \
+                and s.get("stop at weekly usage (%)"):   # an older settings file: its stop line is the cap
+            s["weekly usage cap (%)"] = s["stop at weekly usage (%)"]
     return s
 
 
@@ -250,7 +264,7 @@ def harness():
     return None
 
 
-def usage():
+def usage(tries=3):
     """{"seven_day": %, "five_hour": %, "week_resets_at": iso or None} from the eval harness's reader, or None."""
     h = harness()
     if not h:
@@ -258,7 +272,7 @@ def usage():
     sys.path.insert(0, str(h))
     try:
         import run_agent   # noqa: E402  (reads plan usage the way /usage shows it, with a shared cache)
-        return run_agent.plan_usage()
+        return run_agent.plan_usage(tries=tries)
     except Exception as e:   # noqa: BLE001  any failure means: don't run
         log(f"couldn't read plan usage: {e!r}")
         return None
@@ -279,6 +293,129 @@ def week_reset(u, s):
     d = (days.index(m.group(1).lower()) - now.weekday()) % 7
     t = now.replace(hour=int(m.group(2)), minute=int(m.group(3)), second=0, microsecond=0) + timedelta(days=d)
     return t if t > now else t + timedelta(days=7)
+
+
+def quiet(s):
+    """Quiet hours as (start, end) in minutes after midnight, local time, or None (any hour)."""
+    m = re.match(r"\s*(\d{1,2})(?:[:.](\d\d))?\s*(?:-|\u2013|to)\s*(\d{1,2})(?:[:.](\d\d))?", s["quiet hours"])
+    if not m:
+        return None
+    a = int(m.group(1)) % 24 * 60 + int(m.group(2) or 0)
+    b = int(m.group(3)) % 24 * 60 + int(m.group(4) or 0)
+    return None if a == b else (a, b)
+
+
+def in_quiet(s, now=None):
+    """Whether it's within the quiet hours now (always true if there are none). They may pass midnight."""
+    q = quiet(s)
+    if not q:
+        return True
+    t = (now or datetime.now(timezone.utc)).astimezone()
+    m, (a, b) = t.hour * 60 + t.minute, q
+    return a <= m < b if a < b else (m >= a or m < b)
+
+
+def week_key(reset):
+    """One key per weekly cycle: the reset's date (UTC), so small changes in the reported time don't matter."""
+    return reset.astimezone(timezone.utc).date().isoformat()
+
+
+def answer(st, reset):
+    """This cycle's answer: "normal" (the default), "all" or "skip"."""
+    a = st.get("answer") or {}
+    return a.get("choice", "normal") if reset and a.get("for") == week_key(reset) else "normal"
+
+
+def limits(s, choice):
+    """(weekly usage cap, most of the 5-hour session), in %: no item starts at or past them, and a running one stops."""
+    if choice == "all":
+        return ALL, ALL
+    return num(s, "weekly usage cap (%)"), num(s, "most of each 5-hour session (%)")
+
+
+def over(u, caps):
+    """Why usage is at a cap, or None."""
+    cap, sess = caps
+    if u["seven_day"] >= cap:
+        return f"weekly usage is at {u['seven_day']:g}% (the backlog's cap is {cap:g}%)"
+    if u.get("five_hour", 0) >= sess:
+        return f"the 5-hour session is at {u['five_hour']:g}% (the backlog uses up to {sess:g}%)"
+    return None
+
+
+def plan(s):
+    """The usual plan, in words."""
+    stop, sess = limits(s, "normal")
+    when = f"in your quiet hours ({s['quiet hours']})" if quiet(s) else "from now"
+    return f"items run {when} until weekly usage reaches {stop:g}% (using at most {sess:g}% of each 5-hour session)"
+
+
+def ask(s, u, st, now=None):
+    """The day before the reset, once a cycle and outside quiet hours (when you're likely around): say what's
+    planned, with phone buttons to use everything left now or skip this week. True if it asked."""
+    if not on(s) or not u or not s["ask me the day before the reset"].lower().startswith("y"):
+        return False
+    reset, now = week_reset(u, s), now or datetime.now(timezone.utc)
+    if not reset or not 0 < (reset - now).total_seconds() / 3600 <= num(s, "start when the weekly reset is within (hours)"):
+        return False
+    if st.get("asked") == week_key(reset) or (quiet(s) and in_quiet(s, now)):
+        return False
+    items = [i for i in parse() if not stale(i, s)]
+    if not items or over(u, limits(s, "normal")) or answer(st, reset) != "normal":
+        return False
+    st.update(asked=week_key(reset), asked_reset=reset.isoformat(), asked_at=time.time())
+    save_state(st)
+    log(f"asked about this cycle (reset {reset.astimezone():%a %H:%M}, weekly {u['seven_day']:g}%)")
+    try:
+        import notify
+        cfg = notify.load()
+        if notify.ready(cfg):
+            notify.send("Backlog: weekly reset soon",
+                        f"Your weekly usage resets {reset.astimezone():%a %H:%M} and is at {u['seven_day']:g}%. "
+                        f"{len(items)} backlog item(s) wait. Plan: {plan(s)}. Ignore this to keep the plan, or tap: "
+                        "use all the usage left (starts within the hour), or skip this week.", tags="hourglass",
+                        cfg=cfg, actions=[("Use it all", "backlog:all"), ("Skip this week", "backlog:skip"),
+                                          ("Keep the plan", "backlog:normal")])
+    except Exception:   # noqa: BLE001  the session start asks too
+        pass
+    return True
+
+
+def read_replies(st):
+    """Take an answer tapped on the phone since the question, if there is one."""
+    if not st.get("asked") or not st.get("asked_reset"):
+        return
+    try:
+        if datetime.fromisoformat(st["asked_reset"]) <= datetime.now(timezone.utc):
+            return
+        import notify
+        got = notify.replies(st["asked_at"] - 60)
+    except Exception:   # noqa: BLE001
+        return
+    for t, msg in got:
+        m = re.fullmatch(r"backlog:(normal|all|skip)", msg.strip().lower())
+        if m and t > (st.get("answer") or {}).get("at", 0):
+            st["answer"] = {"for": st["asked"], "choice": m.group(1), "at": t}
+            log(f"answer from the phone: {m.group(1)}")
+    save_state(st)
+
+
+def question_for_session(s):
+    """For the session start: the day-before question, if it's open and no session has passed it on yet."""
+    st = state()
+    if not st.get("asked") or st.get("asked_in_session") == st["asked"]:
+        return None
+    try:
+        reset = datetime.fromisoformat(st["asked_reset"])
+    except (KeyError, ValueError):
+        return None
+    if reset <= datetime.now(timezone.utc) or (st.get("answer") or {}).get("for") == st["asked"]:
+        return None
+    st["asked_in_session"] = st["asked"]
+    save_state(st)
+    return (f"Backlog: the weekly usage reset is {reset.astimezone():%a %H:%M} and usage is left. Plan: {plan(s)}. "
+            "Ask the person whether they'd like that, all the usage left used now (python3 scripts/backlog.py "
+            "answer all), or no backlog runs this week (answer skip). Keeping the plan needs no answer.")
 
 
 def others_busy():
@@ -325,7 +462,7 @@ def trusted():
     return any((projects.get(k) or {}).get("hasTrustDialogAccepted") for k in {str(HERE), HERE.as_posix()})
 
 
-def why_not(s, u, now=None):
+def why_not(s, u, now=None, st=None):
     """None if a run should start now, else the reason it doesn't."""
     if not on(s):
         return "the backlog is off (my/backlog.md)"
@@ -347,11 +484,13 @@ def why_not(s, u, now=None):
     hours = (reset - now).total_seconds() / 3600
     if hours > num(s, "start when the weekly reset is within (hours)"):
         return f"the weekly reset is {hours:.0f} hours away"
-    if u["seven_day"] >= num(s, "start below weekly usage (%)"):
-        return f"weekly usage is at {u['seven_day']:g}% (starts below {num(s, 'start below weekly usage (%)'):g}%)"
-    if u.get("five_hour", 0) >= SESSION_CEILING:
-        return f"the 5-hour session is at {u['five_hour']:g}%; trying again next hour"
-    return None
+    choice = answer(state() if st is None else st, reset)
+    if choice == "skip":
+        return "you said to skip the backlog this cycle"
+    if choice != "all" and not in_quiet(s, now):
+        return f"it's outside your quiet hours ({s['quiet hours']})"
+    why = over(u, limits(s, choice))
+    return why and why + "; trying again next hour"
 
 
 # ---------------------------------------------------------------- running items
@@ -374,24 +513,73 @@ def prompt_for(i):
             .replace("{progress}", "\n".join(prog) if prog else "(none)"))
 
 
-def run_item(i, s):
+def stop_proc(p):
+    """Stop a backlog session and the subagents it started."""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(p.pid)], capture_output=True)
+        else:
+            import signal
+            os.killpg(p.pid, signal.SIGTERM)
+            try:
+                p.wait(30)
+            except subprocess.TimeoutExpired:
+                os.killpg(p.pid, signal.SIGKILL)
+    except (OSError, ProcessLookupError):
+        pass
+
+
+def watch(p, caps, limit=3 * 3600):
+    """Wait for the session, checking usage every CHECK_EVERY seconds. (stdout, why it was stopped or None)."""
+    start, out = time.time(), ""
+    while True:
+        try:
+            out, _ = p.communicate(timeout=CHECK_EVERY)
+            return out, None
+        except subprocess.TimeoutExpired:
+            pass
+        u = usage(tries=1)   # unreadable for a moment: carry on (the per-item cap still holds)
+        why = (over(u, caps) if u else None) or ("it ran for 3 hours" if time.time() - start > limit else None)
+        if why:
+            stop_proc(p)
+            try:
+                out, _ = p.communicate(timeout=60)
+            except (subprocess.TimeoutExpired, ValueError, OSError):
+                out = ""
+            return out, why
+
+
+def run_item(i, s, caps=None):
+    """True if it ran, "capped" if it was stopped at a usage cap, False if it couldn't start."""
     claude = claude_bin()
     if not claude:
         log("can't find the `claude` command")
         return False
+    caps = caps or limits(s, "normal")
     before = len(progress_for(i["id"]))
     cmd = [claude, "-p", "--permission-mode", "dontAsk", "--max-budget-usd", str(num(s, "most usage per item ($)")),
            "--output-format", "json"]
     env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
     env["AI_WELFARE_BACKLOG_RUN"] = i["id"]
     log(f"{i['id']}: start ({i['title'][:80]})")
+    stopped = None
+    prompt = DIR / f".prompt-{i['id']}.md"
+    prompt.write_text(prompt_for(i), encoding="utf-8")
     try:
-        r = subprocess.run(cmd, input=prompt_for(i), cwd=HERE, env=env, capture_output=True, text=True,
-                           timeout=3 * 3600)
-        res = json.loads(r.stdout or "{}")
-    except (subprocess.TimeoutExpired, ValueError, OSError) as e:
+        with open(prompt, encoding="utf-8") as fin:
+            p = subprocess.Popen(cmd, stdin=fin, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, cwd=HERE, env=env,
+                                 text=True, start_new_session=os.name != "nt")
+            out, stopped = watch(p, caps)
+        res = json.loads(out or "{}") if not stopped else {}
+    except (ValueError, OSError) as e:
         log(f"{i['id']}: stopped ({type(e).__name__})")
-        res, r = {"result": f"stopped: {type(e).__name__}"}, None
+        res = {"result": f"stopped: {type(e).__name__}"}
+    finally:
+        prompt.unlink(missing_ok=True)
+    if stopped:
+        log(f"{i['id']}: stopped because {stopped}")
+        res = {"result": f"The backlog stopped this run partway because {stopped}. Files it made (e.g. in "
+                         "workspace/drafts/ or workspace/logs/) may hold partial work; check them before starting over."}
     cost = float(res.get("total_cost_usd") or 0)
     still_open = any(x["id"] == i["id"] for x in parse())
     recorded = not still_open or len(progress_for(i["id"])) > before
@@ -400,19 +588,24 @@ def run_item(i, s):
         out = RESULTS / f"{i['id']}-{date.today()}-reply.md"
         out.write_text(str(res.get("result") or "(no reply)") + "\n", encoding="utf-8")
         append(PROGRESS, "# Backlog progress\n\n", f"- {i['id']} · {date.today()} · {out.relative_to(HERE).as_posix()} · "
-               "backlog run ended without recording a result; its last message is in that file")
+               + ("backlog run stopped at the usage cap before recording a result; see that file"
+                  if stopped and "usage" in stopped else
+                  "backlog run ended without recording a result; its last message is in that file"))
     denied = len(res.get("permission_denials") or [])
     log(f"{i['id']}: {'done' if not still_open else 'progress recorded'} (${cost:.2f}"
         + (f"; {denied} action(s) refused, as nobody could approve them" if denied else "") + ")")
-    return True
+    return "capped" if stopped and "usage" in stopped else True
 
 
 def cmd_run(a, scheduled=False):
     s = settings()
     if not scheduled and not on(s):
         sys.exit("The backlog is off. Turn it on in my/backlog.md (\"Backlog: on\"), or with python3 setup.py --more.")
-    u = usage()
-    reason = why_not(s, u) if not a.now else (None if u else "plan usage can't be read")
+    u, st = usage(), state()
+    if scheduled and on(s):
+        read_replies(st)
+        ask(s, u, st)
+    reason = why_not(s, u, st=st) if not a.now else (None if u else "plan usage can't be read")
     if reason:
         if not scheduled:
             print(f"Not running: {reason}.")
@@ -429,20 +622,30 @@ def cmd_run(a, scheduled=False):
             pass
         LOCK.unlink(missing_ok=True)
         return 0
-    ran, st = [], state()
+    ran = []
+    choice = answer(st, week_reset(u, s))
+    caps = limits(s, choice)
     try:
         for i in sorted([x for x in parse() if not stale(x, s)], key=lambda x: (x["by"] != "me", x["added"])):
             tries = st.setdefault("tries", {}).get(i["id"], 0)
             if tries >= 2:
                 continue
             u = usage()
-            if not u or u["seven_day"] >= num(s, "stop at weekly usage (%)") or u.get("five_hour", 0) >= SESSION_CEILING:
+            if not u or over(u, caps):
                 log(f"stopping: weekly {u and u['seven_day']}%, session {u and u.get('five_hour')}%")
+                break
+            if choice != "all" and not a.now and not in_quiet(s):
+                log("stopping: quiet hours are over")
                 break
             st["tries"][i["id"]] = tries + 1
             save_state(st)
-            if run_item(i, s):
+            r = run_item(i, s, caps)
+            if r:
                 ran.append(i["id"])
+            if r == "capped":   # not the item's fault: it doesn't use up a try, and nothing more starts now
+                st["tries"][i["id"]] = tries
+                save_state(st)
+                break
     finally:
         LOCK.unlink(missing_ok=True)
     if ran:
@@ -461,6 +664,23 @@ def cmd_run(a, scheduled=False):
     return 0
 
 
+def cmd_answer(a):
+    if os.environ.get("AI_WELFARE_BACKLOG_RUN"):
+        sys.exit("A backlog run can't answer for the person.")
+    s, st = settings(), state()
+    reset = week_reset(usage(), s)
+    if not reset and st.get("asked_reset"):
+        reset = datetime.fromisoformat(st["asked_reset"])
+    if not reset:
+        sys.exit("The weekly reset time isn't known: set \"Weekly reset (if it can't be read)\" in my/backlog.md.")
+    st["answer"] = {"for": week_key(reset), "choice": a.choice, "at": time.time()}
+    save_state(st)
+    log(f"answer: {a.choice}")
+    print({"normal": f"OK: the usual plan ({plan(s)}).",
+           "all": "OK: the backlog uses all the usage left this cycle, starting at the next hourly check.",
+           "skip": "OK: no backlog runs this cycle."}[a.choice] + f" (Weekly reset: {reset.astimezone():%a %H:%M}.)")
+
+
 def cmd_status(a):
     s = settings()
     print(S.b("Backlog: ") + ("on" if on(s) else "off") + f"  ({len(parse())} open item(s))")
@@ -471,6 +691,9 @@ def cmd_status(a):
         r = week_reset(u, s)
         print(f"  usage now: weekly {u['seven_day']:g}%, 5-hour session {u.get('five_hour', 0):g}%; weekly reset: "
               + (f"{r.astimezone():%a %d %b %H:%M}" if r else "unknown"))
+        if r and answer(state(), r) != "normal":
+            print(f"  this cycle: {'use all the usage left' if answer(state(), r) == 'all' else 'skipped'} "
+                  "(python3 scripts/backlog.py answer normal goes back to the plan)")
     why = why_not(s, u)
     print("  " + (S.ok("A run would start now.") if not why else f"A run wouldn't start now: {why}."))
     schedule("status")
@@ -559,6 +782,7 @@ def main(argv=None):
     p = sub.add_parser("drop"); p.add_argument("id"); p.add_argument("--note", default="")
     p = sub.add_parser("keep"); p.add_argument("id")
     p = sub.add_parser("run"); p.add_argument("--now", action="store_true")
+    p = sub.add_parser("answer"); p.add_argument("choice", choices=CHOICES)
     sub.add_parser("scheduled")
     p = sub.add_parser("schedule"); p.add_argument("action", choices=["on", "off", "status"])
     sub.add_parser("status")
@@ -567,6 +791,7 @@ def main(argv=None):
         a.by = "claude" if os.environ.get("CLAUDECODE") or os.environ.get("AI_WELFARE_BACKLOG_RUN") else "me"
     return {"list": cmd_list, "add": cmd_add, "progress": cmd_progress, "done": lambda a: close(a, "done"),
             "drop": lambda a: close(a, "dropped"), "keep": cmd_keep, "run": cmd_run, "status": cmd_status,
+            "answer": cmd_answer,
             "scheduled": lambda a: cmd_run(argparse.Namespace(now=False), scheduled=True),
             "schedule": lambda a: schedule(a.action)}[a.cmd](a) or 0
 

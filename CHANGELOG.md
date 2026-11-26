@@ -6,6 +6,18 @@ number means something you set up may need redoing, and the entry says what.
 
 ## Unreleased
 
+- **Backlog: quiet hours and a question before the reset.** New settings in `my/backlog.md`: `Quiet hours:` (e.g.
+  `00:00-06:00`; new items start only then, so runs don't take usage while you work), `Most of each 5-hour session
+  (%):` (90 as before, now yours to change) and `Ask me the day before the reset:` (yes). The day before the reset
+  you're told the plan, on your phone with buttons to use all the usage left now or skip the week, or at the next
+  session start; `python3 scripts/backlog.py answer all|skip|normal` does the same. Existing settings files keep
+  working: no quiet hours means any hour, as before.
+- **Backlog: one usage cap, watched during runs.** `Start below weekly usage` and `Stop at weekly usage` are now
+  one setting, `Weekly usage cap (%):` (90): items start only below it, and usage is checked every two minutes while
+  an item runs, which is stopped if usage reaches the cap (before, a run that started just under the line could go
+  past it). A stopped item keeps its place for the next run. An older `my/backlog.md` keeps working: its `Stop at`
+  value becomes the cap, and `Start below` is ignored.
+
 - **Tech watch's new default: short scans 3 days a week.** A new `my/techwatch.md` now says `Scans: 3 days a week
   and weekly`: the weekly scan plus a short scan on three other days (roughly $10-25 of usage a month). Daily scans
   ran past the $45 monthly cap in a month with several prepared changes. `daily and weekly` and `weekly only` are

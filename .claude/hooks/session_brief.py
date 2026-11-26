@@ -315,6 +315,9 @@ def backlog_lines():
     if items:
         out.append(f"Backlog (workspace/backlog/; {adds}; CLAUDE.md says how to mark one done or add progress):\n  "
                    + "\n  ".join(items))
+    q = getattr(B, "question_for_session", lambda s: None)(s)
+    if q:
+        out.append(q)
     st = B.state()
     if st.get("unseen"):
         out.append(f"Backlog runs finished since you were last here: {', '.join(st['unseen'])}. Results are in "

@@ -9,6 +9,10 @@
 
 Options when sending: --priority min|low|default|high|max, --tags "tag1,tag2" (ntfy emoji names, e.g. "warning").
 
+Buttons: a script can add buttons to a notification (send(..., actions=[("label", "reply")])). Tapping one posts the
+reply to a second topic, your topic + "-reply", which your phone isn't subscribed to, and replies() reads it back.
+The backlog uses this for its question before the weekly reset.
+
 Your settings are in my/notify.json: {"on": true, "server": "https://ntfy.sh", "topic": "...", ...}. The topic name
 is the only secret: anyone who knows it can read or post to it. setup gives you a long random one; don't put it
 anywhere public. Messages go through the ntfy server (ntfy.sh keeps them for about 12 hours so your phone can fetch
@@ -61,16 +65,45 @@ def clean_header(s, n=120):
     return s if len(s) <= n else s[: n - 3].rstrip() + "..."
 
 
-def send(title, body, priority="default", tags="", cfg=None):
-    """True if the server accepted it. Never raises: a notification failing shouldn't break what called it."""
+def send(title, body, priority="default", tags="", cfg=None, actions=()):
+    """True if the server accepted it. Never raises: a notification failing shouldn't break what called it.
+    actions: up to three (label, reply) buttons; tapping one posts the reply to reply_topic()."""
     try:
-        return _send(title, body, priority, tags, cfg)
+        return _send(title, body, priority, tags, cfg, actions)
     except Exception as e:   # a malformed setting, say
         print(f"notify: not sent: {type(e).__name__}: {str(e)[:200]}", file=sys.stderr)
         return False
 
 
-def _send(title, body, priority, tags, cfg):
+def reply_topic(cfg):
+    """Where buttons post their replies: a topic of its own, so a reply doesn't come back as a notification."""
+    return f"{cfg['topic'][:58]}-reply"
+
+
+def replies(since, cfg=None):
+    """Replies posted since `since` (Unix time), oldest first, as [(time, text)]; [] if off or unreachable. The
+    server keeps messages about 12 hours."""
+    cfg = load() if cfg is None else cfg
+    if not ready(cfg):
+        return []
+    server = str(cfg.get("server") or "https://ntfy.sh").rstrip("/")
+    try:
+        with urllib.request.urlopen(f"{server}/{reply_topic(cfg)}/json?poll=1&since={int(since)}", timeout=20) as r:
+            lines = r.read().decode("utf-8", "replace").splitlines()
+    except Exception:   # noqa: BLE001  no network, server error
+        return []
+    out = []
+    for line in lines:
+        try:
+            m = json.loads(line)
+        except ValueError:
+            continue
+        if m.get("event") == "message":
+            out.append((float(m.get("time") or 0), str(m.get("message") or "")))
+    return sorted(out)
+
+
+def _send(title, body, priority, tags, cfg, actions=()):
     if os.environ.get("AI_WELFARE_EVAL"):   # set by the eval harness for every agent run
         print("notify: not sent (this is an eval run)", file=sys.stderr)
         return False
@@ -86,6 +119,11 @@ def _send(title, body, priority, tags, cfg):
     if tags := clean_header(tags, 60):
         headers["Tags"] = tags
     server = str(cfg.get("server") or "https://ntfy.sh").rstrip("/")
+    if actions:
+        headers["Actions"] = "; ".join(
+            f"http, {clean_header(label, 40).replace(',', ' ').replace(';', ' ')}, {server}/{reply_topic(cfg)}, "
+            f"method=POST, body={clean_header(reply, 60).replace(',', ' ').replace(';', ' ')}, clear=true"
+            for label, reply in list(actions)[:3])
     req = urllib.request.Request(f"{server}/{cfg['topic']}", data=data, method="POST",
                                  headers=headers)
     try:

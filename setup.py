@@ -637,9 +637,14 @@ def backlog_setup():
     if not ask("   Claude adds ideas it notices during sessions on its own (Enter), or only suggests them to you (s)? "
                "[A/s]", "a").lower().startswith("a"):
         text = text.replace("**Claude adds items:** yes", "**Claude adds items:** suggest only", 1)
+    q = ask("   Which hours do you usually not use Claude, with this computer on? Runs start only then, so they don't "
+            "take\n   usage while you work (e.g. 00:00-06:00; Enter: any hour):", "").strip()
+    if q:
+        text = text.replace("**Quiet hours:**", f"**Quiet hours:** {q}", 1)
     f.write_text(text, encoding="utf-8")
-    print("   " + TICK + " wrote my/backlog.md: runs start when the weekly reset is within 24 hours and usage is below "
-          "85%, and stop\n     at 90%; tech watch and the eval harness go first. Change any of it in that file.\n"
+    print("   " + TICK + " wrote my/backlog.md: runs start when the weekly reset is within 24 hours"
+          + (f", in your quiet hours ({q})," if q else "") + ", up to 90% of\n     your weekly usage; the day "
+          "before, you're asked whether to use it all or skip the week. Change any of it in that file.\n"
           "   To start the hourly check:\n" + S.cmd("python3 scripts/backlog.py schedule on"))
 
 
