@@ -260,13 +260,15 @@ def classify(pid):
         if p is None or AUTO_NEVER.search(rel):
             never.append(rel)
             continue
-        src = (STAGED / pid / str(ch.get("source", ""))).resolve()
         old = p.read_text(encoding="utf-8") if p.exists() else ""
-        new = src.read_text(encoding="utf-8") if src.is_file() else ""
+        new, why_not = new_contents(STAGED / pid, ch, old)
+        if new is None:
+            never.append(f"{rel} ({why_not})")
+            continue
         merged = None
-        if ch.get("action") == "append":
-            new = old + ("" if old.endswith("\n") or not old else "\n") + new
-        elif p.exists() and base_changed(pid, rel):
+        if ch.get("action") == "edit" and p.exists() and base_changed(pid, rel):
+            merged = new   # edited since it was prepared, but each edit still fits today's file exactly
+        elif ch.get("action") == "write" and p.exists() and base_changed(pid, rel):
             merged = merged_write(pid, rel, new)   # edited since it was prepared: the change merged into today's file
             new = merged if merged is not None else new
         if REVIEWED.search(rel):
@@ -492,6 +494,41 @@ def merged_write(pid, rel, staged):
         except OSError:
             return None
     return r.stdout.decode("utf-8") if r.returncode == 0 else None
+
+
+FILE_ACTIONS = ("write", "append", "edit")   # the manifest steps that change a file in the workspace
+
+
+def edited(old, edits):
+    """old with an "edit" step's replacements made in order ([{"old": ..., "new": ...}], each "old" appearing
+    exactly once at its turn, as Claude's Edit tool requires): (new text, None), or (None, why it can't be)."""
+    if not isinstance(edits, list) or not edits:
+        return None, "it lists no edits"
+    text = old
+    for k, e in enumerate(edits, 1):
+        a, b = (e.get("old"), e.get("new")) if isinstance(e, dict) else (None, None)
+        if not isinstance(a, str) or not a or not isinstance(b, str):
+            return None, f"edit {k} needs a non-empty \"old\" text and a \"new\" text"
+        n = text.count(a)
+        if n != 1:
+            return None, f"edit {k}'s \"old\" text is " + ("not in the file" if not n else f"in the file {n} times")
+        text = text.replace(a, b, 1)
+    return text, None
+
+
+def new_contents(bundle, ch, old):
+    """What a write, append or edit step makes of a target whose text is now `old`: (new text, None), or (None, why
+    it can't be applied as written). A source must be a file inside the bundle; an edit's texts are in the manifest
+    itself, so either way the change is all inside the bundle that was checked and tested."""
+    if ch.get("action") == "edit":
+        return edited(old, ch.get("edits"))
+    src = (bundle / str(ch.get("source", ""))).resolve()
+    if bundle.resolve() not in src.parents or not src.is_file():
+        return None, f"its source {ch.get('source')} is missing or outside the bundle"
+    new = src.read_text(encoding="utf-8")
+    if ch.get("action") == "append":
+        return old + ("" if old.endswith("\n") or not old else "\n") + new, None
+    return new, None
 
 
 def hard_constraints(text):
@@ -814,32 +851,34 @@ def cmd_apply(pid, each=False, auto=None, by_settings=False, yes=False):
         if action in ("command", "manual"):
             manual.append(ch)
             continue
-        if action not in ("write", "append"):
+        if action not in FILE_ACTIONS:
             print(f"{RED}[{i}] unknown action {action!r}; skipped{OFF}")
             skipped += 1
             continue
         target = resolve(ch.get("target", ""))
-        src = (bundle / ch.get("source", "")).resolve()
         if target is None:
+            what = (f"copy {(bundle / str(ch.get('source', ''))).resolve()} to {ch.get('target')}"
+                    if action != "edit" else f"make the edits in step {i} of the manifest to {ch.get('target')}")
             print(f"{RED}[{i}] target {ch.get('target')} is outside this workspace; moved to the by-hand steps{OFF}")
             manual.append({"action": "manual", "why": ch.get("why", ""),
-                           "instructions": f"copy {src} to {ch.get('target')} yourself, if you want it"})
-            continue
-        if bundle.resolve() not in src.parents or not src.is_file():
-            print(f"{RED}[{i}] source {ch.get('source')} is missing or outside the bundle; skipped{OFF}")
-            skipped += 1
+                           "instructions": f"{what} yourself, if you want it"})
             continue
         if BOOKKEEPING.search(target.relative_to(WS).as_posix()):
             print(f"{RED}[{i}] {target.relative_to(WS).as_posix()} is tech watch's own record (ledger, results, "
                   f"backups or notes); a prepared change may never write it. Skipped.{OFF}")
             skipped += 1
             continue
-        new = src.read_text(encoding="utf-8")
         old = target.read_text(encoding="utf-8") if target.exists() else ""
-        final = (old + ("" if old.endswith("\n") or not old else "\n") + new) if action == "append" else new
+        final, why_not = new_contents(bundle, ch, old)
+        if final is None:
+            print(f"{RED}[{i}] {target.relative_to(WS).as_posix()}: {why_not}; skipped{OFF}")
+            skipped += 1
+            continue
         rel, merged = target.relative_to(WS).as_posix(), False
-        if action == "write" and target.exists() and base_changed(pid, rel):
-            m = merged_write(pid, rel, new)   # edited since it was prepared: keep those edits, add the change
+        if action == "edit" and target.exists() and base_changed(pid, rel):
+            merged = True   # edited since it was prepared, but each edit still fits today's file exactly
+        elif action == "write" and target.exists() and base_changed(pid, rel):
+            m = merged_write(pid, rel, final)   # edited since it was prepared: keep those edits, add the change
             if m is not None:
                 final, merged = m, True
         writes.append({"n": i, "target": target, "rel": rel, "old": old, "merged": merged,

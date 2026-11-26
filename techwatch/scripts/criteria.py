@@ -134,17 +134,18 @@ def change_text(pid, limit=400):
     except (OSError, ValueError):
         mf = {"changes": []}
     for ch in mf.get("changes", []):
-        if ch.get("action") not in ("write", "append"):
+        if ch.get("action") not in review.FILE_ACTIONS:
             lines.append(f"(by hand: {ch.get('run') or ch.get('instructions')})\n")
             continue
-        target, src = review.resolve(ch.get("target", "")), (bundle / ch.get("source", "")).resolve()
-        if target is None or not src.is_file():
+        target = review.resolve(ch.get("target", ""))
+        if target is None:
             continue
         old = target.read_text(encoding="utf-8") if target.exists() else ""
-        new = src.read_text(encoding="utf-8")
-        if ch.get("action") == "append":
-            new = old + ("" if old.endswith("\n") or not old else "\n") + new
+        new, why_not = review.new_contents(bundle, ch, old)
         rel = target.relative_to(WS).as_posix()
+        if new is None:
+            lines.append(f"(a change to {rel} that can't be applied as written: {why_not})\n")
+            continue
         lines += difflib.unified_diff(old.splitlines(True), new.splitlines(True), f"a/{rel}", f"b/{rel}")
     diff = "".join(lines[:limit]) + ("\n(diff truncated)\n" if len(lines) > limit else "")
     parts.append("THE EXACT CHANGE (unified diff):\n" + (diff or "(no file changes)"))

@@ -179,7 +179,8 @@ of the folder and run both.
    │     → inbox/DATE-weekly.md and up to 3 proposals in proposals/<id>/
    │
    └─ stage run (Opus, ≤$3) ─ for each notable or major proposal (and any you approve): the exact change
-         → staged/<id>/ manifest.json, files/, APPLY.md (plain words), ROLLBACK.md, EVAL.md
+         → staged/<id>/ manifest.json (exact edits, or whole new files from files/ or the proposal's
+           attached files, copied into attached/), APPLY.md (plain words), ROLLBACK.md, EVAL.md
          └─ check run (Opus, ≤$2) ─ a fresh run reviews that change, fixes or widens it, and says whether it's
             worth testing → staged/<id>/CHECK.md
    │

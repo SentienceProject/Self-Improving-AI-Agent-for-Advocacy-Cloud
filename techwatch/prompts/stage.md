@@ -15,19 +15,22 @@ You **don't apply anything**. The operator reads your bundle as one diff and app
 - `manifest.json`:
   ```json
   {"proposal": "<id>", "changes": [
-    {"action": "write",   "target": "relative/path/from/workspace/root", "source": "files/<name>", "why": "one line"},
+    {"action": "edit",    "target": "relative/path/from/workspace/root", "edits": [{"old": "exact current text", "new": "its replacement"}], "why": "one line"},
+    {"action": "write",   "target": "relative/path", "source": "files/<name>", "why": "one line"},
     {"action": "append",  "target": "relative/path", "source": "files/<name>", "why": "one line"},
     {"action": "command", "run": "exact shell command", "why": "one line"},
     {"action": "manual",  "instructions": "what the operator does by hand", "why": "one line"}
   ]}
   ```
-  - `write` replaces the whole file with `files/<name>`. Copy the current file and change only what the proposal needs; preserve everything else byte for byte.
-  - `append` adds `files/<name>` at the end.
-  - Targets are paths **inside this workspace**, relative to its root. That includes `CLAUDE.md`, `.claude/` settings, agents, skills and hooks: stage those as `write` too. `review.py` marks them high-risk, shows the operator exactly what changes, refreshes the integrity manifest after they apply it, and can roll it back.
+  - **`edit` is the usual way to change an existing file.** Each `old` must be copied exactly from the file as it is now (spaces, line breaks and all) and appear in it exactly once, like the Edit tool; include a few words around the change to make it unique. Edits apply in order, so a later `old` sees the earlier replacements. Use one step per file, with all of that file's edits in its list. If one doesn't match, that step is refused, never guessed at. Don't retype a whole file to change part of it.
+  - `write` replaces the whole file with its `source`. Use it for new files, for files that change almost entirely, and for files attached to the proposal (below). If you do rewrite an existing file, copy it and change only what the proposal needs; preserve everything else byte for byte.
+  - `append` adds its `source` at the end.
+  - **Files attached to the proposal are already in the bundle**, in `attached/` (copied there before this run started: every file in the proposal's folder except `proposal.md` and `meta.json`). Point a `write` at one (`"source": "attached/<name>"`) rather than retyping it. Read it first and check that it still fits the file it replaces as that file is now; if it doesn't, use `edit` steps or a corrected copy in `files/` instead, and say so in `APPLY.md`. Don't put your own files in `attached/`.
+  - Targets are paths **inside this workspace**, relative to its root. That includes `CLAUDE.md`, `.claude/` settings, agents, skills and hooks: stage those as `edit` or `write` too. `review.py` marks them high-risk, shows the operator exactly what changes, refreshes the integrity manifest after they apply it, and can roll it back.
   - `command` is printed for the operator, never run. Use it for installs, `ollama pull`, `docker build` and the like.
   - `manual` is for anything outside the workspace (a sign-up, an app setting, a `/config` toggle) and for files in `my/`, which belong to the operator.
   - For a proposal of kind `outside`, the bundle may be just `APPLY.md` (step-by-step instructions) and a manifest of `manual` steps.
-- `files/…`: the new contents.
+- `files/…`: the contents of new files and whole-file rewrites (not needed for `edit` steps or attached files).
 - `APPLY.md`, in plain words:
   - what changes and why (two lines);
   - **every risk, flagged up front**: it touches permissions, hooks, settings, scripts, agent frontmatter, `CLAUDE.md`, the guardrails or the ethics files; or it widens what an agent can do (network, tools, files). Say which, and why it's needed;

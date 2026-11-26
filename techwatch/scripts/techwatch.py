@@ -292,6 +292,7 @@ def stage(pid):
             shutil.move(str(bundle / x), str(arch / x))
     shutil.rmtree(bundle, ignore_errors=True)   # start empty, so nothing another run wrote can ride along
     bundle.mkdir(parents=True)
+    attach(pid, bundle)
     kind, retry_at, reason = scout("stage", "stage.md", f"Proposal to stage: techwatch/proposals/{pid}/\n"
                                    f"Write the bundle to: techwatch/staged/{pid}/", writable=(f"staged/{pid}",))
     if kind != "retry":
@@ -303,6 +304,24 @@ def stage(pid):
             if ckind == "retry":   # the change stays waiting for its check; the next run tries again
                 return ckind, cretry, reason
     return kind, retry_at, reason
+
+
+ATTACH_MAX = 2_000_000   # bytes; a bigger attached file is left out (the stage run can still read it)
+
+
+def attach(pid, bundle):
+    """Copy the files attached to the proposal (everything in its folder but proposal.md and meta.json) into the
+    bundle's attached/ folder, so a manifest step can use one as its `source` instead of the stage run retyping it.
+    They're part of the proposal the operator approved, and once copied they're in the bundle that's checked,
+    hashed and tested like any other file. Regular files only: no links, no folders, nothing over ATTACH_MAX."""
+    src = TW / "proposals" / pid
+    files = [f for f in sorted(src.iterdir()) if f.name not in ("proposal.md", "meta.json")
+             and not f.is_symlink() and f.is_file() and f.stat().st_size <= ATTACH_MAX] if src.is_dir() else []
+    if files:
+        (bundle / "attached").mkdir()
+        for f in files:
+            shutil.copyfile(f, bundle / "attached" / f.name, follow_symlinks=False)
+    return [f.name for f in files]
 
 
 def checks_on():
@@ -354,10 +373,12 @@ def untouched_targets(pre, bundle):
             return {}
         out = {}
         for ch in mf.get("changes", []):
-            p = review.resolve(ch.get("target", "")) if ch.get("action") in ("write", "append") else None
+            p = review.resolve(ch.get("target", "")) if ch.get("action") in review.FILE_ACTIONS else None
             if p is not None:
                 src = root / str(ch.get("source", ""))
-                out[p.relative_to(WS).as_posix()] = (ch.get("action"), src.read_bytes() if src.is_file() else None)
+                out[p.relative_to(WS).as_posix()] = (ch.get("action"), json.dumps(ch.get("edits")).encode()
+                                                     if ch.get("action") == "edit"
+                                                     else src.read_bytes() if src.is_file() else None)
         return out
     before, after = changes(pre), changes(bundle)
     return {rel for rel, v in after.items() if before.get(rel) == v}
@@ -391,7 +412,7 @@ def record_bases(pid, keep=()):
         old = {}
     bases = {}
     for ch in mf.get("changes", []):
-        p = review.resolve(ch.get("target", "")) if ch.get("action") in ("write", "append") else None
+        p = review.resolve(ch.get("target", "")) if ch.get("action") in review.FILE_ACTIONS else None
         if p is not None:
             rel = p.relative_to(WS).as_posix()
             bases[rel] = old[rel] if rel in keep and rel in old else (

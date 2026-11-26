@@ -150,6 +150,43 @@ class TestApply(Workspace):
             self.review.cmd_apply("p1")
         self.assertEqual((self.ws / "CLAUDE.md").read_text(), "instructions\n")
 
+    def test_edit_steps_change_only_their_text_and_roll_back(self):
+        (self.ws / "CLAUDE.md").write_text("one\ntwo\nthree\n")
+        self.proposal("p1")
+        self.bundle("p1", [{"action": "edit", "target": "CLAUDE.md", "edits": [
+            {"old": "two\n", "new": "TWO\n"}, {"old": "TWO\nthree", "new": "TWO\nthree, edited"}]}], {})
+        self.assertEqual(self.review.classify("p1")[0], [])
+        self.review.cmd_apply("p1")
+        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "one\nTWO\nthree, edited\n")
+        self.review.cmd_rollback("p1", yes=True)
+        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "one\ntwo\nthree\n")
+
+    def test_an_edit_that_doesnt_fit_exactly_is_refused(self):
+        (self.ws / "CLAUDE.md").write_text("same\nsame\n")
+        for pid, edits in (("p1", [{"old": "same", "new": "x"}]), ("p2", [{"old": "absent", "new": "x"}]),
+                           ("p3", [{"old": "", "new": "x"}]), ("p4", [])):
+            self.proposal(pid)
+            self.bundle(pid, [{"action": "edit", "target": "CLAUDE.md", "edits": edits}], {})
+            self.assertTrue(self.review.classify(pid)[0], f"{pid} waits for a person")
+            with self.assertRaises(SystemExit):
+                self.review.cmd_apply(pid)
+            self.assertEqual((self.ws / "CLAUDE.md").read_text(), "same\nsame\n")
+        self.assertIn("in the file 2 times", self.review.edited("same\nsame\n", [{"old": "same", "new": "x"}])[1])
+
+    def test_an_edit_still_fits_a_file_changed_elsewhere_since_staging(self):
+        (self.ws / "CLAUDE.md").write_text("intro\nthe line to change\nend\n")
+        self.proposal("p1")
+        self.bundle("p1", [{"action": "edit", "target": "CLAUDE.md",
+                            "edits": [{"old": "the line to change", "new": "the changed line"}]}], {})
+        bases = self.ws / "techwatch" / "state" / "stage-bases"
+        bases.mkdir(parents=True)
+        (bases / "p1.json").write_text(json.dumps(
+            {"CLAUDE.md": hashlib.sha256((self.ws / "CLAUDE.md").read_bytes()).hexdigest()}))
+        (self.ws / "CLAUDE.md").write_text("intro, edited by you\nthe line to change\nend\n")
+        self.assertEqual(self.review.classify("p1"), ([], ["CLAUDE.md (merged with edits made since it was prepared)"]))
+        self.review.cmd_apply("p1")
+        self.assertEqual((self.ws / "CLAUDE.md").read_text(), "intro, edited by you\nthe changed line\nend\n")
+
     def manifest(self):
         subprocess.run([sys.executable, str(self.ws / "scripts" / "validate_proposal.py"), "--init"],
                        capture_output=True, check=True)
@@ -1103,6 +1140,44 @@ class TestCheckRun(TestAutomatic):
         self.assertEqual(bases["a.md"], staged_hash, "the change to a.md still rests on the staged version")
         self.assertIn("other.md", bases)
         self.assertIn("a.md (changed since the change was prepared)", self.review.classify("p1")[0])
+
+    def test_staging_starts_with_the_proposals_attached_files(self):
+        (self.ws / "a.md").write_text("old\n")
+        self.proposal("p1")
+        d = self.ws / "techwatch" / "proposals" / "p1"
+        (d / "new-a.md").write_text("attached version\n")
+        (d / "big.bin").write_bytes(b"x" * 30)
+        (d / "link.md").symlink_to(self.ws / "a.md")
+        (d / "sub").mkdir()
+        self.review.record("p1", "approved")
+        tw = self.runner()
+        tw.ATTACH_MAX = 20
+        stale = self.ws / "techwatch" / "staged" / "p1" / "attached" / "left-over.md"
+        stale.parent.mkdir(parents=True)
+        stale.write_text("from an earlier run\n")
+        b = self.ws / "techwatch" / "staged" / "p1"
+
+        def fake_stage(mode):
+            if mode == "stage":
+                self.assertEqual(sorted(p.name for p in (b / "attached").iterdir()), ["new-a.md"])
+                (b / "manifest.json").write_text(json.dumps({"proposal": "p1", "changes": [
+                    {"action": "write", "target": "a.md", "source": "attached/new-a.md", "why": "w"}]}))
+            return "ok", "", ""
+        self.fake_scout = fake_stage
+        tw.checks_on = lambda: False
+        tw.stage("p1")
+        self.assertEqual(self.review.status_of("p1"), "staged")
+        self.review.cmd_apply("p1", yes=True)
+        self.assertEqual((self.ws / "a.md").read_text(), "attached version\n")
+
+    def test_reviewers_see_an_edits_diff(self):
+        (self.ws / "a.md").write_text("keep\nold words\n")
+        self.proposal("p1")
+        self.bundle("p1", [{"action": "edit", "target": "a.md", "edits": [{"old": "old words", "new": "new"}]},
+                           {"action": "edit", "target": "a.md", "edits": [{"old": "missing", "new": "x"}]}], {})
+        text = self.load_criteria().change_text("p1")
+        self.assertIn("-old words\n+new\n", text)
+        self.assertIn("can't be applied as written", text)
 
     def test_check_steering_lines_hold_the_change_for_you(self):
         self.staged("p1", target="a.md")
