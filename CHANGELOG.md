@@ -12,6 +12,15 @@ number means something you set up may need redoing, and the entry says what.
   you're told the plan, on your phone with buttons to use all the usage left now or skip the week, or at the next
   session start; `python3 scripts/backlog.py answer all|skip|normal` does the same. Existing settings files keep
   working: no quiet hours means any hour, as before.
+- **Backlog: safer readings.** Quiet hours can be written `10pm-6am`, `0000-0600`, `1am to 5am` or `22h-6h`
+  (setup turns them into `HH:MM-HH:MM`); quiet hours that can't be read now stop runs instead of meaning "any
+  hour". An empty 5-hour window (nothing used in the last 5 hours, e.g. at night) now counts as 0% instead of
+  making usage unreadable, in the backlog and in the eval harness. If paid extra usage is on, "use it all" isn't
+  offered and keeps the normal caps, since the plan's limit wouldn't stop a run. Unclear quiet hours like "10-6"
+  (10am or 10pm?) are refused instead of guessed. A reset time that has passed is ignored, and one worked out from
+  the setting stays right in a week when the clocks change. Claude Code's saved login expires a few hours after it
+  last ran, which made night-time usage readings fail; reading usage now renews it first (`claude auth status`,
+  or else a one-line Haiku reply).
 - **Backlog: one usage cap, watched during runs.** `Start below weekly usage` and `Stop at weekly usage` are now
   one setting, `Weekly usage cap (%):` (90): items start only below it, and usage is checked every two minutes while
   an item runs, which is stopped if usage reaches the cap (before, a run that started just under the line could go

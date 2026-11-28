@@ -25,7 +25,7 @@ is checked every few minutes while one runs, which stops if it gets there (a lat
 
 **Most of each 5-hour session (%):** 90
 <!-- The same for the 5-hour session. If your quiet hours are long enough for the session to reset before you're
-back, 100 is fine. -->
+back, 100 is fine. Answering "use it all" raises both caps to 98% for that week, unless paid extra usage is on. -->
 
 **Ask me the day before the reset:** yes
 <!-- "yes": once a cycle, outside quiet hours, you're told the plan (on your phone if notifications are on, with

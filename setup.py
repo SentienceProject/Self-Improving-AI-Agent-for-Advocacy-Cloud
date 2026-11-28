@@ -637,8 +637,15 @@ def backlog_setup():
     if not ask("   Claude adds ideas it notices during sessions on its own (Enter), or only suggests them to you (s)? "
                "[A/s]", "a").lower().startswith("a"):
         text = text.replace("**Claude adds items:** yes", "**Claude adds items:** suggest only", 1)
-    q = ask("   Which hours do you usually not use Claude, with this computer on? Runs start only then, so they don't "
-            "take\n   usage while you work (e.g. 00:00-06:00; Enter: any hour):", "").strip()
+    import backlog as B
+    while True:
+        q = ask("   Which hours do you usually not use Claude, with this computer on? Runs start only then, so they "
+                "don't take\n   usage while you work (e.g. 00:00-06:00 or 10pm-6am; Enter: any hour):", "").strip()
+        try:
+            q = B.normal_quiet(q)
+            break
+        except ValueError:
+            print("   That can't be read as hours. Write it like 00:00-06:00 or 10pm-6am.")
     if q:
         text = text.replace("**Quiet hours:**", f"**Quiet hours:** {q}", 1)
     f.write_text(text, encoding="utf-8")

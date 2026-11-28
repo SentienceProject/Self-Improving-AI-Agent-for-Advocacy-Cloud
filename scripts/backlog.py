@@ -278,35 +278,96 @@ def usage(tries=3):
         return None
 
 
-def week_reset(u, s):
+def week_reset(u, s, now=None):
     """When the weekly limit resets (aware datetime), from the reading or the 'weekly reset' setting, or None."""
+    now = (now or datetime.now(timezone.utc)).astimezone()
     if u and u.get("week_resets_at"):
-        try:
-            return datetime.fromisoformat(str(u["week_resets_at"]).replace("Z", "+00:00"))
-        except ValueError:
-            pass
+        t = parse_time(u["week_resets_at"])
+        if t and t > now:   # one that has passed tells nothing about the next
+            return t
     m = re.match(r"(\w+)\s+(\d{1,2}):(\d\d)", s["weekly reset (if it can't be read)"])
     days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-    if not m or m.group(1).lower() not in days:
+    if not m or m.group(1).lower() not in days or int(m.group(2)) > 23 or int(m.group(3)) > 59:
         return None
-    now = datetime.now().astimezone()
-    d = (days.index(m.group(1).lower()) - now.weekday()) % 7
-    t = now.replace(hour=int(m.group(2)), minute=int(m.group(3)), second=0, microsecond=0) + timedelta(days=d)
-    return t if t > now else t + timedelta(days=7)
+    for add in range((days.index(m.group(1).lower()) - now.weekday()) % 7, 15, 7):
+        d = now.date() + timedelta(days=add)
+        t = datetime(d.year, d.month, d.day, int(m.group(2)), int(m.group(3))).astimezone()   # that date's own offset
+        if t > now:          # (so a week in which the clocks change still comes out right)
+            return t
+    return None
+
+
+def parse_time(v):
+    """An aware datetime from an ISO time (no zone: UTC; any number of fraction digits), or None."""
+    v = re.sub(r"(\.\d{1,6})\d*", lambda m: m.group(1).ljust(7, "0"), str(v or "").strip().replace("Z", "+00:00"))
+    try:
+        t = datetime.fromisoformat(v)
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+_TIME = r"(\d{1,2})(?:[:.h]?(\d\d))?\s*(am|pm|a\.m\.|p\.m\.|h)?"
+QUIET_RE = re.compile(rf"\s*{_TIME}\s*(?:-|\u2013|\u2014|to|until|till)\s*{_TIME}\s*")
+
+
+def parse_quiet(text):
+    """Quiet hours as (start, end) minutes after midnight; None if empty; ValueError if the text can't be read.
+    Accepts 00:00-06:00, 0000-0600, 10pm-6am, 1am to 5am, 22h-6h; refuses unclear ones like "10-6"."""
+    if not (text or "").strip():
+        return None
+    m = QUIET_RE.fullmatch(text.lower())
+    if not m:
+        raise ValueError(text)
+    out = []
+    for h, mi, ap in (m.groups()[:3], m.groups()[3:]):
+        h, mi, ap = int(h), int(mi or 0), (ap or "").replace(".", "")
+        if ap in ("am", "pm"):
+            if not 1 <= h <= 12:
+                raise ValueError(text)
+            h = h % 12 + (12 if ap == "pm" else 0)
+        if h == 24 and mi == 0:
+            h = 0
+        if h > 23 or mi > 59:
+            raise ValueError(text)
+        out.append(h * 60 + mi)
+    if out[0] == out[1]:
+        raise ValueError(text)
+    if not (m.group(3) or m.group(6)) and not (m.group(2) or m.group(5)) and out[0] > out[1] \
+            and out[0] < 13 * 60 and not m.group(1).startswith("0"):
+        raise ValueError(text)   # "10-6": 10am-6am is 20 hours, 10pm-6am is 8; ask instead of guessing
+    return tuple(out)
+
+
+def normal_quiet(text):
+    """Quiet hours written as HH:MM-HH:MM ("" for none). ValueError if unreadable."""
+    q = parse_quiet(text)
+    return "" if not q else "-".join(f"{x // 60:02d}:{x % 60:02d}" for x in q)
+
+
+def quiet_error(s):
+    """Why the quiet hours setting can't be used, or None. Unreadable quiet hours never mean "any hour"."""
+    try:
+        parse_quiet(s["quiet hours"])
+        return None
+    except ValueError:
+        return (f"the quiet hours in my/backlog.md (\"{s['quiet hours']}\") can't be read: write them like "
+                "00:00-06:00 or 10pm-6am")
 
 
 def quiet(s):
-    """Quiet hours as (start, end) in minutes after midnight, local time, or None (any hour)."""
-    m = re.match(r"\s*(\d{1,2})(?:[:.](\d\d))?\s*(?:-|\u2013|to)\s*(\d{1,2})(?:[:.](\d\d))?", s["quiet hours"])
-    if not m:
+    """Quiet hours as (start, end) in minutes after midnight, local time, or None (none, or unreadable)."""
+    try:
+        return parse_quiet(s["quiet hours"])
+    except ValueError:
         return None
-    a = int(m.group(1)) % 24 * 60 + int(m.group(2) or 0)
-    b = int(m.group(3)) % 24 * 60 + int(m.group(4) or 0)
-    return None if a == b else (a, b)
 
 
 def in_quiet(s, now=None):
-    """Whether it's within the quiet hours now (always true if there are none). They may pass midnight."""
+    """Whether it's within the quiet hours now (always true if there are none; never if they can't be read).
+    They may pass midnight."""
+    if quiet_error(s):
+        return False
     q = quiet(s)
     if not q:
         return True
@@ -326,9 +387,11 @@ def answer(st, reset):
     return a.get("choice", "normal") if reset and a.get("for") == week_key(reset) else "normal"
 
 
-def limits(s, choice):
-    """(weekly usage cap, most of the 5-hour session), in %: no item starts at or past them, and a running one stops."""
-    if choice == "all":
+def limits(s, choice, u=None):
+    """(weekly usage cap, most of the 5-hour session), in %: no item starts at or past them, and a running one stops.
+    "Use it all" raises both to 98%, unless paid extra usage is on: then the plan's limit wouldn't stop a run, so the
+    normal caps stay."""
+    if choice == "all" and not (u and u.get("extra_usage")):
         return ALL, ALL
     return num(s, "weekly usage cap (%)"), num(s, "most of each 5-hour session (%)")
 
@@ -338,7 +401,7 @@ def over(u, caps):
     cap, sess = caps
     if u["seven_day"] >= cap:
         return f"weekly usage is at {u['seven_day']:g}% (the backlog's cap is {cap:g}%)"
-    if u.get("five_hour", 0) >= sess:
+    if (u.get("five_hour") or 0) >= sess:
         return f"the 5-hour session is at {u['five_hour']:g}% (the backlog uses up to {sess:g}%)"
     return None
 
@@ -346,7 +409,9 @@ def over(u, caps):
 def plan(s):
     """The usual plan, in words."""
     stop, sess = limits(s, "normal")
-    when = f"in your quiet hours ({s['quiet hours']})" if quiet(s) else "from now"
+    if quiet_error(s):
+        return "nothing runs until the quiet hours in my/backlog.md can be read (write them like 00:00-06:00)"
+    when = f"in your quiet hours ({normal_quiet(s['quiet hours'])})" if quiet(s) else "from now"
     return f"items run {when} until weekly usage reaches {stop:g}% (using at most {sess:g}% of each 5-hour session)"
 
 
@@ -355,7 +420,8 @@ def ask(s, u, st, now=None):
     planned, with phone buttons to use everything left now or skip this week. True if it asked."""
     if not on(s) or not u or not s["ask me the day before the reset"].lower().startswith("y"):
         return False
-    reset, now = week_reset(u, s), now or datetime.now(timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    reset = week_reset(u, s, now)
     if not reset or not 0 < (reset - now).total_seconds() / 3600 <= num(s, "start when the weekly reset is within (hours)"):
         return False
     if st.get("asked") == week_key(reset) or (quiet(s) and in_quiet(s, now)):
@@ -373,9 +439,11 @@ def ask(s, u, st, now=None):
             notify.send("Backlog: weekly reset soon",
                         f"Your weekly usage resets {reset.astimezone():%a %H:%M} and is at {u['seven_day']:g}%. "
                         f"{len(items)} backlog item(s) wait. Plan: {plan(s)}. Ignore this to keep the plan, or tap: "
-                        "use all the usage left (starts within the hour), or skip this week.", tags="hourglass",
-                        cfg=cfg, actions=[("Use it all", "backlog:all"), ("Skip this week", "backlog:skip"),
-                                          ("Keep the plan", "backlog:normal")])
+                        + ("skip this week. (Paid extra usage is on, so \"use it all\" isn't offered: the plan's "
+                           "limit wouldn't stop it.)" if u.get("extra_usage") else
+                           "use all the usage left (starts within the hour), or skip this week."), tags="hourglass",
+                        cfg=cfg, actions=([] if u.get("extra_usage") else [("Use it all", "backlog:all")])
+                        + [("Skip this week", "backlog:skip"), ("Keep the plan", "backlog:normal")])
     except Exception:   # noqa: BLE001  the session start asks too
         pass
     return True
@@ -477,7 +545,7 @@ def why_not(s, u, now=None, st=None):
             return busy
     if not u:
         return "plan usage can't be read (it's read through the eval harness, beside this folder)"
-    reset = week_reset(u, s)
+    reset = week_reset(u, s, now)
     if not reset:
         return "the weekly reset time isn't known: set \"Weekly reset (if it can't be read)\" in my/backlog.md"
     now = now or datetime.now(timezone.utc)
@@ -487,9 +555,11 @@ def why_not(s, u, now=None, st=None):
     choice = answer(state() if st is None else st, reset)
     if choice == "skip":
         return "you said to skip the backlog this cycle"
+    if choice != "all" and quiet_error(s):
+        return quiet_error(s)
     if choice != "all" and not in_quiet(s, now):
-        return f"it's outside your quiet hours ({s['quiet hours']})"
-    why = over(u, limits(s, choice))
+        return f"it's outside your quiet hours ({normal_quiet(s['quiet hours'])})"
+    why = over(u, limits(s, choice, u))
     return why and why + "; trying again next hour"
 
 
@@ -624,7 +694,9 @@ def cmd_run(a, scheduled=False):
         return 0
     ran = []
     choice = answer(st, week_reset(u, s))
-    caps = limits(s, choice)
+    caps = limits(s, choice, u)
+    if choice == "all" and u and u.get("extra_usage"):
+        log("use it all: paid extra usage is on, so the normal caps stay")
     try:
         for i in sorted([x for x in parse() if not stale(x, s)], key=lambda x: (x["by"] != "me", x["added"])):
             tries = st.setdefault("tries", {}).get(i["id"], 0)
@@ -667,8 +739,8 @@ def cmd_run(a, scheduled=False):
 def cmd_answer(a):
     if os.environ.get("AI_WELFARE_BACKLOG_RUN"):
         sys.exit("A backlog run can't answer for the person.")
-    s, st = settings(), state()
-    reset = week_reset(usage(), s)
+    s, st, u = settings(), state(), usage()
+    reset = week_reset(u, s)
     if not reset and st.get("asked_reset"):
         reset = datetime.fromisoformat(st["asked_reset"])
     if not reset:
@@ -679,6 +751,8 @@ def cmd_answer(a):
     print({"normal": f"OK: the usual plan ({plan(s)}).",
            "all": "OK: the backlog uses all the usage left this cycle, starting at the next hourly check.",
            "skip": "OK: no backlog runs this cycle."}[a.choice] + f" (Weekly reset: {reset.astimezone():%a %H:%M}.)")
+    if a.choice == "all" and u and u.get("extra_usage"):
+        print("  Paid extra usage is on, so runs keep the normal caps: the plan's limit wouldn't stop them.")
 
 
 def cmd_status(a):
@@ -689,7 +763,7 @@ def cmd_status(a):
     u = usage()
     if u:
         r = week_reset(u, s)
-        print(f"  usage now: weekly {u['seven_day']:g}%, 5-hour session {u.get('five_hour', 0):g}%; weekly reset: "
+        print(f"  usage now: weekly {u['seven_day']:g}%, 5-hour session {u.get('five_hour') or 0:g}%; weekly reset: "
               + (f"{r.astimezone():%a %d %b %H:%M}" if r else "unknown"))
         if r and answer(state(), r) != "normal":
             print(f"  this cycle: {'use all the usage left' if answer(state(), r) == 'all' else 'skipped'} "

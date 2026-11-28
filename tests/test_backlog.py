@@ -129,6 +129,68 @@ class TestBacklog(unittest.TestCase):
         self.assertTrue(self.B.in_quiet(s, local(5, 59)))
         self.assertFalse(self.B.in_quiet(s, local(23, 0)))
 
+    def test_quiet_hours_spellings_and_unreadable_ones(self):
+        for text, want in [("0000-0600", "00:00-06:00"), ("12am-6am", "00:00-06:00"), ("10pm-6am", "22:00-06:00"),
+                           ("1am to 5am", "01:00-05:00"), ("22h-6h", "22:00-06:00"), ("", "")]:
+            self.assertEqual(self.B.normal_quiet(text), want, text)
+        self.cli("add", "Something to run")
+        self.B.trusted = lambda: True
+        self.setting("**Quiet hours:**", "**Quiet hours:** after dinner")
+        s, day = self.B.settings(), datetime(2026, 11, 6, 14).astimezone()
+        self.assertFalse(self.B.in_quiet(s, day))                   # never "any hour"
+        u = {"seven_day": 10, "five_hour": None, "week_resets_at": (day + timedelta(hours=5)).isoformat()}
+        with mock.patch.object(self.B, "others_busy", return_value=None):
+            self.assertIn("can't be read", self.B.why_not(s, u, day, st={}))
+        self.assertIn("until the quiet hours", self.B.plan(s))
+
+    def test_unclear_quiet_hours_past_resets_and_clock_changes(self):
+        for bad in ("10-6", "11-7"):
+            with self.assertRaises(ValueError):
+                self.B.parse_quiet(bad)
+        self.assertEqual(self.B.normal_quiet("22-6"), "22:00-06:00")
+        self.setting("**Weekly reset (if it can't be read):**", "**Weekly reset (if it can't be read):** Tuesday 09:00")
+        s = self.B.settings()
+        past = {"seven_day": 5, "week_resets_at": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()}
+        r = self.B.week_reset(past, s)                     # a passed reset is ignored: the setting is used
+        self.assertEqual((r.weekday(), r.hour), (1, 9))
+        with mock.patch.dict(os.environ, {"TZ": "Europe/London"}):
+            time.tzset()
+            try:
+                class Fixed(datetime):
+                    @classmethod
+                    def now(cls, tz=None):
+                        return datetime(2026, 10, 23, 12, tzinfo=tz) if tz else datetime(2026, 10, 23, 12)
+                with mock.patch.object(self.B, "datetime", Fixed):
+                    r = self.B.week_reset(None, s)         # clocks go back on Sunday 25 October
+                self.assertEqual((r.day, r.hour, r.utcoffset()), (27, 9, timedelta(0)))
+            finally:
+                os.environ.pop("TZ", None)
+        time.tzset()
+
+    def test_use_it_all_keeps_the_caps_with_paid_extra_usage(self):
+        s = self.B.settings()
+        self.assertEqual(self.B.limits(s, "all", {"extra_usage": False}), (98, 98))
+        self.assertEqual(self.B.limits(s, "all", {"extra_usage": True}), (90, 90))
+        self.cli("add", "Something to run")
+        self.B.trusted = lambda: True
+        day = datetime(2026, 11, 6, 14).astimezone()
+        u = {"seven_day": 93, "five_hour": 10, "extra_usage": True,
+             "week_resets_at": (day + timedelta(hours=5)).isoformat()}
+        allst = {"answer": {"for": self.B.week_key(day + timedelta(hours=5)), "choice": "all"}}
+        with mock.patch.object(self.B, "others_busy", return_value=None):
+            self.assertIn("cap is 90%", self.B.why_not(s, u, day, st=allst))
+            self.assertIsNone(self.B.why_not(s, {**u, "extra_usage": False}, day, st=allst))
+
+    def test_empty_session_window_and_reset_without_zone(self):
+        self.cli("add", "Something to run")
+        self.B.trusted = lambda: True
+        s, now = self.B.settings(), datetime(2026, 11, 6, 12, tzinfo=timezone.utc)
+        u = {"seven_day": 10, "five_hour": None, "week_resets_at": "2026-11-06T20:00:00"}   # no zone: UTC
+        self.assertEqual(self.B.week_reset(u, s, now), datetime(2026, 11, 6, 20, tzinfo=timezone.utc))
+        self.assertIsNotNone(self.B.parse_time("2026-11-06T20:00:00.01765Z"))
+        with mock.patch.object(self.B, "others_busy", return_value=None):
+            self.assertIsNone(self.B.why_not(s, u, now, st={}))
+
     def test_quiet_hours_session_share_and_answers(self):
         self.cli("add", "Something to run")
         self.B.trusted = lambda: True
