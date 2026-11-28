@@ -929,6 +929,17 @@ class TestScanCadence(Workspace):
             (self.ws / "my" / "techwatch.md").write_text(f"**Scans:** {text}\n")
             self.assertEqual(self.review.prefs()["scans"], want, text)
 
+    def test_a_scan_that_works_clears_out_of_date_scan_problems(self):
+        tw = self.runner("**Tech watch runs:** automatically\n")
+        tw.scout = lambda mode, prompt: ("ok", "", "")
+        tw.review.announce_major = lambda log: None
+        for text, cleared in (("skipped a daily run: this month's spend ... would pass the monthly cap", True),
+                              ("weekly run failed and won't be retried", True),
+                              ("staging 2026-11-20-x failed: no bundle", False)):
+            tw.mark("last_problem", f"2026-11-28 09:00 {text}")
+            tw.scan("daily")
+            self.assertEqual(tw.st("last_problem") == "", cleared, text)
+
     def test_monthly_cap_of_your_own(self):
         tw = self.runner("**Monthly cap:**\n")
         self.assertEqual(tw.monthly_cap()[0], float(tw.CONFIG["monthly_cap_usd"]))
@@ -936,6 +947,15 @@ class TestScanCadence(Workspace):
         self.assertEqual(tw.monthly_cap()[0], 1000.5)
         (self.ws / "my" / "techwatch.md").write_text("**Monthly cap:** $2\n")
         self.assertFalse(tw.within_cap("weekly"))   # $4 run, $2 cap
+
+    def test_a_daily_scan_leaves_room_for_a_weekly_one(self):
+        tw = self.runner("**Monthly cap:** $10\n")
+        tw.month_spend = lambda: 7.0
+        self.assertFalse(tw.within_cap("daily"))    # $1.50 would fit, but then a $4 weekly wouldn't
+        self.assertFalse(tw.within_cap("weekly"))
+        tw.month_spend = lambda: 6.0
+        self.assertTrue(tw.within_cap("daily"))
+        self.assertTrue(tw.within_cap("weekly"))
 
 
 class TestFeedbackAndCheckpoints(Workspace):
@@ -1002,6 +1022,8 @@ class TestScouts(unittest.TestCase):
             self.assertEqual(read("Glob", {"pattern": f"{Path.home()}/.ssh/*"}, ws), 2)
             self.assertEqual(read("Glob", {"pattern": "../**"}, ws), 2)
             self.assertEqual(read("Read", {"file_path": str(ws / ".env")}, ws), 2)
+            self.assertEqual(read("Read", {"file_path": str(ws / "my" / "notify.json")}, ws), 2)
+            self.assertEqual(read("Read", {"file_path": str(ws / ".claude" / "settings.local.json")}, ws), 2)
         s = load(REPO / "techwatch" / "scripts" / "techwatch.py", "techwatch_mod2").scout_settings(("inbox",))
         self.assertTrue(any(m["matcher"] == "Read|Glob|Grep" for m in s["hooks"]["PreToolUse"]))
 
@@ -1015,6 +1037,109 @@ class TestScouts(unittest.TestCase):
         edits = [a for a in allow if a.startswith("Edit(")]
         self.assertEqual(len(edits), 2)
         self.assertTrue(all("/techwatch/inbox/" in e or "/techwatch/proposals/" in e for e in edits))
+        # bare Glob/Grep rules let Grep search outside the Read rules (live-tested on 2.1.332)
+        self.assertFalse({"Glob", "Grep"} & set(allow))
+
+
+class TestSensor(unittest.TestCase):
+    """Feeds, character sets and the one retry. No network: urlopen is faked."""
+
+    def setUp(self):
+        self.S = load(REPO / "techwatch" / "scripts" / "sensor.py", f"sensor_{id(self)}")
+
+    def response(self, body, charset="utf-8"):
+        import io
+
+        class R(io.BytesIO):
+            class headers:
+                get_content_charset = staticmethod(lambda: charset)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        return R(body)
+
+    def test_rss1_rdf_and_rss2_feeds(self):
+        rdf = ('<?xml version="1.0"?><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" '
+               'xmlns="http://purl.org/rss/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/">'
+               '<item rdf:about="https://x/1"><title>RDF one</title><link>https://x/1</link>'
+               '<dc:date>2026-11-20</dc:date></item></rdf:RDF>')
+        self.assertEqual(self.S.to_lines({"type": "atom"}, rdf), ["2026-11-20 | RDF one | https://x/1"])
+        rss2 = ('<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><item><title>Two</title>'
+                '<atom:link href="https://x/self" rel="self"/><link>https://x/2</link>'
+                '<pubDate>Fri, 20 Nov 2026 10:00:00 GMT</pubDate></item></channel></rss>')
+        self.assertEqual(self.S.to_lines({"type": "atom"}, rss2), ["Fri, 20 Nov 2026 | Two | https://x/2"])
+
+    def test_unknown_charset_falls_back(self):
+        from unittest import mock
+        with mock.patch.object(self.S.urllib.request, "urlopen",
+                               return_value=self.response(b"<p>hello world</p>", "klingon")):
+            self.assertEqual(self.S.fetch("https://x/", "ua", 5), "<p>hello world</p>")
+
+    def test_retry_once_on_dropped_connection_or_5xx(self):
+        import io
+        from unittest import mock
+        S = self.S
+        err502 = S.urllib.error.HTTPError("https://x/", 502, "Bad Gateway", {}, io.BytesIO())
+        self.addCleanup(err502.close)
+        for first in (ConnectionResetError(104, "reset"), S.urllib.error.URLError("reset"), err502):
+            with mock.patch.object(S.urllib.request, "urlopen", side_effect=[first, self.response(b"ok then")]), \
+                    mock.patch.object(S.time, "sleep"):
+                self.assertEqual(S.fetch("https://x/", "ua", 5), "ok then")
+        err404 = S.urllib.error.HTTPError("https://x/", 404, "Not Found", {}, io.BytesIO())
+        self.addCleanup(err404.close)
+        with mock.patch.object(S.urllib.request, "urlopen", side_effect=[err404]), self.assertRaises(Exception):
+            S.fetch("https://x/", "ua", 5)                           # a 404 isn't retried
+        with mock.patch.object(S.urllib.request, "urlopen", side_effect=[err502, err502]), \
+                mock.patch.object(S.time, "sleep"), self.assertRaises(Exception):
+            S.fetch("https://x/", "ua", 5)                           # only once
+
+    def run_main(self, root, page):
+        """sensor.main with one source whose fetch returns `page`, in a temporary techwatch folder."""
+        from unittest import mock
+        S = self.S
+        cfg = {"sensor": {"user_agent": "ua", "timeout_s": 5, "max_new_lines_per_source": 40,
+                          "sources": [{"id": "news", "url": "https://x/news", "type": "html"}]}}
+        (root / "config.json").write_text(json.dumps(cfg))
+        with mock.patch.multiple(S, CONFIG=root / "config.json", STATE=root / "state", INBOX=root / "inbox"), \
+                mock.patch.object(S, "fetch", return_value=page), mock.patch("builtins.print"):
+            S.main([])
+        return "\n".join(f.read_text() for f in sorted((root / "inbox").glob("sensor-*.md")))
+
+    def test_bot_check_page_keeps_the_saved_copy(self):
+        menu = "<ul>" + "".join(f"<li>Menu item {i}</li>" for i in range(30)) + "</ul>"
+        challenge = ("<html><head><title>Just a moment...</title></head><body>Enable JavaScript and cookies to "
+                     "continue<script>window._cf_chl_opt={}</script></body></html>")
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self.run_main(root, menu + "<p>Story one</p>")
+            self.assertIn("bot-check page", self.run_main(root, challenge))
+            last = self.run_main(root, menu + "<p>Story two</p>").split("Sensor re-run")[-1]
+            self.assertIn("Story two", last)
+            self.assertNotIn("Menu item 7", last)                   # not a flood of "new" lines
+            self.assertIn("(1 new line)", last)                      # and not "(1 lines)"
+
+    def test_times_and_counts_inside_a_line_are_not_news(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            self.run_main(root, "<li>Claude 5 is out · 42 points · 3 hours ago · 17 comments</li>" + "<li>Other story</li>")
+            text = self.run_main(root, "<li>Claude 5 is out · 97 points · 5 hours ago · 40 comments</li><li>Other story</li>")
+            self.assertIn("No new lines", text.split("Sensor re-run")[-1])
+        with tempfile.TemporaryDirectory() as d:   # a saved copy from before this update, with the times still in
+            root = Path(d)
+            (root / "state" / "sensor").mkdir(parents=True)
+            (root / "state" / "sensor" / "news.txt").write_text("Story one · 4 points · 3 hours ago\nOther story")
+            text = self.run_main(root, "<li>Story one · 9 points · 8 hours ago</li><li>Other story</li>")
+            self.assertIn("No new lines", text)
+
+    def test_feed_with_html_entities_or_bad_xml(self):
+        feed = ('<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Claude&nbsp;5 &amp; R&D</title>'
+                '<updated>2026-11-25</updated><link href="https://x/2"/></entry></feed>')
+        self.assertEqual(self.S.to_lines({"type": "atom"}, feed), ["2026-11-25 | Claude 5 & R&D | https://x/2"])
+        broken = '<?xml version="1.0"?><rss><channel><item><title>Kept anyway</title><foo></item></rss>'
+        self.assertIn("Kept anyway", " ".join(self.S.to_lines({"type": "atom"}, broken)))
 
 
 class TestCheckRun(TestAutomatic):

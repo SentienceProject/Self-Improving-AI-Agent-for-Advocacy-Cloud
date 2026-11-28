@@ -157,9 +157,13 @@ def monthly_cap():
 def within_cap(mode):
     cap, where = monthly_cap()
     budget = float(CONFIG["runs"][mode]["max_budget_usd"])
-    if cap and month_spend() + budget > cap:
-        problem(f"skipped a {mode} run: this month's spend (${month_spend():.2f}) plus its cap (${budget:.2f}) would "
-                f"pass the monthly cap (${cap:.2f}, {where})")
+    # a daily scan leaves room for a weekly one, which looks wider: otherwise dailies late in the month can use up
+    # the cap and the weekly scan never runs
+    need = max(budget, float(CONFIG["runs"]["weekly"]["max_budget_usd"])) if mode == "daily" else budget
+    if cap and month_spend() + need > cap:
+        room = f", keeping room for a weekly scan at ${need:.2f}" if need > budget else ""
+        problem(f"skipped a {mode} run: this month's spend (${month_spend():.2f}) plus its cap (${budget:.2f}{room}) "
+                f"would pass the monthly cap (${cap:.2f}, {where})")
         return False
     return True
 
@@ -178,7 +182,9 @@ def scout_settings(writable):
         "autoMemoryEnabled": False,   # scouts keep no Claude Code memory; their notes go in techwatch/inbox
         "permissions": {
             "defaultMode": "dontAsk",
-            "allow": [f"Read({wsr}/**)", "Glob", "Grep", "WebSearch", "WebFetch"]
+            # No bare "Glob"/"Grep" rules: on 2.1.332 those let Grep search anywhere (~/.bashrc, ~/.claude); without
+            # them Glob and Grep follow the Read rules. The read guard below checks them too.
+            "allow": [f"Read({wsr}/**)", "WebSearch", "WebFetch"]
                      + [f"Edit({rule_path(TW / w)}/**)" for w in writable],
             "deny": ["Bash", "PowerShell", "NotebookEdit", "CronCreate", "RemoteTrigger", "ScheduleWakeup",
                      f"Read({homer}/.ssh/**)", f"Read({homer}/.aws/**)", f"Read({homer}/.claude/.credentials.json)",
@@ -188,7 +194,10 @@ def scout_settings(writable):
                      f"Read({wsr}/.env)", f"Read({wsr}/**/.env)", f"Read({homer}/.codex/**)",
                      f"Read({homer}/.config/gcloud/**)", f"Read({homer}/.azure/**)", f"Read({homer}/.kube/**)",
                      f"Read({homer}/.netrc)", f"Read({homer}/.gnupg/**)", f"Read({homer}/.claude/settings.json)",
-                     f"Read({homer}/ai-welfare-checkpoints/**)"],
+                     f"Read({homer}/ai-welfare-checkpoints/**)",
+                     # scouts read web pages, and a page could trick one into putting what it read into a URL:
+                     # nothing that works as a key (your notification topic, local settings that can hold "env")
+                     f"Read({wsr}/my/notify.json)", f"Read({wsr}/**/settings.local.json)"],
         },
         "hooks": {"PreToolUse": [{"matcher": "Edit|Write|MultiEdit|NotebookEdit",
                                   "hooks": [{"type": "command", "command": guard}]},
@@ -456,6 +465,10 @@ def weekly_due():
 def scan(mode):
     kind, retry_at, reason = scout(mode, f"{mode}.md")
     if kind == "ok":
+        # a scan worked: notes that scans were skipped or failing are out of date (other problems stay)
+        if re.search(r"skipped a (daily|weekly) run|(daily|weekly) run failed|every sensor source failed|gave up on",
+                     st("last_problem")):
+            (STATE / "last_problem").unlink(missing_ok=True)
         try:
             review.announce_major(log)   # a phone notification for a new major proposal, straight away
         except Exception as e:   # noqa: BLE001  (a notification never stops a scan)
@@ -573,8 +586,10 @@ def note_schedule_off():
 
 
 def schedule(action):
-    claude_dir = str(Path(claude_bin()).parent)
-    path = f"{claude_dir}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
+    # the folders holding claude and node (an npm-installed claude starts with `#!/usr/bin/env node`, and node may
+    # live under ~/.nvm), then the usual ones; not the whole login PATH, which can be long enough for cron to cut
+    dirs = [str(Path(e).parent) for e in (claude_bin(), shutil.which("node")) if e]
+    path = ":".join(dict.fromkeys(dirs + ["/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin"]))
     script = (TW / "scripts" / "techwatch.py").as_posix()
     if sys.platform == "darwin":
         if action == "on":

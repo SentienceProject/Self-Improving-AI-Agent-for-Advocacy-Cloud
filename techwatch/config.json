@@ -115,13 +115,13 @@
       {
         "_comment": "Community sources: what practitioners say works. Leads to trace to a primary source or test, never evidence on their own. Reddit isn't here because it refuses feed readers; the weekly scout searches it instead (prompts/weekly.md, community pass).",
         "id": "hn-claude",
-        "url": "https://hnrss.org/newest?q=Claude&points=50",
+        "url": "https://hnrss.org/newest?q=Claude&points=50&search_attrs=title",
         "type": "atom",
         "why": "Hacker News stories about Claude with 50+ points: launches and practitioners' write-ups"
       },
       {
         "id": "hn-agents",
-        "url": "https://hnrss.org/newest?q=%22AI+agents%22+OR+subagents+OR+%22Claude+Code%22&points=40",
+        "url": "https://hnrss.org/newest?q=%22AI+agents%22&points=40&search_attrs=title",
         "type": "atom",
         "why": "Hacker News stories about AI agents with 40+ points: what people are building and what works"
       },

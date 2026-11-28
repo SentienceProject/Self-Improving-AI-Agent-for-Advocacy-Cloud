@@ -6,8 +6,8 @@
 
 techwatch.py generates each scout's settings with this hook and the folders that run may write (a daily or weekly
 scan: techwatch/inbox and techwatch/proposals; a staging run: its own techwatch/staged/<id>/). It backs up the
-permission rules, which a user-level "allow" could otherwise widen, and keeps Glob and Grep (allowed without a path
-in the rules) inside the workspace, away from .env files. Exit 2 blocks the call and tells the scout why.
+permission rules, which a user-level "allow" could otherwise widen, and keeps Glob and Grep (whose path rules are
+looser than Read's) inside the workspace, away from .env files. Exit 2 blocks the call and tells the scout why.
 Any error blocks too: a guard that fails open isn't a guard.
 """
 import json
@@ -15,6 +15,10 @@ import os
 import re
 import sys
 from pathlib import Path
+
+
+# Files that work as keys. Scouts read web pages, and a page could trick one into putting what it read into a URL.
+KEYS = {"notify.json", "settings.local.json", ".credentials.json"}
 
 
 def inside(target, dirs):
@@ -33,7 +37,7 @@ def check_read(ws, event):
         if not inside(target, [ws]):
             print(f"scout_guard: scouts read only inside the workspace ({ws}), not {raw}", file=sys.stderr)
             return 2
-        if target.name.startswith(".env"):
+        if target.name.startswith(".env") or target.name in KEYS:
             print(f"scout_guard: scouts don't read {target.name} files", file=sys.stderr)
             return 2
     return 0
