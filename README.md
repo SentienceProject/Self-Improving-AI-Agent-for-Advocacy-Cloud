@@ -174,7 +174,8 @@ Other things worth knowing:
 - **Citation check.** Before the verifier reads a draft, Claude runs `scripts/check_citations.py` on it. The script
   checks that every arXiv ID and DOI exists and matches the cited title, author and year, flags retracted papers,
   opens every link in the draft and flags broken ones, saves the linked pages as text for the verifier, and checks
-  quotes word for word against the corpus and the pages they cite. Opening the links lets those sites see what's
+  quotes word for word against the source each one cites (the corpus, the linked pages, papers' abstracts),
+  flagging a quote whose words come from a different source. Opening the links lets those sites see what's
   being read; `--no-links` or `--offline` avoids that. It uses no AI. It only catches broken references, not a
   real paper cited for something it doesn't say; the verifier still checks that.
 - **Starting fresh.** When a session has grown large, Claude Code shows a tip to type `/clear` before an unrelated

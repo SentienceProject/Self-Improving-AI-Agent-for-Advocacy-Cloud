@@ -31,21 +31,29 @@ make the Read calls in the same turn. Fetch web pages with WebFetch, not `curl`.
 
 You have no write access. You may fetch a URL the draft cites, to check the
 claim against the page. Do not research beyond the draft's own citations: you
-are checking what was claimed, not looking for better sources.
+are checking what was claimed, not looking for better sources. Looking up a cited paper's own record is part of
+checking that citation: whether it exists, its real title, authors and year, and whether it was retracted (PubMed,
+Crossref, the journal's page). If you can't find a record, report "couldn't confirm", not "checked". If a cited
+page won't open (some sites block WebFetch), try its copy at `https://web.archive.org/web/<link>`. If that fails too,
+the claim goes under "Not checkable", with the reason. Other coverage never confirms a claim in place of its source.
+If something outside the citations suggests the claim is wrong, you may raise it as a concern, saying where you saw
+it.
 
 ## Procedure
 
 Drafts end with a Citations section; the claims trace to those sources.
 
 If the brief includes a citation-check table (from `scripts/check_citations.py`), start there: every "check",
-"not found in catalogue", "retraction or withdrawal", "broken link" and "not verbatim" row goes in your report,
-confirmed or explained. "couldn't check", "refused" and "not checked" mean nothing was checked for that one, not
+"not found in catalogue", "retraction or withdrawal", "broken link", "not verbatim" and "found in another source"
+row goes in your report, confirmed or explained. "couldn't check", "refused" and "not checked" mean nothing was checked for that one, not
 that it's fine. The table covers links, identifiers and quotes only: a clean row says nothing about whether the
 source supports the claim, which is still your job below.
 
 If the brief names a folder of saved pages (the checker's `--save` folder in `workspace/citecheck/`), read those
 files with Read for anything quote-level, not WebFetch. WebFetch returns a model's summary of a page, not the page,
-and summaries have misreported what a source says and which sentence a citation was attached to. If a page you
+and summaries have misreported what a source says and which sentence a citation was attached to. A saved web page
+starts with the dates in its metadata (`[Page details]`, when it has them) and ends with where its links point
+(`[Links in the page text]`): use those to check a publication date or which report a page links to. If a page you
 need wasn't saved, WebFetch is acceptable, but ask it for the exact passage word for word, and say in your report
 that you saw a fetched version.
 
