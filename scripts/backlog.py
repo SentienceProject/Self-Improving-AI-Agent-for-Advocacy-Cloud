@@ -522,12 +522,14 @@ def others_busy():
 
 def trusted():
     """Whether Claude Code trusts this folder. Until you trust it (by opening `claude` here once and accepting), a
-    headless session ignores the workspace's allow rules, so a backlog run could do nothing at all."""
+    headless session ignores the workspace's allow rules, so a backlog run could do nothing at all. Trusting a folder
+    also trusts everything under it (Claude Code then doesn't ask again), so a parent's trust counts too."""
     try:
         projects = json.loads((Path.home() / ".claude.json").read_text(encoding="utf-8")).get("projects", {})
     except (OSError, ValueError):
         return False
-    return any((projects.get(k) or {}).get("hasTrustDialogAccepted") for k in {str(HERE), HERE.as_posix()})
+    return any((projects.get(k) or {}).get("hasTrustDialogAccepted")
+               for d in (HERE, *HERE.parents) for k in {str(d), d.as_posix()})
 
 
 def why_not(s, u, now=None, st=None):

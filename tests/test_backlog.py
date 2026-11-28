@@ -291,6 +291,23 @@ class TestBacklog(unittest.TestCase):
         with mock.patch.object(self.B, "others_busy", return_value=None):
             self.assertIn("doesn't trust this folder", self.B.why_not(self.B.settings(), u, now))
 
+    def test_trust_counts_from_the_folder_or_a_parent(self):
+        home = self.tmp / "home"
+        home.mkdir()
+        def trust(entries):
+            (home / ".claude.json").write_text(json.dumps({"projects": entries}), encoding="utf-8")
+        with mock.patch.object(Path, "home", return_value=home):
+            self.assertFalse(self.B.trusted())                                   # no ~/.claude.json
+            trust({})
+            self.assertFalse(self.B.trusted())
+            trust({str(self.B.HERE): {"hasTrustDialogAccepted": True}})
+            self.assertTrue(self.B.trusted())
+            trust({str(self.B.HERE.parent): {"hasTrustDialogAccepted": True}})  # e.g. the repository root
+            self.assertTrue(self.B.trusted())
+            trust({str(self.B.HERE.parent): {"hasTrustDialogAccepted": False},
+                   str(self.B.HERE / "workspace"): {"hasTrustDialogAccepted": True}})   # a subfolder doesn't count
+            self.assertFalse(self.B.trusted())
+
     def test_reset_from_setting_when_unreadable(self):
         f = self.tmp / "my" / "backlog.md"
         f.write_text(f.read_text().replace("**Weekly reset (if it can't be read):**", "**Weekly reset (if it can't be read):** Thursday 09:00"))
